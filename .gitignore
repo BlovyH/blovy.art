@@ -12,5 +12,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# docs: local progress notes, not committed
-docs/
+# temp: screenshots / generated images
+screenshot*.png
+*.png.bak
