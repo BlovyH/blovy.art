@@ -4,7 +4,17 @@
       <div class="center-toast">
         <h3 class="center-toast__title">{{ title }}</h3>
         <p class="center-toast__content">{{ message }}</p>
-        <button class="center-toast__btn" @click="$emit('close')">Got it</button>
+        <div class="center-toast__actions">
+          <button
+            v-if="cancelText"
+            class="center-toast__btn center-toast__btn--ghost"
+            @click="$emit('cancel')"
+          >{{ cancelText }}</button>
+          <button
+            class="center-toast__btn"
+            @click="$emit('close')"
+          >{{ confirmText }}</button>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -20,9 +30,17 @@ defineProps({
     type: String,
     default: '',
   },
+  confirmText: {
+    type: String,
+    default: 'Got it',
+  },
+  cancelText: {
+    type: String,
+    default: '',
+  },
 })
 
-defineEmits(['close'])
+defineEmits(['close', 'cancel'])
 </script>
 
 <style scoped>
@@ -42,7 +60,7 @@ defineEmits(['close'])
   border: 3px solid #ffffff;
   border-radius: 8px;
   padding: 24px;
-  max-width: 340px;
+  max-width: 360px;
   width: 100%;
   text-align: center;
   color: #ffffff;
@@ -57,17 +75,23 @@ defineEmits(['close'])
 .center-toast__content {
   font-size: clamp(13px, 4vw, 15px);
   line-height: 1.6;
-  margin: 0 0 20px;
+  margin: 0;
+}
+
+.center-toast__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 .center-toast__btn {
   flex: 1 1 0;
-  min-width: 140px;
+  min-width: 120px;
   background: #000000;
   color: #ffffff;
   border: 3px solid #ffffff;
   border-radius: 0;
-  padding: 16px 20px;
+  padding: 14px 20px;
   font-family: var(--font-pixel);
   font-size: clamp(14px, 4vw, 18px);
   font-weight: bold;
@@ -76,6 +100,15 @@ defineEmits(['close'])
 }
 
 .center-toast__btn:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
+.center-toast__btn--ghost {
+  background: #000000;
+}
+
+.center-toast__btn--ghost:hover {
   background: #ffffff;
   color: #000000;
 }

@@ -207,7 +207,7 @@
     </div>
 
     <!-- Bottom Button -->
-    <button class="power-btn">巨硬™办公室力量点2003</button>
+    <button class="power-btn" @click="onPowerBtnClick">巨硬™办公室力量点2003</button>
 
     <!-- Footer -->
     <footer class="site-footer">
@@ -262,6 +262,17 @@
       message="I noticed you're on a phone. I might add support someday, but it's recommended you check it out on a computer for now."
       @close="mobileNoticeVisible = false"
     />
+
+    <!-- StickyKeys neta Toast (non-blocking, draggable, top-left) -->
+    <WinToast
+      v-if="stickyVisible"
+      title="StickyKeys"
+      icon="⚠"
+      message="Do you want to turn on StickyKeys?"
+      description="StickyKeys lets you activate ?!%$!? mode. The shortcut to turn it on is to tap the <br><span style='font-family: var(--font-fangsong)'>巨硬™办公室力量点2003</span> button 5 times in a row."
+      :buttons="[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]"
+      @action="onStickyAction"
+    />
   </main>
 </template>
 
@@ -274,6 +285,7 @@ import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
+import WinToast from '@/components/WinToast.vue'
 import { nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL } from '@/config/data.js'
 
@@ -412,6 +424,29 @@ const detailIndex = ref(0)
 const detailSide = ref('right')
 const nothingVisible = ref(false)
 const mobileNoticeVisible = ref(false)
+const stickyVisible = ref(false)
+const powerClickCount = ref(0)
+let lastPowerClick = 0
+
+function onPowerBtnClick() {
+  const now = Date.now()
+  if (now - lastPowerClick > 1500) {
+    powerClickCount.value = 0
+  }
+  lastPowerClick = now
+  powerClickCount.value += 1
+  if (powerClickCount.value >= 5) {
+    stickyVisible.value = true
+    powerClickCount.value = 0
+  }
+}
+
+function onStickyAction(value) {
+  if (value === 'no') {
+    stickyVisible.value = false
+  }
+  // value === 'yes': ?!%$!? mode 暂未实现，点了不关闭、无反应
+}
 
 function openNothingWindow() {
   nothingVisible.value = true
