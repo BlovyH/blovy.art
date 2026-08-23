@@ -82,8 +82,12 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   background: #000000;
-  border: 3px solid #ffffff;
-  border-radius: clamp(5px, 0.75vw, 10px);
+  border: 6px solid transparent;
+  border-image-source: url('/assets/window_frame.png');
+  border-image-slice: 6;
+  border-image-width: 6px;
+  border-image-repeat: round;
+  border-radius: 8px;
   padding: 28px 36px;
   color: #ffffff;
   font-family: var(--font-pixel);

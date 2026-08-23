@@ -95,32 +95,52 @@
         <template #label>Nothing</template>
       </DesktopIcon>
 
-      <!-- Notice Sign Placeholder -->
-      <div class="notice-sign">
-        <img src="/assets/placeholder.svg" alt="notice sign placeholder" @click="openNoticeSign" />
-      </div>
+      <!-- Notice Sign (draggable, always on top like other desktop icons) -->
+      <DesktopIcon
+        class="notice-sign-icon"
+        initial-left="68%"
+        initial-top="18%"
+        @click="openNoticeSign"
+      >
+        <template #icon>
+          <img class="notice-sign-img" src="/assets/sign.png" alt="notice sign" draggable="false" @dragstart.prevent />
+        </template>
+      </DesktopIcon>
 
       <!-- Social Links Window -->
       <PixelWindow
         class="social-window"
         title="SOCIAL LINKS"
         :controls="{ minimize: false, maximize: false, close: false }"
-        width="20%"
+        width="21%"
       >
-        <div class="social-body">
+        <div
+          ref="socialBodyRef"
+          class="social-body"
+          :style="{ '--sl-height': socialHeight + 'px' }"
+        >
           <div class="social-icons-row">
-            <a class="social-link" href="#" title="bilibili">
-              <div class="social-icon">📺</div>
-              <span class="social-id">@blovy</span>
-            </a>
-            <a class="social-link" href="#" title="xiaohongshu">
-              <div class="social-icon">📕</div>
-              <span class="social-id">@blovy</span>
-            </a>
-            <a class="social-link" href="#" title="X">
-              <div class="social-icon">𝕏</div>
-              <span class="social-id">@blovy</span>
-            </a>
+            <div
+              v-for="(item, idx) in socialLinks"
+              :key="item.key"
+              class="social-item"
+              :class="{
+                'social-item--first': idx === 0,
+                'social-item--last': idx === socialLinks.length - 1,
+              }"
+            >
+              <a class="social-card" :href="item.href" :title="item.label" target="_blank" rel="noopener noreferrer">
+                <img class="social-icon-img" :src="item.icon" :alt="item.label" />
+                <span class="social-label">{{ item.label }}</span>
+              </a>
+            </div>
+            <div class="social-email" @click="copyEmail">
+              <span class="email-default-text">contact via email</span>
+              <div class="email-hover-content">
+                <span class="email-address">blovysol@gmail.com</span>
+                <span class="email-copy-btn">{{ emailCopyText }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </PixelWindow>
@@ -334,10 +354,20 @@ onMounted(async () => {
   }
 
   window.addEventListener('resize', onWindowResize)
+
+  updateSocialHeight()
+  if (socialBodyRef.value && typeof ResizeObserver !== 'undefined') {
+    socialResizeObserver = new ResizeObserver(() => updateSocialHeight())
+    socialResizeObserver.observe(socialBodyRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
+  if (socialResizeObserver) {
+    socialResizeObserver.disconnect()
+    socialResizeObserver = null
+  }
 })
 
 function onWindowResize() {
@@ -427,6 +457,36 @@ const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
 const powerClickCount = ref(0)
 let lastPowerClick = 0
+
+const socialLinks = [
+  { key: 'bili', label: 'bilibili', icon: '/assets/sl_icon_bili.png', href: 'https://space.bilibili.com/160911011' },
+  { key: 'rb',   label: 'redbook',  icon: '/assets/sl_icon_rb.png',   href: 'https://www.xiaohongshu.com/user/profile/670bdcfc000000001d0300c7' },
+  { key: 'p',    label: 'pixiv',    icon: '/assets/sl_icon_p.png',     href: 'https://www.pixiv.net/users/118581129' },
+  { key: 'bs',   label: 'bluesky',  icon: '/assets/sl_icon_bs.png',    href: 'https://bsky.app/profile/blovy.art' },
+  { key: 'kofi', label: 'ko-fi',    icon: '/assets/sl_icon_kofi.png',  href: 'https://ko-fi.com/blovyh' },
+]
+
+const emailCopyText = ref('copy to clipboard')
+let emailCopyTimer = null
+const socialBodyRef = ref(null)
+const socialHeight = ref(120)
+let socialResizeObserver = null
+
+function updateSocialHeight() {
+  if (socialBodyRef.value) {
+    socialHeight.value = socialBodyRef.value.scrollHeight
+  }
+}
+
+function copyEmail() {
+  navigator.clipboard.writeText('blovysol@gmail.com').then(() => {
+    emailCopyText.value = 'copied!'
+    clearTimeout(emailCopyTimer)
+    emailCopyTimer = setTimeout(() => {
+      emailCopyText.value = 'copy to clipboard'
+    }, 2000)
+  })
+}
 
 function onPowerBtnClick() {
   const now = Date.now()
@@ -732,34 +792,23 @@ function onOptionSelect(value) {
   cursor: pointer;
 }
 
-/* Notice Sign */
-.notice-sign {
-  position: absolute;
-  top: 14%;
-  left: 72%;
-  width: clamp(48px, 5vw, 72px);
-  height: 160px;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Notice Sign (DesktopIcon: always on top + draggable) */
+.notice-sign-icon.desktop-icon {
+  width: clamp(56px, 6vw, 88px);
+  height: auto;
+  padding: 0;
 }
 
-.notice-sign img {
+.notice-sign-icon :deep(.desktop-icon__visual) {
   width: 100%;
-  height: 100px;
+  height: auto;
+}
+
+.notice-sign-img {
+  width: 100%;
+  height: auto;
   object-fit: contain;
   image-rendering: pixelated;
-  border: 2px solid #ffffff;
-  background: #000;
-  cursor: pointer;
-}
-
-.notice-sign::after {
-  content: '';
-  width: 3px;
-  height: 60px;
-  background: #ffffff;
 }
 
 /* Nothing Desktop Icon */
@@ -775,49 +824,150 @@ function onOptionSelect(value) {
   right: 2%;
 }
 
+/* Tighten spacing for SL window only (no global side effects) */
+.social-window :deep(.pixel-titlebar) {
+  padding: 8px 12px 6px;
+}
+
+.social-window :deep(.pixel-window__content) {
+  padding-top: 8px;
+}
+
 .social-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  max-height: var(--sl-height, auto);
+  transition: max-height 0.25s ease;
 }
 
 .social-icons-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.social-link {
+/* ── Social icon items: width follows content (icon + expanding label) ── */
+.social-item {
+  height: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  flex-shrink: 0;
+  transition: max-width 0.25s ease;
+}
+
+.social-item:hover {
+  max-width: 140px;
+}
+
+.social-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  width: max-content;
+  height: 100%;
+  padding: 8px;
+  border: 2px solid #808080;
+  background: transparent;
   color: #ffffff;
   text-decoration: none;
+  transition: border-color 0.15s ease;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-.social-icon {
-  width: clamp(40px, 3.6vw, 58px);
-  height: clamp(40px, 3.6vw, 58px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #ffffff;
-  font-size: clamp(18px, 1.8vw, 28px);
+.social-card:hover {
+  border-color: #ffffff;
+}
+
+.social-icon-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
   flex-shrink: 0;
 }
 
-.social-id {
-  font-size: clamp(10px, 0.9vw, 14px);
-  color: #808080;
-  opacity: 0;
-  transition: opacity 0.2s;
+.social-label {
+  font-size: 14px;
   white-space: nowrap;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
+  color: var(--color-text-cyan);
+  transition:
+    opacity 0.2s ease 0.05s,
+    max-width 0.25s ease,
+    margin-left 0.25s ease;
 }
 
-.social-link:hover .social-id {
+.social-item:hover .social-label {
   opacity: 1;
-  color: #00ffff;
+  max-width: 120px;
+  margin-left: 6px;
+}
+
+/* ── Email box (fills remaining row width) ── */
+.social-email {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 2px solid #808080;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  user-select: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.social-email:hover {
+  border-color: #ffffff;
+}
+
+.email-default-text {
+  font-size: 18px;
+  color: #808080;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.email-hover-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.social-email:hover .email-default-text {
+  opacity: 0;
+}
+
+.social-email:hover .email-hover-content {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.email-address {
+  font-size: 15px;
+  color: #ffffff;
+  word-break: break-all;
+  text-align: center;
+}
+
+.email-copy-btn {
+  font-size: 10px;
+  color: #808080;
 }
 
 /* Comments Window */
@@ -946,8 +1096,13 @@ function onOptionSelect(value) {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  border: 1px solid #c0c0c0;
-  border-radius: clamp(3px, 0.5vw, 6px);
+  border: 3px solid transparent;
+  border-image-source: url('/assets/window_frame_sub.png');
+  border-image-slice: 6;
+  border-image-width: 3px;
+  border-image-repeat: round;
+  border-radius: 2px;
+  overflow: hidden;
   padding: 14px;
 }
 

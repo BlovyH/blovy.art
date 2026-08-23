@@ -97,6 +97,7 @@ function onMouseUp() {
 .desktop-icon.dragging {
   background: rgba(255, 255, 255, 0.35);
   border-radius: 8px;
+  cursor: move;
 }
 
 .desktop-icon__visual {

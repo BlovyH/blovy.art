@@ -21,7 +21,7 @@
           aria-label="minimize"
           @mousedown.stop
         >
-          —
+          <img src="/assets/window_btn_min.png" alt="" />
         </button>
         <button
           v-if="controlFlags.maximize"
@@ -29,7 +29,7 @@
           aria-label="maximize"
           @mousedown.stop
         >
-          □
+          <img src="/assets/window_btn_max.png" alt="" />
         </button>
         <button
           v-if="controlFlags.close"
@@ -38,7 +38,7 @@
           @mousedown.stop
           @click.stop="onCloseClick"
         >
-          ✕
+          <img src="/assets/window_btn_c.png" alt="" />
         </button>
       </div>
     </div>
@@ -252,8 +252,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .pixel-window {
   background: #000000;
-  border: 3px solid #ffffff;
-  border-radius: clamp(5px, 0.75vw, 10px);
+  border: 6px solid transparent;
+  border-image-source: url('/assets/window_frame.png');
+  border-image-slice: 6;
+  border-image-width: 6px;
+  border-image-repeat: round;
+  border-radius: 8px;
   color: #ffffff;
   display: flex;
   flex-direction: column;
@@ -304,24 +308,28 @@ onBeforeUnmount(() => {
 .pixel-control {
   background: transparent;
   border: none;
-  color: #ffffff;
-  font-size: 18px;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  line-height: 1;
   cursor: pointer;
 }
 
+.pixel-control img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .pixel-control:hover {
-  color: #808080;
+  opacity: 0.7;
 }
 
 .pixel-window__content {
-  padding: 20px;
+  padding: 18px;
   flex: 1;
   overflow: auto;
 }
