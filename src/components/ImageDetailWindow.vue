@@ -186,6 +186,9 @@ const parsedTags = computed(() => {
   line-height: 1.7;
   color: #00ffff;
   margin: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .detail-tags {

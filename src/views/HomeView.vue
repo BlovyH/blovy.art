@@ -184,6 +184,7 @@
           :show-title-bar="false"
           width="100%"
           :initial-z-index="100"
+          @dragend="onFandomDragEnd"
         >
           <div
             class="fandom-collapsible"
@@ -204,9 +205,10 @@
             >
               <div class="fandom-body">
                 <div
-                  v-for="project in fandomProjects"
+                  v-for="(project, idx) in fandomProjects"
                   :key="project.title"
                   class="fandom-item"
+                  @click="openFPDetail(idx)"
                 >
                   <div class="fandom-info">
                     <p class="fandom-title">{{ project.title }}</p>
@@ -269,6 +271,17 @@
       @download="detailDownload"
     />
 
+    <!-- Fandom Project Detail Window -->
+    <FPDetailWindow
+      v-if="fpDetailVisible && fpDetailItem"
+      :item="fpDetailItem"
+      :vertical="fpDetailVertical"
+      :preview-active="fpPreviewItemId === fpDetailItem?.title"
+      @close="closeFPDetail"
+      @download="fpDetailDownload"
+      @preview="onFPPreviewToggle"
+    />
+
     <!-- Nothing Search Window -->
     <NothingWindow
       v-if="nothingVisible"
@@ -302,12 +315,13 @@ import PixelWindow from '@/components/PixelWindow.vue'
 import DialogBox from '@/components/DialogBox.vue'
 import OptionBox from '@/components/OptionBox.vue'
 import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
+import FPDetailWindow from '@/components/FPDetailWindow.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
 import { nextZ } from '@/stores/windowZ.js'
-import { CONTENT_DATA_URL } from '@/config/data.js'
+import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 
 const fandomWindowRef = ref(null)
 const fandomContentRef = ref(null)
@@ -332,6 +346,36 @@ const filteredGalleryItems = computed(() => {
   if (activeCategory.value === 'all') return galleryItems.value
   return galleryItems.value.filter(item => item.category === activeCategory.value)
 })
+const fpDetailItem = computed(() => fandomProjects.value[fpDetailIndex.value] || null)
+
+// 远端内容热更新（Nacos 式）：仅在 CONTENT_DATA_URL 为外部直链时轮询
+const isContentRemote = CONTENT_DATA_URL && !CONTENT_DATA_URL.startsWith('/')
+let contentPollTimer = null
+let contentSignature = ''
+
+async function loadContent() {
+  if (!CONTENT_DATA_URL) return
+  // 拼 _t 破 Cloudflare 边缘缓存，否则永远拿到旧 JSON
+  const sep = CONTENT_DATA_URL.includes('?') ? '&' : '?'
+  const url = `${CONTENT_DATA_URL}${sep}_t=${Date.now()}`
+  try {
+    const res = await fetch(url)
+    const data = await res.json()
+    // 变更检测：仅内容真正变化时重新赋值，避免无谓重渲染
+    const sig = JSON.stringify([data.gallery, data.notes, data.fandomProjects])
+    if (sig === contentSignature) return
+    contentSignature = sig
+    galleryItems.value = data.gallery || []
+    notes.value = data.notes || []
+    fandomProjects.value = data.fandomProjects || []
+  } catch (e) {
+    console.error('Failed to load content:', e)
+  }
+}
+
+function onContentVisibility() {
+  if (document.visibilityState === 'visible') loadContent()
+}
 
 onMounted(async () => {
   if (!CONTENT_DATA_URL) {
@@ -339,15 +383,7 @@ onMounted(async () => {
     return
   }
 
-  try {
-    const res = await fetch(CONTENT_DATA_URL)
-    const data = await res.json()
-    galleryItems.value = data.gallery || []
-    notes.value = data.notes || []
-    fandomProjects.value = data.fandomProjects || []
-  } catch (e) {
-    console.error('Failed to load content:', e)
-  }
+  await loadContent()
 
   if (isMobile()) {
     mobileNoticeVisible.value = true
@@ -360,6 +396,11 @@ onMounted(async () => {
     socialResizeObserver = new ResizeObserver(() => updateSocialHeight())
     socialResizeObserver.observe(socialBodyRef.value)
   }
+
+  if (isContentRemote) {
+    contentPollTimer = setInterval(loadContent, CONTENT_POLL_INTERVAL_MS)
+    document.addEventListener('visibilitychange', onContentVisibility)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -368,11 +409,20 @@ onBeforeUnmount(() => {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
   }
+  applyCursorPreview(null)
+  if (contentPollTimer) {
+    clearInterval(contentPollTimer)
+    contentPollTimer = null
+  }
+  document.removeEventListener('visibilitychange', onContentVisibility)
 })
 
 function onWindowResize() {
   if (detailVisible.value) {
     updateDetailSide()
+  }
+  if (fpDetailVisible.value) {
+    updateFPDetailVertical()
   }
 }
 
@@ -389,6 +439,7 @@ function handleFandomDrag(e) {
 
 function onFandomEnter() {
   clearTimeout(collapseTimer)
+  isFandomHovered.value = true
   if (isExpanded.value) return
 
   const content = fandomContentRef.value
@@ -414,7 +465,36 @@ function onFandomEnter() {
   })
 }
 
+function forceExpandFandom() {
+  clearTimeout(collapseTimer)
+  if (isExpanded.value) return
+
+  const content = fandomContentRef.value
+  if (!content) return
+  const header = content.previousElementSibling
+  if (!header) return
+  const headerRect = header.getBoundingClientRect()
+
+  content.style.transition = 'none'
+  content.style.maxHeight = 'none'
+  content.style.visibility = 'hidden'
+  const height = content.offsetHeight
+  content.style.visibility = ''
+  content.style.maxHeight = ''
+  content.style.transition = ''
+
+  expandHeight.value = height
+  expandUp.value = headerRect.bottom + height > window.innerHeight
+
+  requestAnimationFrame(() => {
+    isExpanded.value = true
+  })
+}
+
 function onFandomLeave() {
+  isFandomHovered.value = false
+  if (fpDetailVisible.value) return
+
   collapseTimer = setTimeout(() => {
     isExpanded.value = false
     expandUp.value = false
@@ -452,6 +532,11 @@ const droppedDialogContent = ref('HEY YOU DROPPED ME OUT!??!!!!!')
 const detailVisible = ref(false)
 const detailIndex = ref(0)
 const detailSide = ref('right')
+const fpDetailVisible = ref(false)
+const fpDetailIndex = ref(0)
+const fpDetailVertical = ref('above')
+const fpPreviewItemId = ref(null)
+const isFandomHovered = ref(false)
 const nothingVisible = ref(false)
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
@@ -576,6 +661,104 @@ function detailDownload() {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+}
+
+function updateFPDetailVertical() {
+  const el = fandomWindowRef.value?.$el
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  const centerY = rect.top + rect.height / 2
+  fpDetailVertical.value = centerY < window.innerHeight / 2 ? 'below' : 'above'
+}
+
+function openFPDetail(index) {
+  updateFPDetailVertical()
+  fpDetailIndex.value = index
+  fpDetailVisible.value = true
+  forceExpandFandom()
+}
+
+function onFandomDragEnd() {
+  if (!fpDetailVisible.value) return
+  updateFPDetailVertical()
+}
+
+function closeFPDetail() {
+  fpDetailVisible.value = false
+  if (!isFandomHovered.value) {
+    collapseTimer = setTimeout(() => {
+      isExpanded.value = false
+      expandUp.value = false
+    }, 80)
+  }
+}
+
+function fpDetailDownload() {
+  const item = fpDetailItem.value
+  if (!item || !item.downloadUrl || item.downloadUrl === '#') return
+  const a = document.createElement('a')
+  a.href = item.downloadUrl
+  a.target = '_blank'
+  a.download = item.title || 'cursor-set'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
+function onFPPreviewToggle({ active }) {
+  fpPreviewItemId.value = active ? fpDetailItem.value?.title : null
+  applyCursorPreview(active ? fpDetailItem.value?.cursors : null)
+}
+
+function applyCursorPreview(cursors) {
+  const styleId = 'fp-cursor-preview'
+  const existing = document.getElementById(styleId)
+  if (existing) {
+    existing.remove()
+  }
+  if (!cursors) return
+
+  // 每个光标可写成字符串 URL，或 { url, hotspot:[x,y] } 对象（热点想配就配）
+  const specOf = (key) => {
+    const v = cursors[key]
+    if (!v) return null
+    if (typeof v === 'string') return { url: v, hotspot: null }
+    return { url: v.url, hotspot: v.hotspot || null }
+  }
+  const expr = (key, fallback) => {
+    const s = specOf(key)
+    if (!s) return ''
+    const ok = Array.isArray(s.hotspot) && s.hotspot.length === 2 && s.hotspot.every((n) => typeof n === 'number')
+    const hs = ok ? ` ${s.hotspot[0]} ${s.hotspot[1]}` : ''
+    return `url("${s.url}")${hs}, ${fallback}`
+  }
+
+  const groups = [
+    { key: 'default', fallback: 'auto', selector: 'html, body' },
+    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], label, .tab, .gallery-thumb, .social-item, .social-email, .fandom-item, .fp-detail-btn, .page-arrow, .desktop-icon' },
+    { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .fp-detail-text, .detail-desc' },
+    { key: 'help', fallback: 'help', selector: '.fp-help-icon' },
+    { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .fandom-header, .desktop-icon.dragging' },
+    { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
+    { key: 'wait', fallback: 'wait', selector: 'html.fp-cursor-wait, html.fp-cursor-wait *' },
+    { key: 'progress', fallback: 'progress', selector: 'html.fp-cursor-progress, html.fp-cursor-progress *' },
+    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew' },
+    { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns' },
+    { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw' },
+    { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse' },
+  ]
+
+  const rules = []
+  for (const g of groups) {
+    const e = expr(g.key, g.fallback)
+    if (e) rules.push(`${g.selector} { cursor: ${e} !important; }`)
+  }
+
+  if (rules.length === 0) return
+  const style = document.createElement('style')
+  style.id = styleId
+  style.textContent = rules.join('\n')
+  document.head.appendChild(style)
 }
 
 const noticeFlow = {
@@ -1045,10 +1228,11 @@ function onOptionSelect(value) {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
+  cursor: move;
 }
 
 .fandom-title-text {
-  font-size: clamp(18px, 1.6vw, 26px);
+  font-size: clamp(24px, 2.2vw, 34px);
   font-weight: bold;
   color: #ffffff;
   text-transform: uppercase;
@@ -1104,6 +1288,7 @@ function onOptionSelect(value) {
   border-radius: 2px;
   overflow: hidden;
   padding: 14px;
+  cursor: pointer;
 }
 
 .fandom-info {

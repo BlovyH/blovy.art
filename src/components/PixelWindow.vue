@@ -113,6 +113,14 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  bottom: {
+    type: String,
+    default: '',
+  },
+  topAnchor: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['close', 'dragend'])
@@ -146,7 +154,19 @@ const windowStyle = computed(() => {
     zIndex: zIndex.value,
   }
   const verticalBase = props.top || '50%'
-  if (props.centered) {
+  const yShift = props.topAnchor ? `${drag.y}px` : `calc(-50% + ${drag.y}px)`
+
+  if (props.bottom) {
+    style.position = 'fixed'
+    style.bottom = props.bottom
+    style.left = '50%'
+    style.transform = `translate(calc(-50% + ${drag.x}px), ${drag.y}px)`
+  } else if (props.top && props.topAnchor) {
+    style.position = 'fixed'
+    style.top = props.top
+    style.left = '50%'
+    style.transform = `translate(calc(-50% + ${drag.x}px), ${drag.y}px)`
+  } else if (props.centered) {
     style.position = 'fixed'
     style.top = verticalBase
     style.left = '50%'
@@ -155,12 +175,12 @@ const windowStyle = computed(() => {
     style.position = 'fixed'
     style.top = verticalBase
     style.right = props.right
-    style.transform = `translate(${drag.x}px, calc(-50% + ${drag.y}px))`
+    style.transform = `translate(${drag.x}px, ${yShift})`
   } else if (props.left) {
     style.position = 'fixed'
     style.top = verticalBase
     style.left = props.left
-    style.transform = `translate(${drag.x}px, calc(-50% + ${drag.y}px))`
+    style.transform = `translate(${drag.x}px, ${yShift})`
   } else {
     style.transform = `translate(${drag.x}px, ${drag.y}px)`
   }
