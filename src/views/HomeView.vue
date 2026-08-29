@@ -155,17 +155,20 @@
         :initial-z-index="40"
       >
         <div class="comments-body">
-          <article
+          <a
             v-for="note in notes"
             :key="note.title"
             class="note-item"
+            :href="note.link || null"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <div class="note-main">
               <p class="note-title">{{ note.title }}</p>
-              <p class="note-tags">{{ note.tags }}</p>
+              <p class="note-tags">{{ formatTags(note.tags) }}</p>
             </div>
             <time class="note-date">{{ note.date }}</time>
-          </article>
+          </a>
         </div>
       </PixelWindow>
 
@@ -335,6 +338,12 @@ const notes = ref([])
 const fandomProjects = ref([])
 const currentYear = new Date().getFullYear()
 let collapseTimer = null
+
+const formatTags = (tags) => {
+  if (!tags) return ''
+  const arr = Array.isArray(tags) ? tags : String(tags).split(/\s+/).filter(Boolean)
+  return arr.map((t) => `#${String(t).replace(/^#/, '')}`).join(' ')
+}
 
 const categories = [
   { label: 'ALL', value: 'all' },
