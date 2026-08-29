@@ -20,3 +20,4 @@ screenshot*.png
 public/assets/fonts/*-subset.woff2
 
 .aseprite
+.env.development
