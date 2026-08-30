@@ -22,11 +22,24 @@
 
       <div class="fp-detail-columns">
         <div class="fp-detail-left">
-          <div class="fp-preview-frame">
+          <div
+            class="fp-preview-frame"
+            @mouseenter="onPreviewEnter"
+            @mouseleave="onPreviewLeave"
+          >
             <img
               class="fp-preview-image"
-              :src="item.src || item.previews?.[0]"
+              :src="item.src"
               :alt="item.title"
+              @click="toggleFloweryCursoryTextbox"
+            />
+            <img
+              v-if="isFlowery"
+              class="flowery-cursory-textbox"
+              :class="{ 'is-visible': maskVisible }"
+              :src="maskUrl"
+              alt="easter egg overlay"
+              @click.stop="toggleFloweryCursoryTextbox"
             />
           </div>
         </div>
@@ -87,6 +100,33 @@ const emit = defineEmits(['close', 'download', 'preview'])
 const hasPreview = computed(() => {
   return !!(props.item.previewUrl || (props.item.cursors && Object.keys(props.item.cursors).length))
 })
+
+const FLOWERY_MASK_URL = 'https://cdn.blovy.art/fandom-projects/flowery-cursory/textbox.png'
+
+const isFlowery = computed(() => {
+  const t = props.item?.title
+  return typeof t === 'string' && t.toUpperCase().includes('FLOWERY')
+})
+
+const maskUrl = FLOWERY_MASK_URL
+const showMask = ref(false)
+const hovering = ref(false)
+
+const maskVisible = computed(() => isFlowery.value && (showMask.value || hovering.value))
+
+function onPreviewEnter() {
+  if (isFlowery.value) hovering.value = true
+}
+
+function onPreviewLeave() {
+  if (isFlowery.value) hovering.value = false
+}
+
+function toggleFloweryCursoryTextbox() {
+  if (!isFlowery.value) return
+  showMask.value = !showMask.value
+  if (!showMask.value) hovering.value = false
+}
 
 function togglePreview() {
   emit('preview', { active: !props.previewActive })
@@ -159,6 +199,7 @@ function togglePreview() {
   overflow: hidden;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .fp-preview-image {
@@ -166,6 +207,26 @@ function togglePreview() {
   height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+.flowery-cursory-textbox {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: 70%;
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 2;
+}
+
+.flowery-cursory-textbox.is-visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .fp-detail-right {
