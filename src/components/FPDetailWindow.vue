@@ -140,8 +140,7 @@ function togglePreview() {
 
 .fp-detail-window :deep(.pixel-window__content) {
   padding: 20px 24px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .fp-detail-body {

@@ -1,0 +1,7 @@
+name = "blovy-art-gallery-upload"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+workers_dev = false
+
+[[r2_buckets]]
+binding = "GALLERY_BUCKET"
+bucket_name = "blovy-art"

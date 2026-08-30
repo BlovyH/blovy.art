@@ -104,3 +104,11 @@ button {
 ::-webkit-scrollbar-button {
   display: none;
 }
+
+/* Lego block: always-on-top layer + no text selection while dragging.
+   Pair with `v-draggable` for "drag + top" windows/icons. */
+.drag-top {
+  z-index: 9998;
+  user-select: none;
+  -webkit-user-select: none;
+}

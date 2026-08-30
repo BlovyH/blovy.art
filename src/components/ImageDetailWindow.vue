@@ -14,7 +14,7 @@
     @close="$emit('close')"
   >
     <div class="detail-body">
-      <div class="detail-header">
+      <div class="detail-header" @mousedown="onHeaderDown">
         <h2 class="detail-title">{{ item.title }}</h2>
         <time class="detail-date">{{ item.date }}</time>
       </div>
@@ -23,20 +23,23 @@
         <div class="detail-image-wrap">
           <img
             class="detail-image"
-            :src="item.src"
+            draggable="false"
+            :src="item.preview || item.highResSrc || item.thumb"
             :alt="item.alt || item.title"
           />
         </div>
 
         <div class="detail-info">
-          <p class="detail-desc">{{ item.detail }}</p>
+          <div class="detail-scroll">
+            <p class="detail-desc" v-html="item.detail"></p>
 
-          <div class="detail-tags">
-            <span
-              v-for="tag in parsedTags"
-              :key="tag"
-              class="detail-tag"
-            >{{ tag }}</span>
+            <div class="detail-tags">
+              <span
+                v-for="tag in parsedTags"
+                :key="tag"
+                class="detail-tag"
+              >{{ tag }}</span>
+            </div>
           </div>
 
           <div class="detail-actions">
@@ -78,7 +81,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import PixelWindow from './PixelWindow.vue'
 
 const props = defineProps({
@@ -100,11 +103,21 @@ const props = defineProps({
   },
 })
 
-defineEmits(['close', 'prev', 'next', 'random', 'download'])
+const emit = defineEmits(['close', 'prev', 'next', 'random', 'download'])
+
+const detailRef = ref(null)
+
+// 标题栏仅用于拖动窗口（关闭统一由 PixelWindow 的 click-outside-to-close 处理，不在此处关）
+function onHeaderDown(e) {
+  if (e.button !== 0) return
+  detailRef.value?.startDrag(e)
+}
 
 const parsedTags = computed(() => {
-  if (!props.item.tags) return []
-  return props.item.tags.split(/\s+/).filter(Boolean)
+  const t = props.item?.tags
+  if (!t) return []
+  const arr = Array.isArray(t) ? t : String(t).split(/\s+/).filter(Boolean)
+  return arr.map((x) => `#${String(x).replace(/^#/, '')}`)
 })
 </script>
 
@@ -116,6 +129,7 @@ const parsedTags = computed(() => {
 
 .image-detail-window :deep(.pixel-window__content) {
   padding: 28px 32px;
+  overflow: hidden;
 }
 
 .detail-body {
@@ -131,13 +145,14 @@ const parsedTags = computed(() => {
   justify-content: space-between;
   gap: 16px;
   flex-shrink: 0;
+  cursor: move;
+  user-select: none;
 }
 
 .detail-title {
   font-size: clamp(28px, 3vw, 44px);
   font-weight: bold;
   margin: 0;
-  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
@@ -171,6 +186,9 @@ const parsedTags = computed(() => {
   max-height: 72vh;
   object-fit: contain;
   image-rendering: pixelated;
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
 }
 
 .detail-info {
@@ -181,10 +199,18 @@ const parsedTags = computed(() => {
   min-width: 0;
 }
 
+/* 仅描述 + 标签这一块独立滚动，左图与按钮/分页保持固定 */
+.detail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .detail-desc {
   font-size: clamp(16px, 1.5vw, 22px);
   line-height: 1.7;
-  color: #00ffff;
+  color: #ffffff;
   margin: 0;
   user-select: text;
   -webkit-user-select: text;
@@ -195,6 +221,7 @@ const parsedTags = computed(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin-top: 12px;
 }
 
 .detail-tag {
@@ -205,7 +232,7 @@ const parsedTags = computed(() => {
 .detail-actions {
   display: flex;
   gap: 12px;
-  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .detail-btn {
@@ -254,5 +281,26 @@ const parsedTags = computed(() => {
   font-size: clamp(16px, 1.5vw, 22px);
   min-width: 90px;
   text-align: center;
+}
+
+/* 与 FP 详情一致：宽度不足时不再左右分栏，改为上下流式
+   （图在上、描述/标签/按钮在下，文字仍只在其自身区域滚动） */
+@media (max-width: 860px) {
+  .detail-columns {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .detail-image-wrap {
+    flex: none;
+    width: 100%;
+    height: 38vh;
+    max-height: 38vh;
+  }
+
+  .detail-info {
+    flex: 1;
+    min-height: 0;
+  }
 }
 </style>

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "subset-fonts": "node scripts/subset-fonts.js"
+    "subset-fonts": "node scripts/subset-fonts.js",
+    "assets:build": "node scripts/build-gallery-assets.mjs"
   },
   "dependencies": {
     "pinia": "^2.3.0",
@@ -18,7 +19,9 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "agent-browser": "^0.34.0",
     "playwright": "^1.62.1",
+    "sharp": "^0.35.3",
     "subset-font": "^2.5.0",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "wrangler": "^4.127.1"
   }
 }

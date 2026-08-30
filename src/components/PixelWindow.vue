@@ -212,7 +212,9 @@ function onDocumentMouseDown(e) {
 
 onMounted(() => {
   if (props.clickOutsideToClose) {
-    document.addEventListener('mousedown', onDocumentMouseDown)
+    // 捕获阶段：必须在任意子元素 @mousedown.stop（如其它窗口标题栏的拖动）掐断冒泡之前触发，
+    // 否则点到那些标题栏时 click-outside 永远收不到事件 → 详情窗关不掉
+    document.addEventListener('mousedown', onDocumentMouseDown, true)
   }
 })
 
@@ -264,7 +266,7 @@ function bringToFront() {
 onBeforeUnmount(() => {
   stopDrag()
   if (props.clickOutsideToClose) {
-    document.removeEventListener('mousedown', onDocumentMouseDown)
+    document.removeEventListener('mousedown', onDocumentMouseDown, true)
   }
 })
 </script>

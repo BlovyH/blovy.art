@@ -66,10 +66,14 @@
             <div class="gallery-grid">
               <img
                 v-for="(item, index) in filteredGalleryItems"
-                :key="item.src"
+                :key="item.thumb"
                 class="gallery-thumb"
-                :src="item.src"
+                :class="{ 'is-loaded': loadedThumbs.has(item.thumb) }"
+                :src="item.thumb"
                 :alt="item.alt"
+                loading="lazy"
+                draggable="false"
+                @load="onThumbLoad(item)"
                 @click="openDetail(index)"
               />
             </div>
@@ -151,7 +155,7 @@
         title="COMMENTS, NOTES"
         :show-minimize="true"
         :show-maximize="true"
-        width="32%"
+        width="33%"
         :initial-z-index="40"
       >
         <div class="comments-body">
@@ -198,7 +202,7 @@
               <span class="fandom-title-text">FANDOM PROJECTS</span>
               <img
                 class="fandom-logo-small"
-                src="/assets/placeholder.svg"
+                :src="fandomWindowIcon"
                 alt="Fandom Projects logo"
               />
             </div>
@@ -232,7 +236,7 @@
     </div>
 
     <!-- Bottom Button -->
-    <button class="power-btn" @click="onPowerBtnClick">巨硬™办公室力量点2003</button>
+    <button class="power-btn drag-top" v-draggable @click="onPowerBtnClick">巨硬™办公室力量点2003</button>
 
     <!-- Footer -->
     <footer class="site-footer">
@@ -334,8 +338,40 @@ const isExpanded = ref(false)
 const expandUp = ref(false)
 const expandHeight = ref(0)
 const galleryItems = ref([])
+const loadedThumbs = ref(new Set())
+const preloadedGalleryPreview = new Set()
+const onThumbLoad = (item) => {
+  const s = new Set(loadedThumbs.value)
+  s.add(item.thumb)
+  loadedThumbs.value = s
+  // 视口内缩略图加载完成后，顺带预热详情预览图（preview 优先，原图兜底），点开即秒显
+  const previewUrl = item.preview || item.highResSrc
+  if (previewUrl && !preloadedGalleryPreview.has(previewUrl)) {
+    preloadedGalleryPreview.add(previewUrl)
+    const img = new Image()
+    img.src = previewUrl
+  }
+}
 const notes = ref([])
 const fandomProjects = ref([])
+const fandomWindowIcon = ref('/assets/placeholder.svg')
+
+// 远端资源根 + 中间路径，全部来自 content.json（assetBase / fpDir / galleryDir），
+// 代码只负责把「base + 路径 + 文件名」拼成完整 URL。默认值是兜底，正常由 JSON 提供。
+const assetBase = ref('https://cdn.blovy.art')
+const fpDir = ref('fandom-projects')
+const galleryDir = ref('gallery')
+
+// fp 资源相对 fpDir 解析（rel 可含子目录，如 thumbs/x 或 flowery-cursory/x）；
+// 已是绝对 URL 或 / 开头则原样返回。
+const fpAsset = (rel, prefix) => {
+  if (!rel) return rel
+  if (/^(https?:)?\/\//.test(rel) || rel.startsWith('/')) return rel
+  const base = prefix
+    ? `${assetBase.value}/${fpDir.value}/${prefix}`
+    : `${assetBase.value}/${fpDir.value}`
+  return `${base}/${rel.replace(/^\//, '')}`
+}
 const currentYear = new Date().getFullYear()
 let collapseTimer = null
 
@@ -362,6 +398,30 @@ const isContentRemote = CONTENT_DATA_URL && !CONTENT_DATA_URL.startsWith('/')
 let contentPollTimer = null
 let contentSignature = ''
 
+// FP 图片全量预载：首屏把 logo / 预览 src / 窗口图标拉进浏览器 + CDN 边缘缓存，
+// 点开窗口即秒显（避免 R2 冷边 + 冷浏览器缓存的首开 1-2s 延迟）。仅 content 实际变更时重跑。
+const preloadedFPImg = new Set()
+function preloadFPImages() {
+  const urls = [fandomWindowIcon.value]
+  for (const p of fandomProjects.value) {
+    if (p.logo) urls.push(p.logo)
+    if (p.src) urls.push(p.src)
+    if (p.cursors) {
+      for (const key of Object.keys(p.cursors)) {
+        const c = p.cursors[key]
+        const u = typeof c === 'string' ? c : (c && c.url)
+        if (u) urls.push(fpAsset(u, p.prefix))
+      }
+    }
+  }
+  for (const u of urls) {
+    if (!u || preloadedFPImg.has(u)) continue
+    preloadedFPImg.add(u)
+    const img = new Image()
+    img.src = u
+  }
+}
+
 async function loadContent() {
   if (!CONTENT_DATA_URL) return
   // 拼 _t 破 Cloudflare 边缘缓存，否则永远拿到旧 JSON
@@ -370,13 +430,36 @@ async function loadContent() {
   try {
     const res = await fetch(url)
     const data = await res.json()
+    // 远端根 + 中间路径全部来自 JSON；缺省走兜底默认值
+    assetBase.value = data.assetBase || 'https://cdn.blovy.art'
+    fpDir.value = data.fpDir || 'fandom-projects'
+    galleryDir.value = data.galleryDir || 'gallery'
+    const gman = data._gallery || {}
+    const resolveGallery = (key) => {
+      if (!key) return ''
+      // 已是完整 URL（含协议/双斜杠）或绝对路径：直接返回（用于 highResSrc 指向用户自有原图）
+      if (/^(https?:)?\/\//.test(key) || key.startsWith('/')) return key
+      const h = gman[key] ? `?v=${gman[key]}` : ''
+      return `${assetBase.value}/${galleryDir.value}/${key}.webp${h}`
+    }
     // 变更检测：仅内容真正变化时重新赋值，避免无谓重渲染
-    const sig = JSON.stringify([data.gallery, data.notes, data.fandomProjects])
+    const sig = JSON.stringify([data.gallery, data.notes, data.fandomProjects, data.fandomWindow, data._gallery])
     if (sig === contentSignature) return
     contentSignature = sig
-    galleryItems.value = data.gallery || []
+    galleryItems.value = (data.gallery || []).map((it) => ({
+      ...it,
+      thumb: resolveGallery(it.thumb),
+      preview: resolveGallery(it.preview),
+      highResSrc: resolveGallery(it.highResSrc),
+    }))
     notes.value = data.notes || []
-    fandomProjects.value = data.fandomProjects || []
+    fandomProjects.value = (data.fandomProjects || []).map((p) => ({
+      ...p,
+      logo: fpAsset(p.logo),
+      src: fpAsset(p.src, p.prefix),
+    }))
+    fandomWindowIcon.value = fpAsset(data.fandomWindow?.icon) || '/assets/placeholder.svg'
+    preloadFPImages()
   } catch (e) {
     console.error('Failed to load content:', e)
   }
@@ -406,10 +489,8 @@ onMounted(async () => {
     socialResizeObserver.observe(socialBodyRef.value)
   }
 
-  if (isContentRemote) {
-    contentPollTimer = setInterval(loadContent, CONTENT_POLL_INTERVAL_MS)
-    document.addEventListener('visibilitychange', onContentVisibility)
-  }
+  contentPollTimer = setInterval(loadContent, CONTENT_POLL_INTERVAL_MS)
+  document.addEventListener('visibilitychange', onContentVisibility)
 })
 
 onBeforeUnmount(() => {
@@ -716,10 +797,11 @@ function fpDetailDownload() {
 
 function onFPPreviewToggle({ active }) {
   fpPreviewItemId.value = active ? fpDetailItem.value?.title : null
-  applyCursorPreview(active ? fpDetailItem.value?.cursors : null)
+  const fpItem = active ? fpDetailItem.value : null
+  applyCursorPreview(fpItem?.cursors || null, fpItem ? fpAsset(fpItem.prefix) : '')
 }
 
-function applyCursorPreview(cursors) {
+function applyCursorPreview(cursors, base = '') {
   const styleId = 'fp-cursor-preview'
   const existing = document.getElementById(styleId)
   if (existing) {
@@ -727,12 +809,19 @@ function applyCursorPreview(cursors) {
   }
   if (!cursors) return
 
+  // 相对路径（非 http(s):// 且非 / 开头）按 base 拼接；绝对 URL 原样返回
+  const resolve = (u) => {
+    if (!u) return u
+    if (/^https?:\/\//.test(u) || u.startsWith('/')) return u
+    return `${base.replace(/\/$/, '')}/${u.replace(/^\//, '')}`
+  }
+
   // 每个光标可写成字符串 URL，或 { url, hotspot:[x,y] } 对象（热点想配就配）
   const specOf = (key) => {
     const v = cursors[key]
     if (!v) return null
-    if (typeof v === 'string') return { url: v, hotspot: null }
-    return { url: v.url, hotspot: v.hotspot || null }
+    if (typeof v === 'string') return { url: resolve(v), hotspot: null }
+    return { url: resolve(v.url), hotspot: v.hotspot || null }
   }
   const expr = (key, fallback) => {
     const s = specOf(key)
@@ -747,7 +836,7 @@ function applyCursorPreview(cursors) {
     { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], label, .tab, .gallery-thumb, .social-item, .social-email, .fandom-item, .fp-detail-btn, .page-arrow, .desktop-icon' },
     { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .fp-detail-text, .detail-desc' },
     { key: 'help', fallback: 'help', selector: '.fp-help-icon' },
-    { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .fandom-header, .desktop-icon.dragging' },
+    { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .fandom-header, .desktop-icon.is-dragging, .power-btn.is-dragging' },
     { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
     { key: 'wait', fallback: 'wait', selector: 'html.fp-cursor-wait, html.fp-cursor-wait *' },
     { key: 'progress', fallback: 'progress', selector: 'html.fp-cursor-progress, html.fp-cursor-progress *' },
@@ -924,7 +1013,7 @@ function onOptionSelect(value) {
   position: absolute;
   top: 30%;
   left: 2%;
-  height: 460px;
+  height: 80%;
 }
 
 .gallery-window :deep(.pixel-window__content) {
@@ -968,20 +1057,33 @@ function onOptionSelect(value) {
 }
 
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
   flex: 1;
 }
 
 .gallery-thumb {
-  width: 100%;
+  box-sizing: border-box;
+  width: auto;
   height: clamp(100px, 16vh, 180px);
-  object-fit: cover;
-  border: 2px solid #ffffff;
+  object-fit: contain;
+  border: 2px solid transparent;   /* 占位留白，图未加载时不显白线 */
   image-rendering: pixelated;
-  background: #111;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  transition: border-color 0.15s ease;
+}
+.gallery-thumb.is-loaded {
+  border-color: #ffffff;           /* 图加载完成后才显示白框 */
+}
+.gallery-thumb.is-loaded:hover {
+  border-style: double;            /* hover：双线 */
+  border-width: 5px;               /* 在 2px 基础上叠加 3px，双线更明显 */
+  border-color: var(--color-text-cyan);  /* 悬停时框变青色（同文字青色） */
 }
 
 /* Notice Sign (DesktopIcon: always on top + draggable) */
@@ -1167,7 +1269,7 @@ function onOptionSelect(value) {
   position: absolute;
   top: 50%;
   right: 2%;
-  height: 420px;
+  height: 70%;
 }
 
 .comments-body {
@@ -1181,9 +1283,19 @@ function onOptionSelect(value) {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  border: 1px solid #c0c0c0;
-  border-radius: clamp(3px, 0.5vw, 6px);
+  border: 3px solid transparent;
+  border-image-source: url('/assets/window_frame_sub.png');
+  border-image-slice: 5;
+  border-image-width: 4px;
+  border-image-repeat: round;
+  border-radius: 3px;
   padding: 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.note-item[href]:hover {
+  border-image-source: url('/assets/window_frame.png');
 }
 
 .note-main {
@@ -1211,8 +1323,8 @@ function onOptionSelect(value) {
 /* Fandom Projects Window */
 .fandom-outer {
   position: absolute;
-  top: 90%;
-  left: 32%;
+  top: 106%;
+  left: 34%;
   width: 38%;
   z-index: 100;
   transform: translateY(0);
@@ -1252,9 +1364,7 @@ function onOptionSelect(value) {
   width: clamp(32px, 2.8vw, 48px);
   height: clamp(32px, 2.8vw, 48px);
   object-fit: cover;
-  border: 2px solid #ffffff;
   image-rendering: pixelated;
-  background: #111;
   flex-shrink: 0;
   transition: opacity 0.08s ease;
 }
@@ -1291,13 +1401,17 @@ function onOptionSelect(value) {
   gap: 16px;
   border: 3px solid transparent;
   border-image-source: url('/assets/window_frame_sub.png');
-  border-image-slice: 6;
-  border-image-width: 3px;
+  border-image-slice: 5;
+  border-image-width: 4px;
   border-image-repeat: round;
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
   padding: 14px;
   cursor: pointer;
+}
+
+.fandom-item:hover {
+  border-image-source: url('/assets/window_frame.png');
 }
 
 .fandom-info {
@@ -1317,19 +1431,17 @@ function onOptionSelect(value) {
 }
 
 .fandom-logo {
-  width: clamp(56px, 5.5vw, 84px);
-  height: clamp(56px, 5.5vw, 84px);
+  width: clamp(60px, 5.5vw, 100px);
+  height: clamp(60px, 5.5vw, 100px);
   object-fit: cover;
-  border: 2px solid #ffffff;
   image-rendering: pixelated;
-  background: #111;
   flex-shrink: 0;
 }
 
 /* Power Button */
 .power-btn {
   position: absolute;
-  bottom: 100px;
+  bottom: 70px;
   left: 8%;
   background: #c0c0c0;
   color: #000000;
@@ -1342,14 +1454,18 @@ function onOptionSelect(value) {
   padding: 14px 28px;
   font-size: clamp(18px, 1.8vw, 28px);
   font-family: var(--font-fangsong);
+  /* drag offset comes from v-draggable (CSS vars) */
+  transform: translate(var(--ddx, 0px), var(--ddy, 0px));
 }
 
-.power-btn:active {
+.power-btn:active:not(.is-dragging) {
   border-top: 8px solid #555555;
   border-left: 8px solid #555555;
   border-right: 8px solid #ffffff;
   border-bottom: 8px solid #ffffff;
-  transform: translate(4px, 4px);
+  /* Sunken press = current (dragged) position + 4px, NOT a replacement of
+     the drag transform, or the button would jump back to origin on click. */
+  transform: translate(calc(var(--ddx, 0px) + 4px), calc(var(--ddy, 0px) + 4px));
 }
 
 /* Footer */

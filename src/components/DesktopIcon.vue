@@ -1,10 +1,9 @@
 <template>
   <div
     ref="iconRef"
-    class="desktop-icon"
-    :class="{ dragging: drag.isDragging }"
+    class="desktop-icon drag-top"
     :style="iconStyle"
-    @mousedown="onMouseDown"
+    v-draggable="onIconClick"
   >
     <div class="desktop-icon__visual">
       <slot name="icon" />
@@ -16,7 +15,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   initialLeft: {
@@ -32,54 +31,21 @@ const props = defineProps({
 const emit = defineEmits(['click'])
 
 const iconRef = ref(null)
-const drag = reactive({
-  isDragging: false,
-  startX: 0,
-  startY: 0,
-  x: 0,
-  y: 0,
-  baseX: 0,
-  baseY: 0,
-})
 
 const iconStyle = computed(() => ({
   position: 'absolute',
   left: props.initialLeft,
   top: props.initialTop,
-  transform: `translate(${drag.x}px, ${drag.y}px)`,
 }))
 
-function onMouseDown(e) {
-  drag.isDragging = true
-  drag.startX = e.clientX
-  drag.startY = e.clientY
-  drag.baseX = drag.x
-  drag.baseY = drag.y
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
-}
-
-function onMouseMove(e) {
-  if (!drag.isDragging) return
-  drag.x = drag.baseX + e.clientX - drag.startX
-  drag.y = drag.baseY + e.clientY - drag.startY
-}
-
-function onMouseUp() {
-  const moved = Math.abs(drag.x - drag.baseX) > 3 || Math.abs(drag.y - drag.baseY) > 3
-  drag.isDragging = false
-  document.removeEventListener('mousemove', onMouseMove)
-  document.removeEventListener('mouseup', onMouseUp)
-  if (!moved) {
-    emit('click')
-  }
+function onIconClick() {
+  emit('click')
 }
 </script>
 
 <style scoped>
 .desktop-icon {
   position: absolute;
-  z-index: 9998;
   width: 84px;
   height: 84px;
   display: flex;
@@ -90,11 +56,11 @@ function onMouseUp() {
   padding: 4px;
   box-sizing: border-box;
   cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
+  /* drag offset comes from v-draggable (CSS vars) */
+  transform: translate(var(--ddx, 0px), var(--ddy, 0px));
 }
 
-.desktop-icon.dragging {
+.desktop-icon.is-dragging {
   background: rgba(255, 255, 255, 0.35);
   border-radius: 8px;
   cursor: move;
