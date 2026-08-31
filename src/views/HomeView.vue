@@ -69,6 +69,7 @@
                 :key="item.thumb"
                 class="gallery-thumb"
                 :class="{ 'is-loaded': loadedThumbs.has(item.thumb) }"
+                :style="item.ar ? { aspectRatio: String(item.ar) } : null"
                 :src="item.thumb"
                 :alt="item.alt"
                 loading="lazy"

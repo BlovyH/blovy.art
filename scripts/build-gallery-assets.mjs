@@ -82,6 +82,7 @@ async function main() {
   }
 
   const sharp = (await import('sharp')).default
+  const arByName = {}
   for (const { file: f, category } of files) {
     const name = path.basename(f, path.extname(f))
     const srcPath = path.join(ORIGINS, category, f)
@@ -89,6 +90,9 @@ async function main() {
     const meta = await sharp(srcPath).metadata()
     const thumbW = Math.min(THUMB_W, meta.width || THUMB_W)
     const fullW = Math.min(FULL_W, meta.width || FULL_W)
+    // 记录真实宽高比，写进 content.json，供前端在图未加载时预留宽度（消除首屏布局抖动）
+    const ar = meta.width && meta.height ? +(meta.width / meta.height).toFixed(4) : null
+    if (ar) arByName[name] = ar
 
     const thumbBuf = await sharp(srcPath).resize({ width: thumbW }).webp({ quality: 80 }).toBuffer()
     const fullBuf = await sharp(srcPath).resize({ width: fullW }).webp({ quality: 85 }).toBuffer()
@@ -136,7 +140,7 @@ async function main() {
     const prev = byName.get(n)
     if (!prev || score > prev.score) byName.set(n, { it, score })
   }
-  const existing = [...byName.values()].map((x) => x.it)
+  const existing = [...byName.entries()].map(([n, x]) => ({ ...x.it, ar: arByName[n] ?? x.it.ar }))
   const existingNames = new Set(byName.keys())
   const newFiles = files
     .filter(({ file: f }) => !existingNames.has(path.basename(f, path.extname(f))))
@@ -148,6 +152,7 @@ async function main() {
       thumb: `thumbs/${name}_sm`,
       preview: `previews/${name}_md`,
       highResSrc,
+      ar: arByName[name] ?? null,
       category,
       tags: [],
       alt: name,
