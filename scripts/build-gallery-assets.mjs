@@ -62,9 +62,9 @@ async function main() {
       continue
     }
     files = files.concat(
-      fs.readdirSync(dir)
-        .filter((f) => EXT.has(path.extname(f).toLowerCase()))
-        .map((f) => ({ file: f, category: cat })),
+        fs.readdirSync(dir)
+            .filter((f) => EXT.has(path.extname(f).toLowerCase()))
+            .map((f) => ({ file: f, category: cat })),
     )
   }
   if (files.length === 0) {
@@ -81,24 +81,49 @@ async function main() {
     _seen.set(n, category)
   }
 
+  // 生成阶段前先读 content.json：拿 highResPrefix、旧哈希快照（判跳过用），并推导原图 R2 目录
+  const content = fs.existsSync(CONTENT)
+    ? JSON.parse(fs.readFileSync(CONTENT, 'utf8'))
+    : (() => { throw new Error('找不到 public/data/content.json，无法运行构建') })()
+  const HIGHRES_PREFIX = content.highResPrefix
+  if (!HIGHRES_PREFIX) {
+    throw new Error('content.json 缺少 highResPrefix（你的原图 R2 路径前缀），请配置后再运行')
+  }
+  const prevGalleryHashes = content._gallery || {}
+  const prevOriginalsHashes = content._originals || {}
+  const ORIGINALS_R2_DIR = HIGHRES_PREFIX.replace(/^https?:\/\/[^/]+/, '').replace(/^\/+/, '').replace(/\/+$/, '')
   const sharp = (await import('sharp')).default
-  const arByName = {}
+
+  // 生成两档 WebP：原图未变且 webp 已在盘 → 跳过 sharp（继承上次 manifest 哈希，保留 webp 增量基线）；
+  // 否则重新生成，并记录 ar（宽高比）用于前端 aspect-ratio 预留宽度、消除首屏 CLS
+  const arMap = {}
   for (const { file: f, category } of files) {
     const name = path.basename(f, path.extname(f))
     const srcPath = path.join(ORIGINS, category, f)
+    const smPath = path.join(DIST, 'thumbs', `${name}_sm.webp`)
+    const mdPath = path.join(DIST, 'previews', `${name}_md.webp`)
+
+    const originalsHash = hashBuf(fs.readFileSync(srcPath))
+    const r2Key = `${BUCKET}/${ORIGINALS_R2_DIR}/${f}`
+    const unchanged = originalsHash === prevOriginalsHashes[r2Key]
+    const webpOnDisk = fs.existsSync(smPath) && fs.existsSync(mdPath)
+    if (unchanged && webpOnDisk) {
+      // 跳过生成：继承上次 manifest 哈希，避免下轮误判 webp 为「新增」重传
+      const smPrev = prevGalleryHashes[`thumbs/${name}_sm`]
+      const mdPrev = prevGalleryHashes[`previews/${name}_md`]
+      if (smPrev) manifest[`thumbs/${name}_sm`] = smPrev
+      if (mdPrev) manifest[`previews/${name}_md`] = mdPrev
+      console.log(`  ↷ 跳过生成(原图未变且 webp 在盘): ${name}`)
+      continue
+    }
 
     const meta = await sharp(srcPath).metadata()
     const thumbW = Math.min(THUMB_W, meta.width || THUMB_W)
     const fullW = Math.min(FULL_W, meta.width || FULL_W)
-    // 记录真实宽高比，写进 content.json，供前端在图未加载时预留宽度（消除首屏布局抖动）
-    const ar = meta.width && meta.height ? +(meta.width / meta.height).toFixed(4) : null
-    if (ar) arByName[name] = ar
 
     const thumbBuf = await sharp(srcPath).resize({ width: thumbW }).webp({ quality: 80 }).toBuffer()
     const fullBuf = await sharp(srcPath).resize({ width: fullW }).webp({ quality: 85 }).toBuffer()
 
-    const smPath = path.join(DIST, 'thumbs', `${name}_sm.webp`)
-    const mdPath = path.join(DIST, 'previews', `${name}_md.webp`)
     fs.mkdirSync(path.dirname(smPath), { recursive: true })
     fs.mkdirSync(path.dirname(mdPath), { recursive: true })
     fs.writeFileSync(smPath, thumbBuf)
@@ -106,6 +131,7 @@ async function main() {
 
     manifest[`thumbs/${name}_sm`] = hashBuf(thumbBuf)
     manifest[`previews/${name}_md`] = hashBuf(fullBuf)
+    arMap[name] = +(meta.width / meta.height).toFixed(4)
     console.log(`  ${name}: sm ${(thumbBuf.length / 1024).toFixed(1)}KB, md ${(fullBuf.length / 1024).toFixed(1)}KB`)
   }
 
@@ -113,17 +139,6 @@ async function main() {
   //   - 已有同名（按 thumb/src 派生的图片名匹配）的条目：原样保留（含你手填的 title/desc 等字段），不动其位置
   //   - 新图：生成 { thumb/preview/highResSrc/... }，整批按文件名升序「头插」到数组最前（新图永远在最上）
   //   - 按图片名去重：重复运行 / 历史 bug 产生的副本在此清掉，并保留字段最完整的那一条
-  let content = {}
-  if (fs.existsSync(CONTENT)) {
-    content = JSON.parse(fs.readFileSync(CONTENT, 'utf8'))
-  } else {
-    throw new Error('找不到 public/data/content.json，无法运行构建')
-  }
-  // 原图前缀从 content.json 读取，缺失即报错（不回退默认值）
-  const HIGHRES_PREFIX = content.highResPrefix
-  if (!HIGHRES_PREFIX) {
-    throw new Error('content.json 缺少 highResPrefix（你的原图 R2 路径前缀），请配置后再运行')
-  }
   // 按图片名去重并保留字段最完整的条目（重复运行 / 历史 bug 产生的副本在此清掉）
   const existingRaw = Array.isArray(content.gallery) ? content.gallery : []
   const byName = new Map()
@@ -140,11 +155,11 @@ async function main() {
     const prev = byName.get(n)
     if (!prev || score > prev.score) byName.set(n, { it, score })
   }
-  const existing = [...byName.entries()].map(([n, x]) => ({ ...x.it, ar: arByName[n] ?? x.it.ar }))
+  const existing = [...byName.values()].map((x) => x.it)
   const existingNames = new Set(byName.keys())
   const newFiles = files
-    .filter(({ file: f }) => !existingNames.has(path.basename(f, path.extname(f))))
-    .sort((a, b) => a.file.localeCompare(b.file))
+      .filter(({ file: f }) => !existingNames.has(path.basename(f, path.extname(f))))
+      .sort((a, b) => a.file.localeCompare(b.file))
   const newEntries = newFiles.map(({ file: f, category }) => {
     const name = path.basename(f, path.extname(f))
     const highResSrc = `${HIGHRES_PREFIX.replace(/\/$/, '')}/${f}`
@@ -152,8 +167,8 @@ async function main() {
       thumb: `thumbs/${name}_sm`,
       preview: `previews/${name}_md`,
       highResSrc,
-      ar: arByName[name] ?? null,
       category,
+      ar: arMap[name], // 新图生成时算的宽高比；前端用 aspect-ratio 预留宽度，消除首屏 CLS
       tags: [],
       alt: name,
       title: name,
@@ -173,36 +188,56 @@ async function main() {
   }
   content.gallery = [...newEntries, ...existing.map(migrateItem)]
   content._gallery = manifest
-  fs.writeFileSync(CONTENT, JSON.stringify(content, null, 2))
+  // 注：content.json 的写盘 + 上传移到 tryUpload 末尾（全部上传成功后才落盘，避免上传失败却留下「已上传」的错误哈希记录）
 
-  // 从 highResPrefix（如 https://cdn.blovy.art/gallery/originals）推导原图在 R2 的目录：gallery/originals
-  const ORIGINALS_R2_DIR = HIGHRES_PREFIX.replace(/^https?:\/\/[^/]+/, '').replace(/^\/+/, '').replace(/\/+$/, '')
-  await tryUpload(files, ORIGINALS_R2_DIR)
+  await tryUpload(files, ORIGINALS_R2_DIR, prevGalleryHashes, prevOriginalsHashes, content)
 
   console.log(`\n完成，处理 ${files.length} 张图，新增 ${newEntries.length} 条 gallery 条目（头插到最前），旧条目已迁移到新路径格式。`)
   console.log(`已上传 R2：thumbs/ + previews/ 两档 WebP、原图(gallery/originals/)、content.json。`)
   console.log(`src=网格缩略图(thumbs/<name>_sm)，preview=详情中图(previews/<name>_md)，highResSrc=原图直链(highResPrefix+原文件名)。`)
 }
 
-async function tryUpload(galleryFiles, originalsR2Dir) {
+async function tryUpload(galleryFiles, originalsR2Dir, prevGalleryHashes, prevOriginalsHashes, content) {
   const { execFileSync } = await import('node:child_process')
-  // Windows 下 execFileSync 无 shell 时找不到 npx（实为 npx.cmd），用 .cmd 直调可正确解析参数数组（含空格/括号路径）
-  const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+  // 调用 wrangler 的方式（Windows 兼容性）：
+  //   - 直接用 execFileSync('npx.cmd'/'wrangler.cmd', {shell:false}) 会 spawnSync EINVAL（.cmd 非 PE 文件，须 cmd.exe 解释）；
+  //   - 加 shell:true 走 cmd.exe /c 能避开 EINVAL，但 node 不会对参数数组里的 ( ) 等字符加引号，
+  //     含括号/空格的文件名会被 cmd 当成语法而截断（如 photosynthesis(quick illust).png）。
+  //   - 因此优先用 node 直接执行本地 wrangler 的 JS 入口（参数数组模式、不经过 shell，括号/空格安全，也无 EINVAL）；
+  //     仅在本地没装 wrangler 时回退 npx（shell:true），回退路径用 q() 对特殊字符参数加双引号兜底。
+  const resolveWrangler = () => {
+    const pkg = path.join(root, 'node_modules', 'wrangler', 'package.json')
+    if (fs.existsSync(pkg)) {
+      try {
+        const bin = JSON.parse(fs.readFileSync(pkg, 'utf8')).bin
+        const rel = typeof bin === 'string' ? bin : bin.wrangler
+        if (rel) {
+          const jsEntry = path.join(root, 'node_modules', 'wrangler', rel)
+          if (fs.existsSync(jsEntry)) return { exec: process.execPath, argsPrefix: [jsEntry], shell: false }
+        }
+      } catch {}
+    }
+    const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+    return { exec: npx, argsPrefix: ['wrangler'], shell: true }
+  }
+  const WR = resolveWrangler()
+  const SHELL = WR.shell || false
+  // 仅 npx(shell) 回退路径需要对含空格/括号/& 等字符的参数加双引号；数组模式(shell:false)下不加（加了反而错）
+  const q = (s) => (SHELL && /[ ()&|<>^"%]/.test(s)) ? '"' + s + '"' : s
   // wrangler 可用性检查（未装/未登录则明确报错，不静默跳过）
   try {
-    execFileSync(NPX, ['wrangler', '--version'], { stdio: 'ignore' })
+    execFileSync(WR.exec, [...WR.argsPrefix, '--version'], { stdio: 'ignore', shell: SHELL })
   } catch {
     throw new Error('未检测到可用的 wrangler，无法上传 R2。请先 `npm i -D wrangler` 并 `wrangler login`（或设 CLOUDFLARE_API_TOKEN 环境变量）。')
   }
   // manifest 的 key 形如 thumbs/xxx_sm、previews/xxx_md，本地路径与 R2 key 同构
   // 单次上传失败自动重试，避免整轮崩；失败时打印 wrangler 真实 stderr + 退出码便于定位
   const wranglerPut = async (args, label, retries = 3) => {
-    const cmd = ['wrangler', 'r2', 'object', 'put', '--remote', args[0], '--file', args[1]]
+    // 数组模式(shell:false)下 node 直接传参，括号/空格安全；npx(shell) 回退路径对含特殊字符的参数加引号
+    const cmd = [...WR.argsPrefix, 'r2', 'object', 'put', '--remote', q(args[0]), '--file', q(args[1])]
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        // 无 shell：参数数组直接传给 npx.cmd，空格/括号路径由 node 正确转义，无嵌套引号冲突
-        // stdout 继承终端（保留 wrangler 正常进度），stderr 捕获用于错误诊断
-        execFileSync(NPX, cmd, { stdio: ['inherit', 'pipe', 'pipe'] })
+        execFileSync(WR.exec, cmd, { stdio: ['inherit', 'pipe', 'pipe'], shell: SHELL })
         return
       } catch (e) {
         const errText = (e.stderr || Buffer.from('')).toString().trim() || e.message || ''
@@ -220,16 +255,62 @@ async function tryUpload(galleryFiles, originalsR2Dir) {
       }
     }
   }
+
+  // 增量上传：本地重算每个文件的哈希，和上次已上传的哈希比对。
+  //   - 哈希一致 → 跳过（INSERT IGNORE：已存在就不传）
+  //   - 哈希变了 → 重传（解决纯「存在性跳过」的坑：你改了图、key 却相同，纯存在性会留下旧图）
+  // webp 的上次哈希在 content._gallery；原图的上次哈希在新增的 content._originals。
+  const FORCE = process.env.FORCE_UPLOAD === '1'
+  const plan = []
   for (const key of Object.keys(manifest)) {
-    await wranglerPut([`${BUCKET}/gallery/${key}.webp`, path.join(DIST, `${key}.webp`)], key)
+    plan.push({
+      r2Key: `${BUCKET}/gallery/${key}.webp`,
+      localPath: path.join(DIST, `${key}.webp`),
+      newHash: manifest[key],
+      oldHash: prevGalleryHashes[key],
+      label: key,
+      kind: 'webp',
+    })
   }
-  // 上传原图：本地源在 gallery-originals/<category>/<file>，R2 key 为 <originalsR2Dir>/<file>
-  // 与 highResSrc 指向的 URL 对齐（highResPrefix 去掉协议+域名即 R2 目录），含空格/括号由 q() 引号保护
   for (const { file, category } of galleryFiles) {
     const srcPath = path.join(ORIGINS, category, file)
-    await wranglerPut([`${BUCKET}/${originalsR2Dir}/${file}`, srcPath], `originals/${file}`)
+    const r2Key = `${BUCKET}/${originalsR2Dir}/${file}`
+    plan.push({
+      r2Key,
+      localPath: srcPath,
+      newHash: hashBuf(fs.readFileSync(srcPath)),
+      oldHash: prevOriginalsHashes[r2Key],
+      label: `originals/${file}`,
+      kind: 'original',
+    })
   }
+
+  let uploaded = 0
+  let skipped = 0
+  for (const item of plan) {
+    if (!FORCE && item.oldHash && item.oldHash === item.newHash) {
+      console.log(`  ↷ 跳过(已存在且一致): ${item.label}`)
+      skipped++
+      continue
+    }
+    const tag = FORCE ? ' [强制]' : item.oldHash ? ' [变更]' : ' [新增]'
+    console.log(`  ↑ 上传${tag}: ${item.label}`)
+    await wranglerPut([item.r2Key, item.localPath], item.label)
+    // 记录本次实际已上传的哈希并立即落盘（崩溃安全）：
+    // 即便后续某个文件上传失败，已传成功的也不会在下轮被重复上传，
+    // 增量基线可逐步建立，避免「整轮失败 → _originals 永为空 → 原图永远全量重传」。
+    // webp 的 _gallery 由 main 在调用前已赋值（=本次重算的 manifest），这里只需累积原图哈希。
+    if (item.kind === 'original') {
+      ;(content._originals ||= {})[item.r2Key] = item.newHash
+    }
+    fs.writeFileSync(CONTENT, JSON.stringify(content, null, 2))
+    uploaded++
+  }
+
+  // 全部 item 处理完（已逐个落盘本地），把最新 content.json 同步到 R2（幂等，失败不影响本地增量基线）
   await wranglerPut([`${BUCKET}/config/content.json`, CONTENT], 'content.json')
+
+  console.log(`\n  增量上传完成：新传 ${uploaded} 个，跳过 ${skipped} 个(已存在且一致)${FORCE ? ' [FORCE_UPLOAD=1]' : ''}`)
 }
 
 main().catch((e) => {
