@@ -11,12 +11,12 @@ const fontConfigs = [
   {
     name: 'Fusion Pixel 12px',
     input: path.join(rootDir, 'src/assets/fonts/fusion-pixel-12px-monospaced-zh_hans.ttf'),
-    output: path.join(rootDir, 'public/assets/fonts/fusion-pixel-subset.woff2'),
+    output: path.join(rootDir, 'src/assets/fonts/generated/fusion-pixel-subset.woff2'),
   },
   {
     name: 'Zhuque Fangsong',
     input: path.join(rootDir, 'src/assets/fonts/ZhuqueFangsong-Regular.ttf'),
-    output: path.join(rootDir, 'public/assets/fonts/zhuque-fangsong-subset.woff2'),
+    output: path.join(rootDir, 'src/assets/fonts/generated/zhuque-fangsong-subset.woff2'),
   },
 ]
 

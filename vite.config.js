@@ -12,6 +12,10 @@ export default defineConfig({
       async buildStart() {
         await subsetFonts()
       },
+      async configureServer() {
+        // dev 启动时也先生成子集到 src/assets/fonts/generated，供 CSS 相对路径引用
+        await subsetFonts()
+      },
     },
   ],
   resolve: {
