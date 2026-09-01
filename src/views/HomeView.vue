@@ -415,6 +415,13 @@ function preloadFPImages() {
       }
     }
   }
+  // gallery 详情图遮罩：src 已是完整 URL（来自 content.json），无需 resolveGallery；
+  // 首屏一并暖缓存，避免首次悬浮触发 R2 冷边 1-2s 卡顿
+  for (const g of galleryItems.value) {
+    const ovs = g.overlays
+    if (!ovs || !ovs.length) continue
+    for (const o of ovs) if (o.src) urls.push(o.src)
+  }
   for (const u of urls) {
     if (!u || preloadedFPImg.has(u)) continue
     preloadedFPImg.add(u)

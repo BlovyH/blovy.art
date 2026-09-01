@@ -20,12 +20,26 @@
       </div>
 
       <div class="detail-columns">
-        <div class="detail-image-wrap">
+        <div
+          class="detail-image-wrap"
+          @mouseenter="overlayHovering = true"
+          @mouseleave="overlayHovering = false"
+        >
           <img
             class="detail-image"
             draggable="false"
             :src="item.preview || item.highResSrc || item.thumb"
             :alt="item.alt || item.title"
+            @click="onImageClick"
+          />
+          <img
+            v-for="(o, i) in (item.overlays || [])"
+            :key="i"
+            class="detail-overlay"
+            :class="{ 'is-visible': isOverlayVisible(o, i) }"
+            :src="o.src"
+            :style="o.style"
+            alt="overlay"
           />
         </div>
 
@@ -81,7 +95,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import PixelWindow from './PixelWindow.vue'
 
 const props = defineProps({
@@ -119,6 +133,26 @@ const parsedTags = computed(() => {
   const arr = Array.isArray(t) ? t : String(t).split(/\s+/).filter(Boolean)
   return arr.map((x) => `#${String(x).replace(/^#/, '')}`)
 })
+
+// 详情图遮罩（数据驱动，content.json 的 item.overlays 决定）：
+// - trigger: 'hover'(默认, 悬浮显示) | 'always'(常显) | 'click'(点图切换)
+// - style: 裸 CSS 字符串，由数据层写定位，组件零耦合
+const overlayHovering = ref(false)
+const overlayClicked = reactive({})
+
+function isOverlayVisible(o, i) {
+  if (o.trigger === 'always') return true
+  if (o.trigger === 'click') return !!overlayClicked[i]
+  return overlayHovering.value
+}
+
+function onImageClick() {
+  const list = props.item?.overlays
+  if (!list) return
+  list.forEach((o, i) => {
+    if (o.trigger === 'click') overlayClicked[i] = !overlayClicked[i]
+  })
+}
 </script>
 
 <style scoped>
@@ -178,6 +212,7 @@ const parsedTags = computed(() => {
   background: #111;
   overflow: hidden;
   min-width: 0;
+  position: relative;
 }
 
 .detail-image {
@@ -189,6 +224,25 @@ const parsedTags = computed(() => {
   -webkit-user-drag: none;
   user-drag: none;
   user-select: none;
+}
+
+/* 详情图遮罩：定位由 content.json 的 overlay.style 裸 CSS 决定，
+   默认隐藏、按 trigger 显隐（悬浮/常显/点击切换） */
+.detail-overlay {
+  position: absolute;
+  pointer-events: none;
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 2;
+}
+
+.detail-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
 }
 
 .detail-info {
