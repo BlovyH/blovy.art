@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import PixelWindow from './PixelWindow.vue'
 
 const props = defineProps({
@@ -153,6 +153,34 @@ function onImageClick() {
     if (o.trigger === 'click') overlayClicked[i] = !overlayClicked[i]
   })
 }
+
+// 键盘左右方向键翻页：详情窗开启时（本组件被 v-if 挂载）挂全局监听，
+// 卸载时自动移除。排除输入框/可编辑区聚焦时的误触。
+function onGalleryKeydown(e) {
+  const t = e.target
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+  // 修饰键组合（Ctrl/Cmd/Alt + R）交给浏览器默认行为（如刷新），不拦截、不触发随机，
+  // 否则会连带随机甚至挡掉刷新 —— 属于必须规避的副作用。
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    emit('prev')
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    emit('next')
+  } else if (e.key.toLowerCase() === 'r') {
+    e.preventDefault()
+    emit('random')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onGalleryKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGalleryKeydown)
+})
 </script>
 
 <style scoped>
