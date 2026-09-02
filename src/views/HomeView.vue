@@ -48,6 +48,9 @@
         class="gallery-window"
         title="GALLERY"
         width="66%"
+        :resizable="true"
+        :min-width="320"
+        :min-height="240"
         :initial-z-index="50"
         @dragend="onGalleryDragEnd"
       >
@@ -156,6 +159,9 @@
         title="COMMENTS, NOTES"
         :show-minimize="true"
         :show-maximize="true"
+        :resizable="true"
+        :min-width="260"
+        :min-height="200"
         width="33%"
         :initial-z-index="40"
       >
@@ -848,10 +854,10 @@ function applyCursorPreview(cursors, base = '') {
     { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
     { key: 'wait', fallback: 'wait', selector: 'html.fp-cursor-wait, html.fp-cursor-wait *' },
     { key: 'progress', fallback: 'progress', selector: 'html.fp-cursor-progress, html.fp-cursor-progress *' },
-    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew' },
-    { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns' },
-    { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw' },
-    { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse' },
+    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *' },
+    { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns, [data-resize="ns"] *, .resize-ns *' },
+    { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw, [data-resize="nesw"] *, .resize-nesw *' },
+    { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse, [data-resize="nwse"] *, .resize-nwse *' },
   ]
 
   const rules = []
