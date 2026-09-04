@@ -108,7 +108,7 @@
         class="notice-sign-icon"
         initial-left="68%"
         initial-top="18%"
-        @click="openNoticeSign"
+        @click="dlg.start('noticeSign')"
       >
         <template #icon>
           <img class="notice-sign-img" src="/assets/sign.png" alt="notice sign" draggable="false" @dragstart.prevent />
@@ -252,25 +252,8 @@
       <p></p>
     </footer>
 
-    <!-- Dialog Box -->
-    <DialogBox
-      :visible="dialogVisible"
-      :content="dialogContent"
-      @click="onDialogClick"
-    />
-
-    <!-- Option Box -->
-    <OptionBox
-      :visible="optionVisible"
-      @select="onOptionSelect"
-    />
-
-    <!-- Dropped out warning -->
-    <DialogBox
-      :visible="droppedDialogVisible"
-      :content="droppedDialogContent"
-      @click="closeDroppedDialog"
-    />
+    <!-- Dialog Flow Runner: 全局挂一次，按 flows.js 自动渲染对话 / 选项 -->
+    <DialogFlowRunner />
 
     <!-- Image Detail Window -->
     <ImageDetailWindow
@@ -327,9 +310,9 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
 import PixelWindow from '@/components/PixelWindow.vue'
-import DialogBox from '@/components/DialogBox.vue'
-import OptionBox from '@/components/OptionBox.vue'
 import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
+import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
+import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import FPDetailWindow from '@/components/FPDetailWindow.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import DesktopIcon from '@/components/DesktopIcon.vue'
@@ -337,6 +320,10 @@ import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
 import { nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
+
+// 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
+// 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
+const dlg = useDialogFlow()
 
 const fandomWindowRef = ref(null)
 const fandomContentRef = ref(null)
@@ -632,15 +619,10 @@ function checkFandomOutOfViewport() {
     const targetTop = Math.max(padding, window.innerHeight - outerRect.height - padding)
     const dy = targetTop - outerRect.top
     fandomWindowRef.value?.moveBy(0, dy)
-    droppedDialogVisible.value = true
+    dlg.start('dropped')
   }
 }
 
-const dialogVisible = ref(false)
-const dialogContent = ref('')
-const optionVisible = ref(false)
-const droppedDialogVisible = ref(false)
-const droppedDialogContent = ref('HEY YOU DROPPED ME OUT!??!!!!!')
 const detailVisible = ref(false)
 const detailIndex = ref(0)
 const detailSide = ref('right')
@@ -715,10 +697,6 @@ function isMobile() {
 
 function closePage() {
   window.close()
-}
-
-function closeDroppedDialog() {
-  droppedDialogVisible.value = false
 }
 
 function updateDetailSide() {
@@ -881,59 +859,8 @@ function applyCursorPreview(cursors, base = '') {
   document.head.appendChild(style)
 }
 
-const noticeFlow = {
-  start: {
-    content: 'Merely a notice sign.<br>There are some Morse codes written on it.<br>Read it?',
-    next: 'choice',
-  },
-  choice: {
-    options: [
-      { label: 'YES', value: 'yes' },
-      { label: 'NO', value: 'no' },
-    ],
-  },
-  yes: {
-    content: 'Well, it reads:<br>.. .-. . .-. . .-.. -.-- / .- / -. --- - .. -.-. . / ... .. --. -. .<br>(I\'m merely a notice sign.)',
-    next: null,
-  },
-  no: {
-    content: 'You decided not to read it. The sign remains a mystery.',
-    next: null,
-  },
-}
-
-let currentStep = null
-
-function openNoticeSign() {
-  currentStep = 'start'
-  dialogContent.value = noticeFlow.start.content
-  dialogVisible.value = true
-  optionVisible.value = false
-}
-
-function onDialogClick() {
-  if (!currentStep) return
-  const step = noticeFlow[currentStep]
-  if (step.next) {
-    currentStep = step.next
-    if (currentStep === 'choice') {
-      dialogVisible.value = false
-      optionVisible.value = true
-    } else {
-      dialogContent.value = noticeFlow[currentStep].content
-    }
-  } else {
-    dialogVisible.value = false
-    currentStep = null
-  }
-}
-
-function onOptionSelect(value) {
-  optionVisible.value = false
-  currentStep = value
-  dialogContent.value = noticeFlow[value].content
-  dialogVisible.value = true
-}
+// 对话流逻辑已抽到 src/dialogs/（flows.js + useDialogFlow.js），由 DialogFlowRunner 渲染；
+// 本文件不再维护 noticeFlow / openNoticeSign / onDialogClick / onOptionSelect。
 </script>
 
 <style scoped>
