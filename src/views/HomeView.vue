@@ -167,13 +167,14 @@
       >
         <div class="comments-body">
           <a
-            v-for="note in notes"
+            v-for="note in displayedNotes"
             :key="note.title"
             class="note-item"
             :href="note.link || null"
             target="_blank"
             rel="noopener noreferrer"
           >
+            <img v-if="note.pinned" class="note-pin" :src="PIN_ICON" alt="pinned" />
             <div class="note-main">
               <p class="note-title">{{ note.title }}</p>
               <p class="note-tags">{{ formatTags(note.tags) }}</p>
@@ -360,6 +361,13 @@ const onThumbLoad = (item) => {
   }
 }
 const notes = ref([])
+// 置顶文章：pinned 字段来自 content.json；displayedNotes 把置顶项按原数组顺序提到最前
+const displayedNotes = computed(() => {
+  const list = notes.value || []
+  return [...list.filter((n) => n.pinned), ...list.filter((n) => !n.pinned)]
+})
+// 图钉占位图（本地 assets 无效路径，待你出图覆盖 public/assets/pin.png 同名即可）
+const PIN_ICON = '/assets/pin.png'
 const fandomProjects = ref([])
 const fandomWindowIcon = ref('/assets/placeholder.svg')
 
@@ -1290,9 +1298,22 @@ function onOptionSelect(value) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding-top: 12px;
+}
+
+.note-pin {
+  position: absolute;
+  top: -18px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .note-item {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
