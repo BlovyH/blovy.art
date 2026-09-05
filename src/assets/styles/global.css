@@ -111,3 +111,28 @@ button {
 .drag-top {
   z-index: 9998;
 }
+
+/* Hover frame overlay via ::after (9-slice sprite).
+   The sprite (deskicon_frame.png, 32x32) is a self-contained PS-style selection
+   box: it already draws the frame line, corner blocks AND edge-mid markers.
+   That is ONE visual source — correct on its own (this is how it looked before
+   transform was added). The transform handles are INVISIBLE hit areas only
+   (see .ft-handle) so they never add a second layer on top of the sprite. */
+.frame-on-hover::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100% * var(--ft-sx, 1) + 4px);
+  height: calc(100% * var(--ft-sy, 1) + 4px);
+  transform: translate(-50%, -50%);
+  border: 6px solid transparent;
+  border-image: url(/assets/deskicon_frame.png) 3 3;
+  opacity: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.frame-on-hover:hover::after,
+.frame-on-hover.is-transforming::after {
+  opacity: 1;
+}
