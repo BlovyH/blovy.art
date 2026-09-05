@@ -115,6 +115,19 @@
         </template>
       </DesktopIcon>
 
+      <!-- Torch Desktop Icon -->
+      <DesktopIcon
+        class="torch-desktop-icon frame-on-hover"
+        initial-left="63%"
+        initial-top="32%"
+        :always-top="false"
+        :transformable="true"
+      >
+        <template #icon>
+          <img class="torch-icon-img" src="/assets/torch.png" alt="torch" draggable="false" @dragstart.prevent />
+        </template>
+      </DesktopIcon>
+
       <!-- Social Links Window -->
       <PixelWindow
         class="social-window"
@@ -1048,6 +1061,18 @@ function applyCursorPreview(cursors, base = '') {
 }
 
 .notice-sign-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.torch-desktop-icon :deep(.desktop-icon__visual) {
+  width: 100%;
+  height: auto;
+}
+
+.torch-icon-img {
   width: 100%;
   height: auto;
   object-fit: contain;
