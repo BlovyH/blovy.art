@@ -1,7 +1,8 @@
 <template>
   <div
     ref="iconRef"
-    class="desktop-icon drag-top"
+    class="desktop-icon"
+    :class="{ 'drag-top': alwaysTop }"
     :style="iconStyle"
     v-draggable="onIconClick"
   >
@@ -25,6 +26,11 @@ const props = defineProps({
   initialTop: {
     type: String,
     default: '0',
+  },
+  // 是否常驻最顶层(9998)。默认 true。torch 等不需要置顶的图标传 false。
+  alwaysTop: {
+    type: Boolean,
+    default: true,
   },
 })
 
@@ -56,6 +62,8 @@ function onIconClick() {
   padding: 4px;
   box-sizing: border-box;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   /* drag offset comes from v-draggable (CSS vars) */
   transform: translate(var(--ddx, 0px), var(--ddy, 0px));
 }

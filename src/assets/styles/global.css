@@ -105,10 +105,9 @@ button {
   display: none;
 }
 
-/* Lego block: always-on-top layer + no text selection while dragging.
-   Pair with `v-draggable` for "drag + top" windows/icons. */
+/* Lego block: always-on-top layer. Pair with `v-draggable` for "drag + top"
+   windows/icons. `user-select:none` lives on the base `.desktop-icon` so it
+   applies to all icons regardless of top-layer status. */
 .drag-top {
   z-index: 9998;
-  user-select: none;
-  -webkit-user-select: none;
 }
