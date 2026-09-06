@@ -67,7 +67,7 @@ const iconStyle = computed(() => ({
 }))
 
 function onIconClick() {
-  emit('click')
+  emit('click', distortionAxis())
 }
 
 // --- Free transform (transformable) ---
@@ -83,6 +83,29 @@ const clampScale = (v) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, v))
 const sx = ref(1)
 const sy = ref(1)
 let drag = null
+
+// HORIZONTAL_TOLERANCE = 宽/高 的上限；VERTICAL_TOLERANCE = 高/宽 的上限。
+const HORIZONTAL_TOLERANCE = 5
+const VERTICAL_TOLERANCE = 1.6
+
+// 返回超出容错的那个轴，供调用方按变形方向走不同分支：
+// ''  = 未超出（等比拉伸、或形变仍在容错内）
+// 'h' = 横向超出（宽/高 超过 HORIZONTAL_TOLERANCE）
+// 'v' = 纵向超出（高/宽 超过 VERTICAL_TOLERANCE）
+function distortionAxis() {
+  const el = iconRef.value
+  if (!el) return ''
+  const target =
+    el.querySelector('.desktop-icon__visual') ||
+    el.querySelector('.desktop-icon__content')
+  if (!target) return ''
+  const r = target.getBoundingClientRect()
+  if (!r.height) return ''
+  const ratio = r.width / r.height
+  if (ratio > HORIZONTAL_TOLERANCE) return 'h'
+  if (1 / ratio > VERTICAL_TOLERANCE) return 'v'
+  return ''
+}
 
 function applyTransform() {
   const el = iconRef.value

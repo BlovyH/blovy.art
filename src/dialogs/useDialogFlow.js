@@ -68,6 +68,7 @@ function reset() {
 export function useDialogFlow() {
   return {
     activeKey,
+    currentStep,
     step,
     visible,
     isDialog,

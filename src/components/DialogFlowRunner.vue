@@ -19,6 +19,7 @@ const { isDialog, isOption, content, options, visible, advance, select } = useDi
   <OptionBox
     :visible="isOption"
     :options="options"
+    :content="content"
     @select="select"
   />
 </template>

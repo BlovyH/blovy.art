@@ -110,13 +110,15 @@
         </template>
       </DesktopIcon>
 
-      <!-- Torch Desktop Icon -->
+      <!-- Torch Desktop Icon — 点亮后移除，避免重复触发彩蛋 -->
       <DesktopIcon
+        v-if="!torchOn"
         class="torch-desktop-icon frame-on-hover"
-        initial-left="63%"
+        initial-left="5%"
         initial-top="32%"
         :always-top="false"
         :transformable="true"
+        @click="onTorchClick"
       >
         <template #icon>
           <img class="torch-icon-img" src="/assets/torch.png" alt="torch" draggable="false" @dragstart.prevent />
@@ -312,11 +314,12 @@
       :buttons="[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]"
       @action="onStickyAction"
     />
+    <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :intensity="0.9" />
   </main>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
@@ -326,12 +329,31 @@ import NothingWindow from '@/components/NothingWindow.vue'
 import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
+import TorchLayer from '@/components/TorchLayer.vue'
 import { nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
 const dlg = useDialogFlow()
+
+// 手电筒开关：默认关，只有 torch 彩蛋对话里选了 YES 才点亮。
+// armed = 选项框停留期间预先记录光标位置，这样选 YES 点亮时光晕已经在鼠标处。
+// torch 与 tallch 都走「Use it? YES/NO」分支，故两者 choice 步都需 armed。
+const torchOn = ref(false)
+const isTorchFamilyChoice = () =>
+  dlg.currentStep.value === 'choice' &&
+  (dlg.activeKey.value === 'torchFound' || dlg.activeKey.value === 'tallchFound')
+const torchArmed = computed(isTorchFamilyChoice)
+watch(
+  () => [dlg.activeKey.value, dlg.currentStep.value],
+  ([key, step]) => {
+    // 选 YES 点亮手电筒——torch 与 tallch 共用此副作用。
+    if (step === 'yes' && (key === 'torchFound' || key === 'tallchFound')) {
+      torchOn.value = true
+    }
+  }
+)
 
 const fandomWindowRef = ref(null)
 const fandomContentRef = ref(null)
@@ -869,6 +891,18 @@ function applyCursorPreview(cursors, base = '') {
 
 // 对话流逻辑已抽到 src/dialogs/（flows.js + useDialogFlow.js），由 DialogFlowRunner 渲染；
 // 本文件不再维护 noticeFlow / openNoticeSign / onDialogClick / onOptionSelect。
+
+// torch 图标：只有「没被拉歪」时才认领彩蛋（等比放大、长宽比 1:1.3 以内的轻微
+// 变形都算原样），被明显非等比拉伸过的 torch 点击无反应。
+// DesktopIcon 的 click 事件 payload = 变形方向：
+//   ''  = 未超出容错（等比拉伸 / 形变仍在容错内）→ torch
+//   'v' = 纵向超出容错 → tallch（同 YES/NO 家族，YES 点亮手电筒）
+//   'h' = 横向超出容错 → bench（单句死胡同，不接 YES/NO）
+function onTorchClick(axis) {
+  if (axis === 'h') dlg.start('benchFound')
+  else if (axis === 'v') dlg.start('tallchFound')
+  else dlg.start('torchFound')
+}
 </script>
 
 <style scoped>

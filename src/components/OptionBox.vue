@@ -5,17 +5,20 @@
       class="option-box"
       :style="{ zIndex }"
     >
-      <button
-        v-for="(option, index) in options"
-        :key="option.value"
-        class="option-box__item"
-        :class="{ active: index === selectedIndex }"
-        @click="select(index)"
-        @mouseenter="hover(index)"
-      >
-        <span class="option-box__prefix">{{ index === selectedIndex ? '#' : ' ' }}</span>
-        <span class="option-box__label">{{ option.label }}</span>
-      </button>
+      <p v-if="content" class="option-box__content" v-html="content"></p>
+      <div class="option-box__row">
+        <button
+          v-for="(option, index) in options"
+          :key="option.value"
+          class="option-box__item"
+          :class="{ active: index === selectedIndex }"
+          @click="select(index)"
+          @mouseenter="hover(index)"
+        >
+          <span class="option-box__prefix">{{ index === selectedIndex ? '#' : ' ' }}</span>
+          <span class="option-box__label">{{ option.label }}</span>
+        </button>
+      </div>
     </div>
   </Teleport>
 </template>
@@ -38,6 +41,11 @@ const props = defineProps({
   modelValue: {
     type: Number,
     default: 0,
+  },
+  // 选项上方的提示文案（支持 <br> / <span style>，组件内 v-html）。不传则不渲染。
+  content: {
+    type: String,
+    default: '',
   },
 })
 
@@ -97,9 +105,10 @@ onUnmounted(() => {
   height: clamp(220px, 28vh, 320px);
   box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
   background: #000000;
   border: 6px solid transparent;
   border-image-source: url('/assets/window_frame.png');
@@ -109,6 +118,23 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   padding: 28px 36px;
+}
+
+.option-box__content {
+  margin: 0;
+  color: #ffffff;
+  font-family: var(--font-pixel);
+  font-size: clamp(20px, 2vw, 34px);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.option-box__row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
 }
 
 .option-box__item {

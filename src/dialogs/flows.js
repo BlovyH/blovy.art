@@ -48,10 +48,67 @@ export const droppedFlow = {
   },
 }
 
+// 手电筒：仅当 torch 图标未被拉伸变形时点击才触发（彩蛋）。
+// 选 YES 会点亮手电筒（副作用由 HomeView 监听本流的 'yes' 步执行）；选 NO 直接结束。
+export const torchFoundFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You found a <span style="color:#00ffff">torch</span>.',
+    next: 'choice',
+  },
+  choice: {
+    type: 'option',
+    content: 'Use it?',
+    options: [
+      { label: 'YES', value: 'yes' },
+      { label: 'NO', value: 'no' },
+    ],
+    next: { yes: 'yes', no: null },
+  },
+  yes: {
+    type: 'dialog',
+    content: 'You lit the <span style="color:#00ffff">torch</span>.',
+    next: null,
+  },
+}
+
+export const tallchFoundFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You found a <span style="color:#00ffff">tallch</span>.',
+    next: 'choice',
+  },
+  choice: {
+    type: 'option',
+    content: 'Use it?',
+    options: [
+      { label: 'YES', value: 'yes' },
+      { label: 'NO', value: 'no' },
+    ],
+    next: { yes: 'yes', no: null },
+  },
+  yes: {
+    type: 'dialog',
+    content: 'You lit the <span style="color:#00ffff">tallch</span>.',
+    next: null,
+  },
+}
+
+export const benchFoundFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You found a <span style="color:#00ffff">bench</span>.',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
   dropped: droppedFlow,
+  torchFound: torchFoundFlow,
+  tallchFound: tallchFoundFlow,
+  benchFound: benchFoundFlow,
 }
 
 export default dialogFlows
