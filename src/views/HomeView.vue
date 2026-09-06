@@ -93,12 +93,7 @@
         @click="openNothingWindow"
       >
         <template #icon>
-          <svg class="nothing-trigger-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="29" cy="19" r="12" fill="none" stroke="#808080" stroke-width="3" />
-            <line x1="21" y1="27" x2="9" y2="39" stroke="#808080" stroke-width="3" stroke-linecap="round" />
-            <line x1="35" y1="13" x2="23" y2="25" stroke="#808080" stroke-width="3" stroke-linecap="round" />
-            <line x1="23" y1="13" x2="35" y2="25" stroke="#808080" stroke-width="3" stroke-linecap="round" />
-          </svg>
+          <img class="nothing-icon-img" src="/assets/nothing.png" alt="nothing" draggable="false" @dragstart.prevent />
         </template>
         <template #label>Nothing</template>
       </DesktopIcon>
@@ -1080,9 +1075,11 @@ function applyCursorPreview(cursors, base = '') {
 }
 
 /* Nothing Desktop Icon */
-.nothing-trigger-icon {
-  width: 44px;
-  height: 44px;
+.nothing-icon-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 /* Social Links Window */
