@@ -52,6 +52,7 @@
         :min-width="320"
         :min-height="240"
         :initial-z-index="50"
+        @dragmove="onGalleryDragMove"
         @dragend="onGalleryDragEnd"
       >
         <div class="gallery-body">
@@ -66,7 +67,13 @@
             </template>
           </div>
           <div class="gallery-main">
-            <div class="gallery-grid">
+            <!-- 打乱时用 Vue 内置 FLIP（.shuffle-move）让缩略图滑到新位置 -->
+            <TransitionGroup
+              name="shuffle"
+              tag="div"
+              class="gallery-grid"
+              :class="{ 'no-anim': !shuffleWithAnim }"
+            >
               <img
                 v-for="(item, index) in filteredGalleryItems"
                 :key="item.thumb"
@@ -80,7 +87,7 @@
                 @load="onThumbLoad(item)"
                 @click="openDetail(index)"
               />
-            </div>
+            </TransitionGroup>
           </div>
         </div>
       </PixelWindow>
@@ -343,6 +350,7 @@ import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
 import { nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
+import { useShakeDetect } from '@/composables/useShakeDetect.js'
 
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
@@ -511,6 +519,36 @@ const filteredGalleryItems = computed(() => {
   if (activeCategory.value === 'all') return galleryItems.value
   return galleryItems.value.filter(item => item.category === activeCategory.value)
 })
+// 晃到一定规模就放弃 FLIP 动画（量大了整屏 transform 反而糊），直接重排。
+const SHUFFLE_ANIM_MAX_ITEMS = 120
+const shuffleWithAnim = computed(
+  () => filteredGalleryItems.value.length <= SHUFFLE_ANIM_MAX_ITEMS
+)
+// 拖动 gallery 窗口来回甩 → 打乱照片顺序。检测逻辑在 useShakeDetect，这里只接位置流。
+const galleryShake = useShakeDetect(shuffleGallery)
+function onGalleryDragMove({ x, y }) {
+  galleryShake.push(x, y)
+}
+function shuffleGallery() {
+  const arr = galleryItems.value
+  if (arr.length < 2) return
+  // 详情开着时记住当前这张（按 thumb 认人），洗完把 detailIndex 重定位到它的新位置。
+  const currentThumb = detailVisible.value
+    ? filteredGalleryItems.value[detailIndex.value]?.thumb
+    : null
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const tmp = arr[i]
+    arr[i] = arr[j]
+    arr[j] = tmp
+  }
+  if (currentThumb) {
+    const idx = filteredGalleryItems.value.findIndex(
+      (it) => it.thumb === currentThumb
+    )
+    if (idx >= 0) detailIndex.value = idx
+  }
+}
 const fpDetailItem = computed(() => fandomProjects.value[fpDetailIndex.value] || null)
 
 // 远端内容热更新（Nacos 式）：仅在 CONTENT_DATA_URL 为外部直链时轮询
@@ -833,6 +871,8 @@ function openDetail(index) {
 }
 
 function onGalleryDragEnd() {
+  // 松手即丢弃这串采样点，避免「拖出去、停一会儿、再拖」被当成一次连续晃动。
+  galleryShake.reset()
   if (!detailVisible.value) return
   updateDetailSide()
 }
@@ -1166,6 +1206,15 @@ function onTorchClick(axis) {
   border-style: double;            /* hover：双线 */
   border-width: 5px;               /* 在 2px 基础上叠加 3px，双线更明显 */
   border-color: var(--color-text-cyan);  /* 悬停时框变青色（同文字青色） */
+}
+
+/* 打乱动画：Vue 的 FLIP 会给「位置变了」的元素挂 .shuffle-move，这里决定它怎么滑过去。
+   数量超过 SHUFFLE_ANIM_MAX_ITEMS 时挂 .no-anim，直接跳位不做 transform。 */
+.shuffle-move {
+  transition: transform 500ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.gallery-grid.no-anim .shuffle-move {
+  transition: none;
 }
 
 /* Notice Sign (DesktopIcon: always on top + draggable) */

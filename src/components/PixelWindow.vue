@@ -145,7 +145,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'dragend'])
+const emit = defineEmits(['close', 'dragend', 'dragmove'])
 
 const controlFlags = computed(() => ({
   minimize: props.controls.minimize ?? true,
@@ -401,6 +401,8 @@ function onManualDrag(e) {
   const dy = e.clientY - manual.startMouseY
   manual.x = manual.startX + dx
   manual.y = manual.startY + dy
+  // 与 onDrag 一致：拖拽中的位置流，供「晃动检测」之类的消费方采样。
+  emit('dragmove', { x: manual.x, y: manual.y })
 }
 
 function stopManualDrag() {
@@ -434,6 +436,8 @@ function onDrag(e) {
   const dy = e.clientY - drag.startMouseY
   drag.x = drag.startX + dx
   drag.y = drag.startY + dy
+  // 拖拽中的位置流：拖拽期间每次 mousemove 都派发，供「晃动检测」之类的消费方采样。
+  emit('dragmove', { x: drag.x, y: drag.y })
 }
 
 function stopDrag() {
