@@ -5,6 +5,7 @@
 // 用法：
 //   const dlg = useDialogFlow()
 //   dlg.start('noticeSign')          // 任意触发器调用
+//   dlg.start('next', { preempt: true })  // 顶掉当前流（同一件事的后续步骤）
 //   dlg.isDialog / dlg.isOption      // Runner 渲染器读取当前步类型
 //   dlg.advance()                    // 对话步点击/回车推进（Runner 在 DialogBox @click 上绑）
 //   dlg.select(value)                // 选项步选择（Runner 在 OptionBox @select 上绑）
@@ -28,10 +29,13 @@ const isOption = computed(() => step.value?.type === 'option')
 const content = computed(() => step.value?.content ?? '')
 const options = computed(() => step.value?.options ?? [])
 
-// 启动一串对话。非抢占：已有流在跑则直接忽略（不排队、不抢占）。
-function start(key) {
-  if (activeKey.value) return
+// 启动一串对话。
+// 默认非抢占（已有流在跑则忽略、不排队），适用于「两件不相干的事」；
+// preempt: true 时直接顶掉当前流，适用于「同一件事的后续步骤」——用户没点掉上一句
+// 也要接得上，否则那句后续对话会被静默吞掉。是否属于同一件事由调用方判断。
+function start(key, { preempt = false } = {}) {
   if (!dialogFlows[key]) return
+  if (activeKey.value && !preempt) return
   activeKey.value = key
   currentStep.value = 'start'
 }

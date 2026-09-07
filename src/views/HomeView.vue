@@ -110,20 +110,31 @@
         </template>
       </DesktopIcon>
 
-      <!-- Torch Desktop Icon — 点亮后移除，避免重复触发彩蛋 -->
+      <!-- Torch Desktop Icon — 点亮后移除，避免重复触发彩蛋；完全移出视口后不再渲染 -->
       <DesktopIcon
-        v-if="!torchOn"
-        class="torch-desktop-icon frame-on-hover"
+        v-if="!torchOn && !torchGone"
+        ref="torchIconRef"
+        :class="[
+          'torch-desktop-icon',
+          { 'frame-on-hover': !torchLeaving, 'is-leaving': torchLeaving },
+        ]"
         initial-left="5%"
         initial-top="32%"
         :always-top="false"
-        :transformable="true"
+        :transformable="!torchLeaving"
+        @mousedown="onTorchDragPause"
         @click="onTorchClick"
       >
         <template #icon>
           <img class="torch-icon-img" src="/assets/torch.png" alt="torch" draggable="false" @dragstart.prevent />
         </template>
       </DesktopIcon>
+
+      <!-- 手电筒熄灭按钮：点亮后原地取代 torch 图标，点一下熄灭、图标回归。
+           定位与 torch 图标同锚点（见 .torch-off-btn）。 -->
+      <button v-if="torchOn" class="torch-off-btn" @click="onTorchOff">
+        I'M DONE WITH IT
+      </button>
 
       <!-- Social Links Window -->
       <PixelWindow
@@ -341,6 +352,21 @@ const dlg = useDialogFlow()
 // armed = 选项框停留期间预先记录光标位置，这样选 YES 点亮时光晕已经在鼠标处。
 // torch 与 tallch 都走「Use it? YES/NO」分支，故两者 choice 步都需 armed。
 const torchOn = ref(false)
+// 当前点亮的是 torch 还是 tallch —— 决定熄灭对话里的名词。
+const torchVariant = ref('torch')
+// 离场态：熄灭对话播完后图标缓慢左移，直到完全移出视口。
+const torchLeaving = ref(false)
+const torchGone = ref(false)
+const torchIconRef = ref(null)
+// 左移速度（px/s）。离场位移逐帧直接写进元素的 --drift-x，不走响应式，避免每帧重渲染。
+const TORCH_DRIFT_SPEED = 40
+// 熄灭对话播完后要接着做离场动画，故需要知道「刚才那条就是熄灭对话」。
+let torchLeavingPending = false
+let torchDriftRaf = null
+let torchDriftLast = 0
+let torchDriftX = 0
+let torchDriftPaused = false
+
 const isTorchFamilyChoice = () =>
   dlg.currentStep.value === 'choice' &&
   (dlg.activeKey.value === 'torchFound' || dlg.activeKey.value === 'tallchFound')
@@ -351,9 +377,71 @@ watch(
     // 选 YES 点亮手电筒——torch 与 tallch 共用此副作用。
     if (step === 'yes' && (key === 'torchFound' || key === 'tallchFound')) {
       torchOn.value = true
+      torchVariant.value = key === 'tallchFound' ? 'tallch' : 'torch'
+    }
+    // 熄灭对话播完（流自关，activeKey 归 null）→ 开始离场左移。
+    if (key === null && torchLeavingPending) {
+      torchLeavingPending = false
+      startTorchLeaving()
     }
   }
 )
+
+// 关灯入口：屏幕上的「I'M DONE WITH IT」按钮，点亮后原地取代 torch 图标。
+function onTorchOff() {
+  torchOn.value = false
+  torchLeavingPending = true
+  // 与 "You lit the ..." 是同一件事的后续步骤：即便那句还没被点掉也要顶上去，
+  // 否则用户忘了关就永远看不到 sad 这句。
+  dlg.start(torchVariant.value === 'tallch' ? 'tallchDone' : 'torchDone', {
+    preempt: true,
+  })
+}
+
+function startTorchLeaving() {
+  torchLeaving.value = true
+  torchDriftX = 0
+  torchDriftPaused = false
+  torchDriftLast = performance.now()
+  torchDriftRaf = requestAnimationFrame(torchDriftStep)
+}
+
+function torchDriftStep(now) {
+  const el = torchIconRef.value?.$el
+  if (!el) return
+  const dt = (now - torchDriftLast) / 1000
+  torchDriftLast = now
+  if (!torchDriftPaused) {
+    torchDriftX -= TORCH_DRIFT_SPEED * dt
+    el.style.setProperty('--drift-x', torchDriftX + 'px')
+  }
+  // 完全移出视口左侧 → 停掉循环并卸载图标。
+  if (el.getBoundingClientRect().right < 0) {
+    torchGone.value = true
+    stopTorchLeaving()
+    return
+  }
+  torchDriftRaf = requestAnimationFrame(torchDriftStep)
+}
+
+function stopTorchLeaving() {
+  if (torchDriftRaf) cancelAnimationFrame(torchDriftRaf)
+  torchDriftRaf = null
+  torchLeaving.value = false
+  torchDriftPaused = false
+  window.removeEventListener('mouseup', onTorchDragResume)
+}
+
+// 离场期间仍可拖拽：按下暂停左移，松手后从当前位置继续（不回退到按下前的位置）。
+function onTorchDragPause() {
+  if (!torchLeaving.value) return
+  torchDriftPaused = true
+  window.addEventListener('mouseup', onTorchDragResume, { once: true })
+}
+
+function onTorchDragResume() {
+  torchDriftPaused = false
+}
 
 const fandomWindowRef = ref(null)
 const fandomContentRef = ref(null)
@@ -534,6 +622,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
+  stopTorchLeaving()
   if (socialResizeObserver) {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
@@ -899,6 +988,8 @@ function applyCursorPreview(cursors, base = '') {
 //   'v' = 纵向超出容错 → tallch（同 YES/NO 家族，YES 点亮手电筒）
 //   'h' = 横向超出容错 → bench（单句死胡同，不接 YES/NO）
 function onTorchClick(axis) {
+  // 离场中：点击不再触发任何交互。
+  if (torchLeaving.value) return
   if (axis === 'h') dlg.start('benchFound')
   else if (axis === 'v') dlg.start('tallchFound')
   else dlg.start('torchFound')
@@ -1106,6 +1197,39 @@ function onTorchClick(axis) {
   height: auto;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+/* 离场左移：在组件自己的 translate（v-draggable 写的 --ddx/--ddy）之上叠加一档
+   --drift-x，由 rAF 逐帧写入。选择器带 .desktop-icon 提高优先级，确保覆盖组件内
+   那条根 transform（同级类选择器下后者会赢）。 */
+.desktop-icon.torch-desktop-icon.is-leaving {
+  transform: translate(
+    calc(var(--ddx, 0px) + var(--drift-x, 0px)),
+    var(--ddy, 0px)
+  );
+}
+
+/* 手电筒熄灭按钮——视觉沿用 gallery 详情页的 .detail-btn（黑底 + 白描边 + hover 反色），
+   定位锚点与上方 torch 图标一致，点亮后就出现在图标原来的位置。 */
+.torch-off-btn {
+  position: absolute;
+  left: 5%;
+  top: 32%;
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  border-radius: 0;
+  padding: 12px 16px;
+  font-family: var(--font-pixel);
+  font-size: clamp(14px, 1.4vw, 20px);
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.torch-off-btn:hover {
+  background: #ffffff;
+  color: #000000;
 }
 
 /* Nothing Desktop Icon */

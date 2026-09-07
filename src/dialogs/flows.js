@@ -102,6 +102,28 @@ export const benchFoundFlow = {
   },
 }
 
+// 熄灭：点「I'M DONE WITH IT」后弹，播完 torch 图标开始左移离场。
+// 名词按当时点亮的是 torch 还是 tallch 走不同流（与 Found 系列一一对应）。
+const torchDoneFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      'You shouted to the <span style="color:#00ffff">torch</span> that you are done with it.<br>' +
+      'The <span style="color:#00ffff">torch</span> looks very sad.',
+    next: null,
+  },
+}
+
+const tallchDoneFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      'You shouted to the <span style="color:#00ffff">tallch</span> that you are done with it.<br>' +
+      'The <span style="color:#00ffff">tallch</span> looks very sad.',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -109,6 +131,8 @@ export const dialogFlows = {
   torchFound: torchFoundFlow,
   tallchFound: tallchFoundFlow,
   benchFound: benchFoundFlow,
+  torchDone: torchDoneFlow,
+  tallchDone: tallchDoneFlow,
 }
 
 export default dialogFlows
