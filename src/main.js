@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import draggable from './directives/draggable'
+import { installConsoleMenu } from './utils/consoleMenu'
 import './assets/styles/global.css'
 
 // 子集字体走 Vite 资源管线（构建时自动带 [hash]），此处动态注入 preload 以保留防闪烁优化
@@ -25,4 +26,5 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.directive('draggable', draggable)
+installConsoleMenu()
 app.mount('#app')
