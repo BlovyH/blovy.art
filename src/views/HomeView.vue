@@ -564,6 +564,7 @@ function preloadFPImages() {
   for (const p of fandomProjects.value) {
     if (p.logo) urls.push(p.logo)
     if (p.src) urls.push(p.src)
+    if (p.mask) urls.push(p.mask)
     if (p.cursors) {
       for (const key of Object.keys(p.cursors)) {
         const c = p.cursors[key]
@@ -622,6 +623,7 @@ async function loadContent() {
       ...p,
       logo: fpAsset(p.logo),
       src: fpAsset(p.src, p.prefix),
+      mask: fpAsset(p.mask, p.prefix),
     }))
     fandomWindowIcon.value = fpAsset(data.fandomWindow?.icon) || '/assets/placeholder.svg'
     preloadFPImages()

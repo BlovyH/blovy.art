@@ -101,14 +101,14 @@ const hasPreview = computed(() => {
   return !!(props.item.previewUrl || (props.item.cursors && Object.keys(props.item.cursors).length))
 })
 
-const FLOWERY_MASK_URL = 'https://cdn.blovy.art/fandom-projects/flowery-cursory/textbox.png'
-
 const isFlowery = computed(() => {
   const t = props.item?.title
   return typeof t === 'string' && t.toUpperCase().includes('FLOWERY')
 })
 
-const maskUrl = FLOWERY_MASK_URL
+// 遮罩图 URL 改由 content.json 的 mask 字段提供
+const maskUrl = computed(() => props.item?.mask || '')
+
 const showMask = ref(false)
 const hovering = ref(false)
 
