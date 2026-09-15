@@ -117,6 +117,26 @@
         </template>
       </DesktopIcon>
 
+      <!-- Sunglasses Desktop Icon — 开关式：点一下全局加一层黄褐滤镜，再点取消 -->
+      <DesktopIcon
+        class="sunglasses-icon"
+        initial-left="59%"
+        initial-top="15%"
+        @click="toggleSunglasses"
+      >
+        <template #icon>
+          <img
+            class="sunglasses-icon-img"
+            :class="{ 'is-glow': sunglassesOn }"
+            :src="sunglassesOn ? '/assets/sunglasses_glow.png' : '/assets/sunglasses.png'"
+            alt="sunglasses"
+            draggable="false"
+            @dragstart.prevent
+          />
+        </template>
+        <template #label>sunglasses</template>
+      </DesktopIcon>
+
       <!-- Torch Desktop Icon — 点亮后移除，避免重复触发彩蛋；完全移出视口后不再渲染 -->
       <DesktopIcon
         v-if="!torchOn && !torchGone"
@@ -332,6 +352,21 @@
       :buttons="[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]"
       @action="onStickyAction"
     />
+    <div v-if="sunglassesOn" class="sunglasses-filter" aria-hidden="true"></div>
+
+    <Transition name="toggle-banner" mode="out-in" @after-enter="endToggleBanner">
+      <img
+        v-if="toggleBanner"
+        :key="toggleBanner"
+        class="toggle-banner"
+        :src="TOGGLE_BANNER_SRC[toggleBanner]"
+        alt=""
+        aria-hidden="true"
+        draggable="false"
+        @dragstart.prevent
+      />
+    </Transition>
+
     <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :intensity="0.9" />
   </main>
 </template>
@@ -355,6 +390,27 @@ import { useShakeDetect } from '@/composables/useShakeDetect.js'
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
 const dlg = useDialogFlow()
+
+const sunglassesOn = ref(false)
+
+// 切换太阳镜时在左上角闪一张横幅。'' = 不显示，'on' / 'off' 决定用哪张。
+// 整段演出（含提前退场）全在 CSS 的 @keyframes toggle-banner-swoop 里，这里只负责切换 src；
+// 动画结束时由 after-enter 收尾——所以没有停留计时器，JS 也不需要知道动画有多长。
+const TOGGLE_BANNER_SRC = {
+  on: '/assets/sunglasses_on.png',
+  off: '/assets/sunglasses_off.png',
+}
+const toggleBanner = ref('')
+
+function toggleSunglasses() {
+  sunglassesOn.value = !sunglassesOn.value
+  toggleBanner.value = sunglassesOn.value ? 'on' : 'off'
+}
+
+// 整段animation 跑到 100% 时触发（此时横幅已经滑回视口外）：移除 DOM，等待下次切换。
+function endToggleBanner() {
+  toggleBanner.value = ''
+}
 
 // 手电筒开关：默认关，只有 torch 彩蛋对话里选了 YES 才点亮。
 // armed = 选项框停留期间预先记录光标位置，这样选 YES 点亮时光晕已经在鼠标处。
@@ -1236,6 +1292,102 @@ function onTorchClick(axis) {
   height: auto;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+/* 标签字号改用容器宽度单位（cqw）跟着图标框走，宽屏下不会被挤成两行 */
+.sunglasses-icon :deep(.desktop-icon__content) {
+  container-type: inline-size;
+}
+
+/* 视觉框放开固定尺寸，宽度跟着图标框、高度由贴图比例算出 */
+.sunglasses-icon :deep(.desktop-icon__visual) {
+  width: 100%;
+  height: auto;
+}
+
+.sunglasses-icon :deep(.desktop-icon__label) {
+  white-space: nowrap;
+  font-size: 16cqw;
+}
+
+.sunglasses-icon-img {
+  width: 100%;
+  height: auto;
+  /* 高度上限 = 组件视觉框边长，避免素材比例变化时把图标框撑高 */
+  max-height: 48px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* ON 态光晕：三层 drop-shadow 叠出近亮远散。全屏 multiply 滤镜层压在图标之上
+   会把它一起压暗，所以亮度半径比看着够的量再放大一档 */
+.sunglasses-icon-img.is-glow {
+  filter: drop-shadow(0 0 3px #fff0b8) drop-shadow(0 0 9px #ffc23d) drop-shadow(0 0 18px rgba(255, 160, 30, 0.9));
+}
+
+/* 全局太阳镜滤镜：固定覆盖全屏、不接指针事件，所以只是「看」起来像戴了墨镜。
+   multiply 让底色压暗而不是雾化（黑仍是黑），黄褐分量由这里的 RGB 决定。
+   z-index 高于 top-most 窗的 9999，低于 CenterToast 的 20000。 */
+.sunglasses-filter {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  background: rgba(186, 142, 66, 0.72);
+  mix-blend-mode: multiply;
+}
+
+/* 切换太阳镜时左上角闪的横幅。贴图已经裁掉画布留白，宽度给死后高度自动即可。 */
+.toggle-banner {
+  /* 横幅本体（不含出血）的渲染宽度。源图本体 SRC_BODY 宽，取 4 倍整数放大，
+     pixelated 下每个源像素都是等大的方块。 */
+  --body-w: min(256px, 22vw);
+  --src-body: 64; /* 源图里横幅本体的宽度（px）——改图要同步 */
+  --src-bleed: 6; /* 源图在本体左侧多画的出血宽度（px）——改图要同步 */
+  --bleed: calc(var(--body-w) * var(--src-bleed) / var(--src-body));
+
+  position: fixed;
+  /* 整图往左挪一个出血宽度，本体正好回到「紧贴视口左边」的原位；多出来的那段藏在
+     视口外，只在曲线过冲把整图往右推时才露出来，用来补上左边那条缝。
+     出血按比例算而不是写死 px，才能跟着 --body-w 一起缩放（过冲量本身也是按宽度百分比走的）。 */
+  left: calc(var(--bleed) * -1);
+  top: 6vh;
+  z-index: 10001; /* 压在太阳镜滤镜层之上：横幅自己不被染色 */
+  width: calc(var(--body-w) + var(--bleed));
+  height: auto;
+  image-rendering: pixelated;
+  pointer-events: none;
+  /* 常态就停在视口外：横幅只在 animation 运行期间可见。
+     少了这条，animation 一结束（Vue 会摘掉 enter-active，fill-mode 跟着失效）transform 会
+     退回 none，横幅在最终位置完整闪现两帧才被移除——实测是跳回 249.6px、持续约 8ms 的定格幻影。 */
+  transform: translateX(-100%);
+}
+
+/* 整段演出（滑入 → 还没跑完就开始回撤 → 滑出）合成一条 animation。
+   之前是「进场 1800ms 的 transition + 走完才触发 leave」，中间那次 Vue 的 class 切换加上
+   ease-in 起步速度为 0，会在折返点留出一个肉眼可见的停顿；现在折返写进同一条 timeline，
+   位移是连续的，不存在衔接点。
+   关键帧上的 animation-timing-function 只作用于「本帧 → 下一帧」这一区间，所以进场段可以
+   沿用调好的那条 cubic-bezier，退场段另用一条；总时长是下面唯一那个数字。 */
+.toggle-banner-enter-active {
+  animation: toggle-banner-swoop 1800ms both;
+}
+
+@keyframes toggle-banner-swoop {
+  0% {
+    transform: translateX(-100%);
+    animation-timing-function: cubic-bezier(0, 1.381, 1, 1.016);
+  }
+  /* 位移早在这之前就基本到位了（这条曲线 790ms 走到 99.9%），剩下的时间原本只是把过冲的
+     那点慢慢倒回去。这里提前收住并开始回撤，等于砍掉那段「看着像停住」的尾巴。
+     往大调 = 更晚才走（停留久），往小调 = 来去更匆匆。 */
+  85% {
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0.42, 0, 1, 1); /* ease-in：一路加速滑走 */
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .torch-desktop-icon :deep(.desktop-icon__visual) {
