@@ -100,7 +100,7 @@
         @click="openNothingWindow"
       >
         <template #icon>
-          <img class="nothing-icon-img" src="/assets/nothing.png" alt="nothing" draggable="false" @dragstart.prevent />
+          <img class="desktop-icon-img" src="/assets/nothing.png" alt="nothing" draggable="false" @dragstart.prevent />
         </template>
         <template #label>Nothing</template>
       </DesktopIcon>
@@ -113,7 +113,7 @@
         @click="dlg.start('noticeSign')"
       >
         <template #icon>
-          <img class="notice-sign-img" src="/assets/sign.png" alt="notice sign" draggable="false" @dragstart.prevent />
+          <img class="desktop-icon-img" src="/assets/sign.png" alt="notice sign" draggable="false" @dragstart.prevent />
         </template>
       </DesktopIcon>
 
@@ -126,7 +126,7 @@
       >
         <template #icon>
           <img
-            class="sunglasses-icon-img"
+            class="desktop-icon-img"
             :class="{ 'is-glow': sunglassesOn }"
             :src="sunglassesOn ? '/assets/sunglasses_glow.png' : '/assets/sunglasses.png'"
             alt="sunglasses"
@@ -153,7 +153,7 @@
         @click="onTorchClick"
       >
         <template #icon>
-          <img class="torch-icon-img" src="/assets/torch.png" alt="torch" draggable="false" @dragstart.prevent />
+          <img class="desktop-icon-img" src="/assets/torch.png" alt="torch" draggable="false" @dragstart.prevent />
         </template>
       </DesktopIcon>
 
@@ -1282,14 +1282,15 @@ function onTorchClick(axis) {
   padding: 0;
 }
 
+/* 让视觉框跟着图标框宽度走（正方形由组件里的 aspect-ratio 保证） */
 .notice-sign-icon :deep(.desktop-icon__visual) {
-  width: 100%;
-  height: auto;
+  --icon-size: 100%;
 }
 
-.notice-sign-img {
+/* 所有 DesktopIcon 的贴图共用：贴图在固定的视觉框里 contain，素材比例不影响布局 */
+.desktop-icon-img {
   width: 100%;
-  height: auto;
+  height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
 }
@@ -1299,29 +1300,14 @@ function onTorchClick(axis) {
   container-type: inline-size;
 }
 
-/* 视觉框放开固定尺寸，宽度跟着图标框、高度由贴图比例算出 */
-.sunglasses-icon :deep(.desktop-icon__visual) {
-  width: 100%;
-  height: auto;
-}
-
 .sunglasses-icon :deep(.desktop-icon__label) {
   white-space: nowrap;
   font-size: 16cqw;
 }
 
-.sunglasses-icon-img {
-  width: 100%;
-  height: auto;
-  /* 高度上限 = 组件视觉框边长，避免素材比例变化时把图标框撑高 */
-  max-height: 48px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-/* ON 态光晕：三层 drop-shadow 叠出近亮远散。全屏 multiply 滤镜层压在图标之上
+/* 太阳镜 ON 态的光晕：三层 drop-shadow 叠出近亮远散。全屏 multiply 滤镜层压在图标之上
    会把它一起压暗，所以亮度半径比看着够的量再放大一档 */
-.sunglasses-icon-img.is-glow {
+.desktop-icon-img.is-glow {
   filter: drop-shadow(0 0 3px #fff0b8) drop-shadow(0 0 9px #ffc23d) drop-shadow(0 0 18px rgba(255, 160, 30, 0.9));
 }
 
@@ -1391,16 +1377,9 @@ function onTorchClick(axis) {
 }
 
 .torch-desktop-icon :deep(.desktop-icon__visual) {
-  width: 100%;
-  height: auto;
+  --icon-size: 100%;
 }
 
-.torch-icon-img {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
 
 /* 离场左移：在组件自己的 translate（v-draggable 写的 --ddx/--ddy）之上叠加一档
    --drift-x，由 rAF 逐帧写入。选择器带 .desktop-icon 提高优先级，确保覆盖组件内
@@ -1436,12 +1415,6 @@ function onTorchClick(axis) {
 }
 
 /* Nothing Desktop Icon */
-.nothing-icon-img {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
 
 /* Social Links Window */
 .social-window {

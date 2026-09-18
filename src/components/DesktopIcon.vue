@@ -218,15 +218,19 @@ onBeforeUnmount(() => {
   transform-origin: center;
 }
 
+/* 图标区域：固定正方形，不参与 flex 收缩 */
 .desktop-icon__visual {
-  width: 48px;
-  height: 48px;
+  width: var(--icon-size, 48px);
+  aspect-ratio: 1;
+  height: auto;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .desktop-icon__label {
+  flex: none;
   color: #808080;
   font-size: clamp(12px, 1.1vw, 18px);
   text-transform: uppercase;
