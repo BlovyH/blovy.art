@@ -577,9 +577,18 @@ const filteredGalleryItems = computed(() => {
 })
 // 晃到一定规模就放弃 FLIP 动画（量大了整屏 transform 反而糊），直接重排。
 const SHUFFLE_ANIM_MAX_ITEMS = 120
+// FLIP 只在主动打乱时开启，切分类造成的重排直接跳到新位置
+const shuffleAnim = ref(false)
+// 跟 .shuffle-move 的 transition 时长一致：动画跑完就把开关关掉，
+// 否则它会一直开着，后面最大化 / 缩放窗口引起的重排也会跟着滑。
+const SHUFFLE_ANIM_MS = 500
+let shuffleAnimTimer = null
 const shuffleWithAnim = computed(
-  () => filteredGalleryItems.value.length <= SHUFFLE_ANIM_MAX_ITEMS
+  () => shuffleAnim.value && filteredGalleryItems.value.length <= SHUFFLE_ANIM_MAX_ITEMS
 )
+watch(activeCategory, () => {
+  shuffleAnim.value = false
+})
 // 拖动 gallery 窗口来回甩 → 打乱照片顺序。检测逻辑在 useShakeDetect，这里只接位置流。
 const galleryShake = useShakeDetect(shuffleGallery)
 function onGalleryDragMove({ x, y }) {
@@ -588,6 +597,11 @@ function onGalleryDragMove({ x, y }) {
 function shuffleGallery() {
   const arr = galleryItems.value
   if (arr.length < 2) return
+  shuffleAnim.value = true
+  clearTimeout(shuffleAnimTimer)
+  shuffleAnimTimer = setTimeout(() => {
+    shuffleAnim.value = false
+  }, SHUFFLE_ANIM_MS)
   // 详情开着时记住当前这张（按 thumb 认人），洗完把 detailIndex 重定位到它的新位置。
   const currentThumb = detailVisible.value
     ? filteredGalleryItems.value[detailIndex.value]?.thumb
