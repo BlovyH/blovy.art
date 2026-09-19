@@ -1356,7 +1356,7 @@ function onTorchClick(axis) {
 .sunglasses-filter {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 10010;
   pointer-events: none;
   background: rgba(186, 142, 66, 0.72);
   mix-blend-mode: multiply;
@@ -1377,7 +1377,7 @@ function onTorchClick(axis) {
      出血按比例算而不是写死 px，才能跟着 --body-w 一起缩放（过冲量本身也是按宽度百分比走的）。 */
   left: calc(var(--bleed) * -1);
   top: 6vh;
-  z-index: 10001; /* 压在太阳镜滤镜层之上：横幅自己不被染色 */
+  z-index: 10011; /* 压在太阳镜滤镜层之上：横幅自己不被染色 */
   width: calc(var(--body-w) + var(--bleed));
   height: auto;
   image-rendering: pixelated;

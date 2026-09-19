@@ -30,7 +30,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const zIndex = 10000
+const zIndex = 10010
 
 function onClick() {
   emit('click')

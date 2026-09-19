@@ -51,7 +51,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
-const zIndex = 10001
+const zIndex = 10011
 const selectedIndex = ref(props.modelValue)
 
 watch(() => props.modelValue, (val) => {

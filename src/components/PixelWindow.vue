@@ -2,7 +2,7 @@
   <div
     ref="windowRef"
     class="pixel-window"
-    :class="edgeClasses"
+    :class="[edgeClasses, boxClasses]"
     :style="windowStyle"
     @mousedown="onWindowMouseDown"
     @mousemove="onWindowMouseMove"
@@ -20,18 +20,20 @@
         <button
           v-if="controlFlags.minimize"
           class="pixel-control"
-          aria-label="minimize"
+          :aria-label="boxState === 'minimized' ? 'restore' : 'minimize'"
           @mousedown.stop
+          @click.stop="runBox('minimize')"
         >
-          <img src="/assets/window_btn_min.png" alt="" />
+          <img :src="boxState === 'minimized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_min.png'" alt="" />
         </button>
         <button
           v-if="controlFlags.maximize"
           class="pixel-control"
-          aria-label="maximize"
+          :aria-label="boxState === 'maximized' ? 'restore' : 'maximize'"
           @mousedown.stop
+          @click.stop="runBox('maximize')"
         >
-          <img src="/assets/window_btn_max.png" alt="" />
+          <img :src="boxState === 'maximized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_max.png'" alt="" />
         </button>
         <button
           v-if="controlFlags.close"
@@ -51,8 +53,8 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { nextZ } from '@/stores/windowZ.js'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { Z_MAXIMIZED, claimMaximized, nextZ, releaseMaximized } from '@/stores/windowZ.js'
 
 const props = defineProps({
   title: {
@@ -143,6 +145,11 @@ const props = defineProps({
     type: Number,
     default: 1200,
   },
+  // 自定义 minimize / maximize / restore，传了就顶掉默认实现
+  box: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
 const emit = defineEmits(['close', 'dragend', 'dragmove'])
@@ -153,8 +160,10 @@ const controlFlags = computed(() => ({
   close: props.controls.close ?? true,
 }))
 
+const Z_TOP_MOST = 9999
+
 function resolveInitialZIndex() {
-  if (props.topMost) return 9999
+  if (props.topMost) return Z_TOP_MOST
   if (props.parentZIndex) return props.parentZIndex + 1
   return props.initialZIndex || nextZ()
 }
@@ -241,6 +250,103 @@ function ensureManual() {
   manual.active = true
 }
 
+// ── 最小化 / 最大化 ──
+// 默认矩形（位置 + 大小）在挂载后量一次，最小化、最大化之后都还原回它。
+const MAXIMIZE_MARGIN = 24 // 最大化时四周留出的边距
+const MAXIMIZE_MARGIN_TOP = 88 // 顶部单独留得更多
+const boxState = ref('normal') // 'normal' | 'minimized' | 'maximized'
+const defaultBox = reactive({ x: 0, y: 0, w: 0, h: 0 })
+let defaultBoxReady = false
+let zBeforeBox = null
+
+const boxClasses = computed(() => ({
+  'is-minimized': boxState.value === 'minimized',
+  'is-maximized': boxState.value === 'maximized',
+}))
+
+// 视口坐标 → manual 像素坐标，跟 ensureManual 同一套换算
+function viewportToManual(vx, vy) {
+  const el = windowRef.value
+  const op = el && el.offsetParent
+  if (op && op !== document.body && op !== document.documentElement) {
+    const r = op.getBoundingClientRect()
+    return { x: vx - r.left - (op.clientLeft || 0), y: vy - r.top - (op.clientTop || 0) }
+  }
+  return { x: vx + (window.scrollX || 0), y: vy + (window.scrollY || 0) }
+}
+
+function captureDefaultBox() {
+  const el = windowRef.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const p = viewportToManual(r.left, r.top)
+  defaultBox.x = p.x
+  defaultBox.y = p.y
+  defaultBox.w = r.width
+  defaultBox.h = r.height
+  defaultBoxReady = true
+}
+
+function returnToOwnZ() {
+  if (zBeforeBox === null) return
+  zIndex.value = zBeforeBox
+  zBeforeBox = null
+}
+
+const releaseSelf = () => restore()
+
+function restore() {
+  if (!defaultBoxReady) return
+  releaseMaximized(releaseSelf)
+  ensureManual()
+  manual.x = defaultBox.x
+  manual.y = defaultBox.y
+  manual.w = defaultBox.w
+  manual.h = defaultBox.h
+  returnToOwnZ()
+  boxState.value = 'normal'
+}
+
+function minimize() {
+  if (boxState.value === 'minimized') return restore()
+  if (!defaultBoxReady) captureDefaultBox()
+  ensureManual()
+  manual.w = props.minWidth
+  manual.h = props.minHeight
+  if (boxState.value === 'maximized') {
+    releaseMaximized(releaseSelf)
+    returnToOwnZ()
+  }
+  if (boxState.value === 'normal') zBeforeBox = zIndex.value
+  boxState.value = 'minimized'
+}
+
+function maximize() {
+  if (boxState.value === 'maximized') return restore()
+  if (!defaultBoxReady) captureDefaultBox()
+  const m = MAXIMIZE_MARGIN
+  const p = viewportToManual(m, MAXIMIZE_MARGIN_TOP)
+  ensureManual()
+  manual.x = p.x
+  manual.y = p.y
+  manual.w = Math.max(props.minWidth, window.innerWidth - m * 2)
+  manual.h = Math.max(props.minHeight, window.innerHeight - MAXIMIZE_MARGIN_TOP - m)
+  // 先把别的已最大化窗口还原掉，再占那一层
+  if (boxState.value === 'normal') zBeforeBox = zIndex.value
+  claimMaximized(releaseSelf)
+  zIndex.value = Z_MAXIMIZED
+  boxState.value = 'maximized'
+}
+
+// 窗口通过 box prop 传进来的实现优先
+function runBox(name) {
+  // 控制键自己 @mousedown.stop 了，窗口的 mousedown 收不到，所以这里手动置顶
+  if (!props.topMost) bringToFront()
+  const custom = props.box[name]
+  if (custom) return custom()
+  return { minimize, maximize, restore }[name]()
+}
+
 const windowStyle = computed(() => {
   // Resizable windows, once they've been interacted with, are driven entirely in
   // pixel space. No CSS anchor / translate(drag) math — resize works for any
@@ -257,6 +363,7 @@ const windowStyle = computed(() => {
       transform: 'none',
       zIndex: zIndex.value,
     }
+    if (boxState.value === 'minimized') s.height = 'auto'
     if (edgeDir.value) s['--rc'] = resizeCursor(edgeDir.value)
     return s
   }
@@ -329,7 +436,7 @@ function onWindowMouseDown(e) {
 // 鼠标移到窗口边缘 → 像 Windows 一样自动变 resize 光标（不画任何可见手柄）
 function hitTest(e) {
   const el = windowRef.value
-  if (!el) return ''
+  if (!el || boxState.value !== 'normal') return ''
   const rect = el.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
@@ -362,6 +469,7 @@ function onDocumentMouseDown(e) {
 }
 
 onMounted(() => {
+  nextTick(captureDefaultBox)
   if (props.clickOutsideToClose) {
     // 捕获阶段：必须在任意子元素 @mousedown.stop（如其它窗口标题栏的拖动）掐断冒泡之前触发，
     // 否则点到那些标题栏时 click-outside 永远收不到事件 → 详情窗关不掉
@@ -373,9 +481,9 @@ function startDrag(e) {
   if (!props.topMost) {
     bringToFront()
   }
-  // Resizable windows drive their position in pixel space once interacted with,
-  // so the titlebar drag also updates manual.x/y instead of translate(drag).
-  if (props.resizable) {
+  // Windows already in pixel space (resizable, or switched there by minimize /
+  // maximize) must drag via manual.x/y — translate(drag) no longer applies to them.
+  if (props.resizable || manual.active) {
     ensureManual()
     manual.dragging = true
     manual.startMouseX = e.clientX
@@ -428,6 +536,10 @@ function moveBy(dx, dy) {
 defineExpose({
   startDrag,
   moveBy,
+  minimize,
+  maximize,
+  restore,
+  boxState,
 })
 
 function onDrag(e) {
@@ -451,6 +563,8 @@ function stopDrag() {
 }
 
 function bringToFront() {
+  // 最大化窗口已经站在最高那层，别被 nextZ 拉下来
+  if (boxState.value === 'maximized') return
   zIndex.value = nextZ()
 }
 
@@ -523,6 +637,7 @@ function stopResize() {
 }
 
 onBeforeUnmount(() => {
+  releaseMaximized(releaseSelf)
   stopDrag()
   stopResize()
   if (props.clickOutsideToClose) {
@@ -614,6 +729,11 @@ onBeforeUnmount(() => {
   padding: 18px;
   flex: 1;
   overflow: auto;
+}
+
+/* 最小化：只留标题栏，内容整块隐藏，高度自动收成标题栏 */
+.pixel-window.is-minimized .pixel-window__content {
+  display: none;
 }
 
 /* ── Edge resize: Windows-style cursor change on hover, no visible handles ── */
