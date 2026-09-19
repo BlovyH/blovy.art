@@ -69,6 +69,7 @@
           <div class="gallery-main">
             <!-- 打乱时用 Vue 内置 FLIP（.shuffle-move）让缩略图滑到新位置 -->
             <TransitionGroup
+              ref="galleryGridRef"
               name="shuffle"
               tag="div"
               class="gallery-grid"
@@ -589,6 +590,20 @@ const shuffleWithAnim = computed(
 watch(activeCategory, () => {
   shuffleAnim.value = false
 })
+
+// 后台标签 rAF 停摆会让 FLIP 卡在「加了 transform 还没撤」的半路，切回前台手动清残留行内样式
+const galleryGridRef = ref(null)
+function clearGalleryFlip() {
+  clearTimeout(shuffleAnimTimer)
+  shuffleAnim.value = false
+  const grid = galleryGridRef.value?.$el || galleryGridRef.value
+  if (!grid || !grid.children) return
+  for (const el of grid.children) {
+    el.style.transform = ''
+    el.style.transition = ''
+    el.classList.remove('shuffle-move')
+  }
+}
 // 拖动 gallery 窗口来回甩 → 打乱照片顺序。检测逻辑在 useShakeDetect，这里只接位置流。
 const galleryShake = useShakeDetect(shuffleGallery)
 function onGalleryDragMove({ x, y }) {
@@ -702,8 +717,14 @@ async function loadContent() {
   }
 }
 
+// 回到前台先清 FLIP 残留；内容轮询延后一会儿，免得积压的定时器刚回来就抢主线程
+const CONTENT_RESUME_DELAY_MS = 3000
+let contentResumeTimer = null
 function onContentVisibility() {
-  if (document.visibilityState === 'visible') loadContent()
+  if (document.visibilityState !== 'visible') return
+  clearGalleryFlip()
+  clearTimeout(contentResumeTimer)
+  contentResumeTimer = setTimeout(loadContent, CONTENT_RESUME_DELAY_MS)
 }
 
 onMounted(async () => {
@@ -741,6 +762,10 @@ onBeforeUnmount(() => {
   if (contentPollTimer) {
     clearInterval(contentPollTimer)
     contentPollTimer = null
+  }
+  if (contentResumeTimer) {
+    clearTimeout(contentResumeTimer)
+    contentResumeTimer = null
   }
   document.removeEventListener('visibilitychange', onContentVisibility)
 })
