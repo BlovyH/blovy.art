@@ -161,9 +161,11 @@ const controlFlags = computed(() => ({
 }))
 
 function resolveInitialZIndex() {
+  // 显式指定的层级最优先：详情面板要同时具备 topMost 的「永不降级」和高于最大化窗口的层级
+  if (props.initialZIndex) return props.initialZIndex
   if (props.topMost) return Z.TOP_MOST
   if (props.parentZIndex) return props.parentZIndex + 1
-  return props.initialZIndex || nextZ()
+  return nextZ()
 }
 
 const windowRef = ref(null)

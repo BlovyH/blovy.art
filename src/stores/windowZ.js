@@ -12,6 +12,7 @@ export const Z = {
   ICON: 9998, // 桌面图标 .drag-top
   TOP_MOST: 9999, // 桌面图标创建的窗口
   MAXIMIZED: 10000, // 最大化窗口独占一层：高于图标和 top-most 窗，低于全屏效果层
+  DETAIL: 10001, // 点开图/项目后的详情面板：必须从最大化出来的父窗口上面浮起来
   OVERLAY: 10010, // 太阳镜滤镜 / 火把暗幕 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
   MENU: 10012, // 跟随点击位置的小浮层菜单

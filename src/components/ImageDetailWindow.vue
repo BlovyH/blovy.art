@@ -6,6 +6,7 @@
     :controls="{ minimize: false, maximize: false, close: false }"
     :bring-to-front-on-click="false"
     :top-most="true"
+    :initial-z-index="Z.DETAIL"
     :click-outside-to-close="true"
     :right="side === 'right' ? '24px' : ''"
     :left="side === 'left' ? '24px' : ''"
@@ -97,6 +98,7 @@
 <script setup>
 import { computed, ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import PixelWindow from './PixelWindow.vue'
+import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
   item: {
