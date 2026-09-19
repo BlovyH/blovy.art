@@ -14,6 +14,7 @@ export const Z = {
   MAXIMIZED: 10000, // 最大化窗口独占一层：高于图标和 top-most 窗，低于全屏效果层
   OVERLAY: 10010, // 太阳镜滤镜 / 火把暗幕 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
+  MENU: 10012, // 跟随点击位置的小浮层菜单
   TOAST: 20000,
 }
 

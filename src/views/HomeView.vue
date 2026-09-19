@@ -79,14 +79,18 @@
                 v-for="(item, index) in filteredGalleryItems"
                 :key="item.thumb"
                 class="gallery-thumb"
-                :class="{ 'is-loaded': loadedThumbs.has(item.thumb) }"
-                :style="item.ar ? { aspectRatio: String(item.ar) } : null"
+                :class="{
+                  'is-loaded': loadedThumbs.has(item.thumb),
+                  'is-tilted': isTilted(item),
+                  'is-straightening': tilted[item.thumb]?.straightening,
+                }"
+                :style="thumbStyle(item)"
                 :src="item.thumb"
                 :alt="item.alt"
                 loading="lazy"
                 draggable="false"
                 @load="onThumbLoad(item)"
-                @click="openDetail(index)"
+                @click="onThumbClick(index, $event)"
               />
             </TransitionGroup>
           </div>
@@ -303,6 +307,14 @@
 
     <!-- Dialog Flow Runner: 全局挂一次，按 flows.js 自动渲染对话 / 选项 -->
     <DialogFlowRunner />
+    <ContextMenu
+      :visible="tiltMenu.visible"
+      :x="tiltMenu.x"
+      :y="tiltMenu.y"
+      :items="TILT_MENU_ITEMS"
+      @select="onTiltMenuSelect"
+      @close="tiltMenu.visible = false"
+    />
 
     <!-- Image Detail Window -->
     <ImageDetailWindow
@@ -377,6 +389,7 @@ import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
+import ContextMenu from '@/components/ContextMenu.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import FPDetailWindow from '@/components/FPDetailWindow.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
@@ -522,6 +535,7 @@ const onThumbLoad = (item) => {
   const s = new Set(loadedThumbs.value)
   s.add(item.thumb)
   loadedThumbs.value = s
+  dropTilted(item.thumb)
   // 视口内缩略图加载完成后，顺带预热详情预览图（preview 优先，原图兜底），点开即秒显
   const previewUrl = item.preview || item.highResSrc
   if (previewUrl && !preloadedGalleryPreview.has(previewUrl)) {
@@ -712,6 +726,7 @@ async function loadContent() {
     }))
     fandomWindowIcon.value = fpAsset(data.fandomWindow?.icon) || '/assets/placeholder.svg'
     preloadFPImages()
+    rollTilted()
   } catch (e) {
     console.error('Failed to load content:', e)
   }
@@ -965,6 +980,111 @@ function openDetail(index) {
   updateDetailSide()
   detailIndex.value = index
   detailVisible.value = true
+}
+
+/* 强迫症福利 */
+const TILT_CHANCE = 0.16
+const TILT_MIN_DEG = 6
+const TILT_MAX_DEG = 10
+const TILT_MAX_TRIES = 3
+const TILT_STRAIGHTEN_MS = 1500
+const TILT_MENU_ITEMS = [
+  { label: 'OPEN', value: 'open' },
+  { label: 'STRAIGHTEN', value: 'straighten' },
+]
+
+// 按图片地址记录状态，洗牌和内容热更都不会丢
+const tilted = ref({})
+const tiltMenu = ref({ visible: false, x: 0, y: 0, thumb: '' })
+
+function rollTilted() {
+  tilted.value = {}
+  const items = galleryItems.value
+  if (!items.length || Math.random() >= TILT_CHANCE) return
+  const pick = items[Math.floor(Math.random() * items.length)]
+  // 随机哪一边脱落：绕还挂着的那一侧顶角转
+  const fallsLeft = Math.random() < 0.5
+  const angle = TILT_MIN_DEG + Math.random() * (TILT_MAX_DEG - TILT_MIN_DEG)
+  tilted.value[pick.thumb] = {
+    tries: 0,
+    straightening: false,
+    done: false,
+    falling: true,
+    angle: fallsLeft ? -angle : angle,
+    origin: fallsLeft ? 'top right' : 'top left',
+  }
+  // 图已经在页面上（洗牌 / 热更复用同一批 DOM，load 不会再触发）就直接滑；
+  // 还没加载完的等 onThumbLoad 再滑，否则动画在图出现之前就播完了。
+  if (loadedThumbs.value.has(pick.thumb)) dropTilted(pick.thumb)
+}
+
+function dropTilted(thumb) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const state = tilted.value[thumb]
+      if (state && state.falling) state.falling = false
+    })
+  })
+}
+
+function thumbStyle(item) {
+  const style = {}
+  if (item.ar) style.aspectRatio = String(item.ar)
+  const state = tilted.value[item.thumb]
+  if (state) {
+    style['--tilt'] = state.falling ? '0deg' : `${state.angle}deg`
+    style['--tilt-origin'] = state.origin
+  }
+  return style
+}
+
+// 画是不是歪的（跟「还要不要弹菜单」是两件事：放弃之后画仍然歪着）
+function isTilted(item) {
+  return !!tilted.value[item.thumb]
+}
+
+// 点击歪画要不要弹菜单：扶正动画播放中不弹；试满三次（done）之后也不弹，直接开详情
+function shouldShowTiltMenu(item) {
+  const state = tilted.value[item.thumb]
+  return !!state && !state.done && !state.straightening
+}
+
+function onThumbClick(index, event) {
+  const item = filteredGalleryItems.value[index]
+  // 扶正动画播放期间这张图不接受点击：不弹菜单，也不开详情
+  if (tilted.value[item.thumb]?.straightening) return
+  if (shouldShowTiltMenu(item)) {
+    tiltMenu.value.x = event.clientX
+    tiltMenu.value.y = event.clientY
+    tiltMenu.value.thumb = item.thumb
+    tiltMenu.value.visible = true
+    return
+  }
+  openDetail(index)
+}
+
+function onTiltMenuSelect(value) {
+  const thumb = tiltMenu.value.thumb
+  tiltMenu.value.visible = false
+  const state = tilted.value[thumb]
+  if (!state) return
+  if (value === 'open') {
+    const index = filteredGalleryItems.value.findIndex((item) => item.thumb === thumb)
+    if (index >= 0) openDetail(index)
+    return
+  }
+  // 前三次正常扶正；三次都用完了，第四次再点扶正才到此为止
+  if (state.tries >= TILT_MAX_TRIES) {
+    state.done = true
+    dlg.start('tilted3Times')
+    return
+  }
+  if (state.straightening) return  // 上一次动画还没走完，忽略重复点击
+  state.straightening = true
+  setTimeout(() => {
+    state.straightening = false
+    state.tries += 1
+  }, TILT_STRAIGHTEN_MS)
 }
 
 function onGalleryDragEnd() {
@@ -1296,10 +1416,28 @@ function onTorchClick(axis) {
   user-drag: none;
   transition: border-color 0.15s ease;
 }
+
+.gallery-thumb.is-tilted {
+  rotate: var(--tilt, 8deg);
+  transform-origin: var(--tilt-origin, top left);
+  transition:
+    rotate 0.7s cubic-bezier(0.4, 0, 0.25, 1.67),
+    border-color 0.15s ease;
+}
+
+.gallery-thumb.is-straightening {
+  rotate: 0deg;
+  cursor: default;
+  transition:
+    rotate 0.45s cubic-bezier(0.34, 1.75, 0.64, 1),
+    border-color 0.15s ease;
+}
+
 .gallery-thumb.is-loaded {
   border-color: #ffffff;           /* 图加载完成后才显示白框 */
 }
-.gallery-thumb.is-loaded:hover {
+/* 扶正动画播放期间不做 hover 反馈：点了没反应，就别有任何可点的暗示 */
+.gallery-thumb.is-loaded:not(.is-straightening):hover {
   border-style: double;            /* hover：双线 */
   border-width: 5px;               /* 在 2px 基础上叠加 3px，双线更明显 */
   border-color: var(--color-text-cyan);  /* 悬停时框变青色（同文字青色） */

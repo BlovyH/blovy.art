@@ -124,6 +124,15 @@ const tallchDoneFlow = {
   },
 }
 
+// 事不过三
+const tilted3TimesFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Three times is enough.<br>The frame keeps sliding back. You leave it that way.',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -133,6 +142,7 @@ export const dialogFlows = {
   benchFound: benchFoundFlow,
   torchDone: torchDoneFlow,
   tallchDone: tallchDoneFlow,
+  tilted3Times: tilted3TimesFlow,
 }
 
 export default dialogFlows
