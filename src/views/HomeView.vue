@@ -416,6 +416,13 @@ const TOGGLE_BANNER_SRC = {
 }
 const toggleBanner = ref('')
 
+function preloadToggleBanners() {
+  for (const src of Object.values(TOGGLE_BANNER_SRC)) {
+    const img = new Image()
+    img.src = src
+  }
+}
+
 function toggleSunglasses() {
   sunglassesOn.value = !sunglassesOn.value
   toggleBanner.value = sunglassesOn.value ? 'on' : 'off'
@@ -743,6 +750,8 @@ function onContentVisibility() {
 }
 
 onMounted(async () => {
+  preloadToggleBanners()
+
   if (!CONTENT_DATA_URL) {
     console.warn('CONTENT_DATA_URL is empty. Please set it in src/config/data.js')
     return
