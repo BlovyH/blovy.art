@@ -51,7 +51,7 @@ defineEmits(['close', 'cancel'])
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 20000;
+  z-index: var(--z-toast);
   padding: 20px;
 }
 

@@ -109,7 +109,7 @@ button {
    windows/icons. `user-select:none` lives on the base `.desktop-icon` so it
    applies to all icons regardless of top-layer status. */
 .drag-top {
-  z-index: 9998;
+  z-index: var(--z-icon);
 }
 
 /* Hover frame overlay via ::after (9-slice sprite).

@@ -11,6 +11,7 @@
 //  - 半径 / 颜色 / 强度 / 层级 / 混合模式全部 props 化，调参不动逻辑。
 //  - 用 Teleport 挂到 body，规避祖先元素 transform/filter 导致 fixed 失效的坑。
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
   enabled:   { type: Boolean, default: true },
@@ -21,7 +22,7 @@ const props = defineProps({
   color:     { type: String,  default: '255,244,214' }, // 暖光 RGB 分量（不含 alpha）
   intensity: { type: Number,  default: 0.8 },           // 圆心不透明度（spot/glow/dark 共用，调强）
   falloff:   { type: Number,  default: 0.4 },           // glow 中段不透明度（仅 glow 模式用）
-  zIndex:    { type: Number,  default: 10010 },        // 高于最大化窗 10000 即盖全桌
+  zIndex:    { type: Number,  default: Z.OVERLAY },   // 默认压在最大化窗口之上
   blend:     { type: String,  default: 'screen' },      // 叠加混合：screen/lighten/normal
 })
 

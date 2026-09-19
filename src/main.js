@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import draggable from './directives/draggable'
+import { installZVariables } from './stores/windowZ.js'
 import { installConsoleMenu } from './utils/consoleMenu'
 import './assets/styles/global.css'
 
@@ -21,6 +22,8 @@ function preloadFont(href) {
 }
 preloadFont(fpFontUrl)
 preloadFont(zqFontUrl)
+
+installZVariables()
 
 const app = createApp(App)
 app.use(createPinia())

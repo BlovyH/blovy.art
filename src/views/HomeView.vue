@@ -14,7 +14,7 @@
         class="command-window"
         :show-title-bar="false"
         :bring-to-front-on-click="false"
-        :initial-z-index="1"
+        :initial-z-index="Z.COMMAND"
         width="20%"
       >
         <div class="command-content">
@@ -29,7 +29,7 @@
         class="printf-window"
         :show-title-bar="false"
         :bring-to-front-on-click="false"
-        :initial-z-index="2"
+        :initial-z-index="Z.COMMAND_FRONT"
         width="44%"
       >
         <div class="printf-content">
@@ -51,7 +51,7 @@
         :resizable="true"
         :min-width="320"
         :min-height="240"
-        :initial-z-index="50"
+        :initial-z-index="Z.GALLERY"
         @dragmove="onGalleryDragMove"
         @dragend="onGalleryDragEnd"
       >
@@ -212,7 +212,7 @@
         :min-width="260"
         :min-height="200"
         width="33%"
-        :initial-z-index="40"
+        :initial-z-index="Z.COMMENTS"
       >
         <div class="comments-body">
           <a
@@ -247,7 +247,7 @@
           class="fandom-window-inner"
           :show-title-bar="false"
           width="100%"
-          :initial-z-index="100"
+          :initial-z-index="Z.FP"
           @dragend="onFandomDragEnd"
         >
           <div
@@ -384,7 +384,7 @@ import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
-import { nextZ } from '@/stores/windowZ.js'
+import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
 
@@ -1352,11 +1352,11 @@ function onTorchClick(axis) {
 
 /* 全局太阳镜滤镜：固定覆盖全屏、不接指针事件，所以只是「看」起来像戴了墨镜。
    multiply 让底色压暗而不是雾化（黑仍是黑），黄褐分量由这里的 RGB 决定。
-   z-index 高于 top-most 窗的 9999，低于 CenterToast 的 20000。 */
+   层级见 windowZ.js 的 Z.OVERLAY。 */
 .sunglasses-filter {
   position: fixed;
   inset: 0;
-  z-index: 10010;
+  z-index: var(--z-overlay);
   pointer-events: none;
   background: rgba(186, 142, 66, 0.72);
   mix-blend-mode: multiply;
@@ -1377,7 +1377,7 @@ function onTorchClick(axis) {
      出血按比例算而不是写死 px，才能跟着 --body-w 一起缩放（过冲量本身也是按宽度百分比走的）。 */
   left: calc(var(--bleed) * -1);
   top: 6vh;
-  z-index: 10011; /* 压在太阳镜滤镜层之上：横幅自己不被染色 */
+  z-index: var(--z-banner); /* 压在太阳镜滤镜层之上：横幅自己不被染色 */
   width: calc(var(--body-w) + var(--bleed));
   height: auto;
   image-rendering: pixelated;

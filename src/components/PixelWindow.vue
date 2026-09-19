@@ -54,7 +54,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Z_MAXIMIZED, claimMaximized, nextZ, releaseMaximized } from '@/stores/windowZ.js'
+import { Z, claimMaximized, nextZ, releaseMaximized } from '@/stores/windowZ.js'
 
 const props = defineProps({
   title: {
@@ -160,10 +160,8 @@ const controlFlags = computed(() => ({
   close: props.controls.close ?? true,
 }))
 
-const Z_TOP_MOST = 9999
-
 function resolveInitialZIndex() {
-  if (props.topMost) return Z_TOP_MOST
+  if (props.topMost) return Z.TOP_MOST
   if (props.parentZIndex) return props.parentZIndex + 1
   return props.initialZIndex || nextZ()
 }
@@ -334,7 +332,7 @@ function maximize() {
   // 先把别的已最大化窗口还原掉，再占那一层
   if (boxState.value === 'normal') zBeforeBox = zIndex.value
   claimMaximized(releaseSelf)
-  zIndex.value = Z_MAXIMIZED
+  zIndex.value = Z.MAXIMIZED
   boxState.value = 'maximized'
 }
 

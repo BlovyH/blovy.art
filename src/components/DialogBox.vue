@@ -16,6 +16,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, watch } from 'vue'
+import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
   visible: {
@@ -30,7 +31,7 @@ const props = defineProps({
 
 const emit = defineEmits(['click'])
 
-const zIndex = 10010
+const zIndex = Z.OVERLAY
 
 function onClick() {
   emit('click')

@@ -25,6 +25,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
   visible: {
@@ -51,7 +52,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
-const zIndex = 10011
+const zIndex = Z.BANNER
 const selectedIndex = ref(props.modelValue)
 
 watch(() => props.modelValue, (val) => {
