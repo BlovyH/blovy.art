@@ -40,7 +40,7 @@
               v-on="listenersFor(btn)"
             >
               <span>{{ labelOf(btn) }}</span>
-              <span v-if="btn.tooltip" class="dp-help-icon" @click.stop>
+              <span v-if="btn.help" class="dp-help-icon" @click.stop>
                 <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
                   <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="2" />
                   <text x="10" y="15" text-anchor="middle" fill="currentColor" font-size="12">?</text>

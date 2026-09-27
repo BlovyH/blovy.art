@@ -90,21 +90,12 @@ export function floweryPreview({ item, base, active, setActive }) {
   applyCursorPreview(next ? item?.cursors || null : null, base)
 }
 
-// 问号 tooltip：hover 进按钮时显示，移出时收起
-export function floweryTooltipShow({ button, setTooltip }) {
+// 浮层 tooltip：内容统一取触发它的那个按钮的 tooltip 字段（可以是 HTML）
+export function tooltipShow({ button, setTooltip }) {
   setTooltip(button?.tooltip || '')
 }
 
-export function floweryTooltipHide({ setTooltip }) {
-  setTooltip('')
-}
-
-// DOWNLOAD 的 hover 浮层：内容整块放在 JSON 的 downloadTooltip 里
-export function ahogecatTooltipShow({ item, setTooltip }) {
-  setTooltip(item?.downloadTooltip || '')
-}
-
-export function ahogecatTooltipHide({ setTooltip }) {
+export function tooltipHide({ setTooltip }) {
   setTooltip('')
 }
 
