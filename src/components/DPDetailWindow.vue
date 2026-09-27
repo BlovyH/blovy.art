@@ -47,7 +47,7 @@
                 </svg>
               </span>
             </button>
-            <span class="dp-help-tooltip" :class="{ 'is-visible': tooltipText }">{{ tooltipText }}</span>
+            <span class="dp-help-tooltip" :class="{ 'is-visible': tooltipText }">{{ lastTooltip }}</span>
           </div>
         </div>
       </div>
@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import PixelWindow from './PixelWindow.vue'
 
 const props = defineProps({
@@ -81,6 +81,16 @@ const props = defineProps({
 const emit = defineEmits(['close', 'action'])
 
 const buttons = computed(() => props.item?.buttons || [])
+
+// 浮层内容留一份：隐藏时只淡出、不清空内容。跟着 tooltipText 一起清空的话，
+// 淡出那 0.2s 里框会先塌成只剩 padding 的小方块。
+const lastTooltip = ref('')
+watch(
+  () => props.tooltipText,
+  (value) => {
+    if (value) lastTooltip.value = value
+  },
+)
 
 // 按钮的运行时状态由父级通过 overrides 覆盖，这里只做合并
 function stateOf(btn) {
