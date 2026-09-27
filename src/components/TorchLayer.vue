@@ -1,6 +1,6 @@
 <script setup>
 // 手电筒 / 光标跟随光晕叠加层。
-// 设计：全屏固定层，pointer-events:none（不挡点击、不挡 FP 预览光标），
+// 设计：全屏固定层，pointer-events:none（不挡点击、不挡 DP 预览光标），
 // 用 radial-gradient 在光标处画一圈暖光，mix-blend-mode 提亮底层模拟发光。
 // 封装要点：
 //  - enabled 控制开关——后续接触发条件（桌面图标 / 快捷键）只需绑定这个 prop。

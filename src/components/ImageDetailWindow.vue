@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-/* 与 FP 详情一致：宽度不足时不再左右分栏，改为上下流式
+/* 与 DP 详情一致：宽度不足时不再左右分栏，改为上下流式
    （图在上、描述/标签/按钮在下，文字仍只在其自身区域滚动） */
 @media (max-width: 860px) {
   .detail-columns {

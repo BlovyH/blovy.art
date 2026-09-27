@@ -237,53 +237,53 @@
         </div>
       </PixelWindow>
 
-      <!-- Fandom Projects Window -->
+      <!-- Doujin Projects Window -->
       <div
-        ref="fandomOuterRef"
-        class="fandom-outer"
+        ref="doujinOuterRef"
+        class="doujin-outer"
         :class="{ 'expand-up': expandUp && isExpanded, expanded: isExpanded }"
-        :style="{ '--fp-height': expandHeight + 'px' }"
-        @mousedown="bringFandomToFront"
-        @mouseenter="bringFandomToFront"
+        :style="{ '--dp-height': expandHeight + 'px' }"
+        @mousedown="bringDoujinToFront"
+        @mouseenter="bringDoujinToFront"
       >
         <PixelWindow
-          ref="fandomWindowRef"
-          class="fandom-window-inner"
+          ref="doujinWindowRef"
+          class="doujin-window-inner"
           :show-title-bar="false"
           width="100%"
-          :initial-z-index="Z.FP"
-          @dragend="onFandomDragEnd"
+          :initial-z-index="Z.DP"
+          @dragend="onDoujinDragEnd"
         >
           <div
-            class="fandom-collapsible"
-            @mouseenter="onFandomEnter"
-            @mouseleave="onFandomLeave"
+            class="doujin-collapsible"
+            @mouseenter="onDoujinEnter"
+            @mouseleave="onDoujinLeave"
           >
-            <div class="fandom-header" @mousedown.stop="handleFandomDrag">
-              <span class="fandom-title-text">FANDOM PROJECTS</span>
+            <div class="doujin-header" @mousedown.stop="handleDoujinDrag">
+              <span class="doujin-title-text">DOUJIN PROJECTS</span>
               <img
-                class="fandom-logo-small"
-                :src="fandomWindowIcon"
-                alt="Fandom Projects logo"
+                class="doujin-logo-small"
+                :src="doujinWindowIcon"
+                alt="Doujin Projects logo"
               />
             </div>
             <div
-              ref="fandomContentRef"
-              class="fandom-content"
+              ref="doujinContentRef"
+              class="doujin-content"
             >
-              <div class="fandom-body">
+              <div class="doujin-body">
                 <div
-                  v-for="(project, idx) in fandomProjects"
+                  v-for="(project, idx) in doujinProjects"
                   :key="project.title"
-                  class="fandom-item"
-                  @click="openFPDetail(idx)"
+                  class="doujin-item"
+                  @click="openDpDetail(idx)"
                 >
-                  <div class="fandom-info">
-                    <p class="fandom-title">{{ project.title }}</p>
-                    <p class="fandom-tags">{{ project.tags }}</p>
+                  <div class="doujin-info">
+                    <p class="doujin-title">{{ project.title }}</p>
+                    <p class="doujin-tags">{{ project.tags }}</p>
                   </div>
                   <img
-                    class="fandom-logo"
+                    class="doujin-logo"
                     :src="project.logo"
                     :alt="project.title"
                   />
@@ -330,16 +330,20 @@
       @download="detailDownload"
     />
 
-    <!-- Fandom Project Detail Window -->
-    <FPDetailWindow
-      v-if="fpDetailVisible && fpDetailItem"
-      :item="fpDetailItem"
-      :vertical="fpDetailVertical"
-      :preview-active="fpPreviewItemId === fpDetailItem?.title"
-      @close="closeFPDetail"
-      @download="fpDetailDownload"
-      @preview="onFPPreviewToggle"
-    />
+    <!-- Doujin Project Detail Window -->
+    <DPDetailWindow
+      v-if="dpDetailVisible && dpDetailItem"
+      :item="dpDetailItem"
+      :vertical="dpDetailVertical"
+      :overrides="dpButtonOverrides"
+      :tooltip-text="dpTooltipText"
+      @close="closeDpDetail"
+      @action="onDpAction"
+    >
+      <template #preview>
+        <DPPreview :name="dpDetailItem.preview" :item="dpDetailItem" />
+      </template>
+    </DPDetailWindow>
 
     <!-- Nothing Search Window -->
     <NothingWindow
@@ -391,7 +395,8 @@ import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
 import ContextMenu from '@/components/ContextMenu.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
-import FPDetailWindow from '@/components/FPDetailWindow.vue'
+import DPDetailWindow from '@/components/DPDetailWindow.vue'
+import DPPreview from '@/components/DPPreview.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
@@ -400,6 +405,7 @@ import TorchLayer from '@/components/TorchLayer.vue'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
+import * as dpActions from '@/dpActions.js'
 
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
@@ -528,9 +534,9 @@ function onTorchDragResume() {
   torchDriftPaused = false
 }
 
-const fandomWindowRef = ref(null)
-const fandomContentRef = ref(null)
-const fandomOuterRef = ref(null)
+const doujinWindowRef = ref(null)
+const doujinContentRef = ref(null)
+const doujinOuterRef = ref(null)
 const galleryWindowRef = ref(null)
 const isExpanded = ref(false)
 const expandUp = ref(false)
@@ -559,23 +565,23 @@ const displayedNotes = computed(() => {
 })
 // 图钉占位图（本地 assets 无效路径，待你出图覆盖 public/assets/pin.png 同名即可）
 const PIN_ICON = '/assets/pin.png'
-const fandomProjects = ref([])
-const fandomWindowIcon = ref('/assets/placeholder.svg')
+const doujinProjects = ref([])
+const doujinWindowIcon = ref('/assets/placeholder.svg')
 
-// 远端资源根 + 中间路径，全部来自 content.json（assetBase / fpDir / galleryDir），
+// 远端资源根 + 中间路径，全部来自 content.json（assetBase / dpDir / galleryDir），
 // 代码只负责把「base + 路径 + 文件名」拼成完整 URL。默认值是兜底，正常由 JSON 提供。
 const assetBase = ref('https://cdn.blovy.art')
-const fpDir = ref('fandom-projects')
+const dpDir = ref('fandom-projects')
 const galleryDir = ref('gallery')
 
-// fp 资源相对 fpDir 解析（rel 可含子目录，如 thumbs/x 或 flowery-cursory/x）；
+// dp 资源相对 dpDir 解析（rel 可含子目录，如 thumbs/x 或 flowery-cursory/x）；
 // 已是绝对 URL 或 / 开头则原样返回。
-const fpAsset = (rel, prefix) => {
+const dpAsset = (rel, prefix) => {
   if (!rel) return rel
   if (/^(https?:)?\/\//.test(rel) || rel.startsWith('/')) return rel
   const base = prefix
-    ? `${assetBase.value}/${fpDir.value}/${prefix}`
-    : `${assetBase.value}/${fpDir.value}`
+    ? `${assetBase.value}/${dpDir.value}/${prefix}`
+    : `${assetBase.value}/${dpDir.value}`
   return `${base}/${rel.replace(/^\//, '')}`
 }
 const currentYear = new Date().getFullYear()
@@ -655,19 +661,19 @@ function shuffleGallery() {
     if (idx >= 0) detailIndex.value = idx
   }
 }
-const fpDetailItem = computed(() => fandomProjects.value[fpDetailIndex.value] || null)
+const dpDetailItem = computed(() => doujinProjects.value[dpDetailIndex.value] || null)
 
 // 远端内容热更新（Nacos 式）：仅在 CONTENT_DATA_URL 为外部直链时轮询
 const isContentRemote = CONTENT_DATA_URL && !CONTENT_DATA_URL.startsWith('/')
 let contentPollTimer = null
 let contentSignature = ''
 
-// FP 图片全量预载：首屏把 logo / 预览 src / 窗口图标拉进浏览器 + CDN 边缘缓存，
+// DP 图片全量预载：首屏把 logo / 预览 src / 窗口图标拉进浏览器 + CDN 边缘缓存，
 // 点开窗口即秒显（避免 R2 冷边 + 冷浏览器缓存的首开 1-2s 延迟）。仅 content 实际变更时重跑。
 const preloadedFPImg = new Set()
 function preloadFPImages() {
-  const urls = [fandomWindowIcon.value]
-  for (const p of fandomProjects.value) {
+  const urls = [doujinWindowIcon.value]
+  for (const p of doujinProjects.value) {
     if (p.logo) urls.push(p.logo)
     if (p.src) urls.push(p.src)
     if (p.mask) urls.push(p.mask)
@@ -675,7 +681,7 @@ function preloadFPImages() {
       for (const key of Object.keys(p.cursors)) {
         const c = p.cursors[key]
         const u = typeof c === 'string' ? c : (c && c.url)
-        if (u) urls.push(fpAsset(u, p.prefix))
+        if (u) urls.push(dpAsset(u, p.prefix))
       }
     }
   }
@@ -704,7 +710,7 @@ async function loadContent() {
     const data = await res.json()
     // 远端根 + 中间路径全部来自 JSON；缺省走兜底默认值
     assetBase.value = data.assetBase || 'https://cdn.blovy.art'
-    fpDir.value = data.fpDir || 'fandom-projects'
+    dpDir.value = data.dpDir || 'fandom-projects'
     galleryDir.value = data.galleryDir || 'gallery'
     const gman = data._gallery || {}
     const resolveGallery = (key) => {
@@ -715,7 +721,7 @@ async function loadContent() {
       return `${assetBase.value}/${galleryDir.value}/${key}.webp${h}`
     }
     // 变更检测：仅内容真正变化时重新赋值，避免无谓重渲染
-    const sig = JSON.stringify([data.gallery, data.notes, data.fandomProjects, data.fandomWindow, data._gallery])
+    const sig = JSON.stringify([data.gallery, data.notes, data.doujinProjects, data.doujinWindow, data._gallery])
     if (sig === contentSignature) return
     contentSignature = sig
     galleryItems.value = (data.gallery || []).map((it) => ({
@@ -725,13 +731,13 @@ async function loadContent() {
       highResSrc: resolveGallery(it.highResSrc),
     }))
     notes.value = data.notes || []
-    fandomProjects.value = (data.fandomProjects || []).map((p) => ({
+    doujinProjects.value = (data.doujinProjects || []).map((p) => ({
       ...p,
-      logo: fpAsset(p.logo),
-      src: fpAsset(p.src, p.prefix),
-      mask: fpAsset(p.mask, p.prefix),
+      logo: dpAsset(p.logo),
+      src: dpAsset(p.src, p.prefix),
+      mask: dpAsset(p.mask, p.prefix),
     }))
-    fandomWindowIcon.value = fpAsset(data.fandomWindow?.icon) || '/assets/placeholder.svg'
+    doujinWindowIcon.value = dpAsset(data.doujinWindow?.icon) || '/assets/placeholder.svg'
     preloadFPImages()
     rollTilted()
   } catch (e) {
@@ -782,7 +788,7 @@ onBeforeUnmount(() => {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
   }
-  applyCursorPreview(null)
+  dpActions.clearCursorPreview()
   if (contentPollTimer) {
     clearInterval(contentPollTimer)
     contentPollTimer = null
@@ -798,28 +804,28 @@ function onWindowResize() {
   if (detailVisible.value) {
     updateDetailSide()
   }
-  if (fpDetailVisible.value) {
-    updateFPDetailVertical()
+  if (dpDetailVisible.value) {
+    updateDpDetailVertical()
   }
 }
 
-function bringFandomToFront() {
-  if (fandomOuterRef.value) {
-    fandomOuterRef.value.style.zIndex = nextZ()
+function bringDoujinToFront() {
+  if (doujinOuterRef.value) {
+    doujinOuterRef.value.style.zIndex = nextZ()
   }
 }
 
-function handleFandomDrag(e) {
-  bringFandomToFront()
-  fandomWindowRef.value?.startDrag(e)
+function handleDoujinDrag(e) {
+  bringDoujinToFront()
+  doujinWindowRef.value?.startDrag(e)
 }
 
-function onFandomEnter() {
+function onDoujinEnter() {
   clearTimeout(collapseTimer)
-  isFandomHovered.value = true
+  isDoujinHovered.value = true
   if (isExpanded.value) return
 
-  const content = fandomContentRef.value
+  const content = doujinContentRef.value
   if (!content) return
   const header = content.previousElementSibling
   if (!header) return
@@ -842,11 +848,11 @@ function onFandomEnter() {
   })
 }
 
-function forceExpandFandom() {
+function forceExpandDoujin() {
   clearTimeout(collapseTimer)
   if (isExpanded.value) return
 
-  const content = fandomContentRef.value
+  const content = doujinContentRef.value
   if (!content) return
   const header = content.previousElementSibling
   if (!header) return
@@ -868,9 +874,9 @@ function forceExpandFandom() {
   })
 }
 
-function onFandomLeave() {
-  isFandomHovered.value = false
-  if (fpDetailVisible.value) return
+function onDoujinLeave() {
+  isDoujinHovered.value = false
+  if (dpDetailVisible.value) return
 
   collapseTimer = setTimeout(() => {
     isExpanded.value = false
@@ -878,14 +884,14 @@ function onFandomLeave() {
 
     // 等收起动画结束后，检查窗口是否被甩出视口
     setTimeout(() => {
-      checkFandomOutOfViewport()
+      checkDoujinOutOfViewport()
     }, 220)
   }, 80)
 }
 
-function checkFandomOutOfViewport() {
-  const outer = fandomWindowRef.value?.$el
-  const header = fandomContentRef.value?.previousElementSibling
+function checkDoujinOutOfViewport() {
+  const outer = doujinWindowRef.value?.$el
+  const header = doujinContentRef.value?.previousElementSibling
   if (!outer || !header) return
 
   const headerRect = header.getBoundingClientRect()
@@ -896,7 +902,7 @@ function checkFandomOutOfViewport() {
     const padding = 20
     const targetTop = Math.max(padding, window.innerHeight - outerRect.height - padding)
     const dy = targetTop - outerRect.top
-    fandomWindowRef.value?.moveBy(0, dy)
+    doujinWindowRef.value?.moveBy(0, dy)
     dlg.start('dropped')
   }
 }
@@ -904,11 +910,12 @@ function checkFandomOutOfViewport() {
 const detailVisible = ref(false)
 const detailIndex = ref(0)
 const detailSide = ref('right')
-const fpDetailVisible = ref(false)
-const fpDetailIndex = ref(0)
-const fpDetailVertical = ref('above')
-const fpPreviewItemId = ref(null)
-const isFandomHovered = ref(false)
+const dpDetailVisible = ref(false)
+const dpDetailIndex = ref(0)
+const dpDetailVertical = ref('above')
+const dpButtonOverrides = ref({})
+const dpTooltipText = ref('')
+const isDoujinHovered = ref(false)
 const nothingVisible = ref(false)
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
@@ -1138,29 +1145,29 @@ function detailDownload() {
   document.body.removeChild(a)
 }
 
-function updateFPDetailVertical() {
-  const el = fandomWindowRef.value?.$el
+function updateDpDetailVertical() {
+  const el = doujinWindowRef.value?.$el
   if (!el) return
   const rect = el.getBoundingClientRect()
   const centerY = rect.top + rect.height / 2
-  fpDetailVertical.value = centerY < window.innerHeight / 2 ? 'below' : 'above'
+  dpDetailVertical.value = centerY < window.innerHeight / 2 ? 'below' : 'above'
 }
 
-function openFPDetail(index) {
-  updateFPDetailVertical()
-  fpDetailIndex.value = index
-  fpDetailVisible.value = true
-  forceExpandFandom()
+function openDpDetail(index) {
+  updateDpDetailVertical()
+  dpDetailIndex.value = index
+  dpDetailVisible.value = true
+  forceExpandDoujin()
 }
 
-function onFandomDragEnd() {
-  if (!fpDetailVisible.value) return
-  updateFPDetailVertical()
+function onDoujinDragEnd() {
+  if (!dpDetailVisible.value) return
+  updateDpDetailVertical()
 }
 
-function closeFPDetail() {
-  fpDetailVisible.value = false
-  if (!isFandomHovered.value) {
+function closeDpDetail() {
+  dpDetailVisible.value = false
+  if (!isDoujinHovered.value) {
     collapseTimer = setTimeout(() => {
       isExpanded.value = false
       expandUp.value = false
@@ -1168,80 +1175,25 @@ function closeFPDetail() {
   }
 }
 
-function fpDetailDownload() {
-  const item = fpDetailItem.value
-  if (!item || !item.downloadUrl || item.downloadUrl === '#') return
-  const a = document.createElement('a')
-  a.href = item.downloadUrl
-  a.target = '_blank'
-  a.download = item.title || 'cursor-set'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-}
-
-function onFPPreviewToggle({ active }) {
-  fpPreviewItemId.value = active ? fpDetailItem.value?.title : null
-  const fpItem = active ? fpDetailItem.value : null
-  applyCursorPreview(fpItem?.cursors || null, fpItem ? fpAsset(fpItem.prefix) : '')
-}
-
-function applyCursorPreview(cursors, base = '') {
-  const styleId = 'fp-cursor-preview'
-  const existing = document.getElementById(styleId)
-  if (existing) {
-    existing.remove()
-  }
-  if (!cursors) return
-
-  // 相对路径（非 http(s):// 且非 / 开头）按 base 拼接；绝对 URL 原样返回
-  const resolve = (u) => {
-    if (!u) return u
-    if (/^https?:\/\//.test(u) || u.startsWith('/')) return u
-    return `${base.replace(/\/$/, '')}/${u.replace(/^\//, '')}`
-  }
-
-  // 每个光标可写成字符串 URL，或 { url, hotspot:[x,y] } 对象（热点想配就配）
-  const specOf = (key) => {
-    const v = cursors[key]
-    if (!v) return null
-    if (typeof v === 'string') return { url: resolve(v), hotspot: null }
-    return { url: resolve(v.url), hotspot: v.hotspot || null }
-  }
-  const expr = (key, fallback) => {
-    const s = specOf(key)
-    if (!s) return ''
-    const ok = Array.isArray(s.hotspot) && s.hotspot.length === 2 && s.hotspot.every((n) => typeof n === 'number')
-    const hs = ok ? ` ${s.hotspot[0]} ${s.hotspot[1]}` : ''
-    return `url("${s.url}")${hs}, ${fallback}`
-  }
-
-  const groups = [
-    { key: 'default', fallback: 'auto', selector: 'html, body' },
-    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], label, .tab, .gallery-thumb, .social-item, .social-email, .fandom-item, .fp-detail-btn, .page-arrow, .desktop-icon' },
-    { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .fp-detail-text, .detail-desc' },
-    { key: 'help', fallback: 'help', selector: '.fp-help-icon' },
-    { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .fandom-header, .desktop-icon.is-dragging, .power-btn.is-dragging' },
-    { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
-    { key: 'wait', fallback: 'wait', selector: 'html.fp-cursor-wait, html.fp-cursor-wait *' },
-    { key: 'progress', fallback: 'progress', selector: 'html.fp-cursor-progress, html.fp-cursor-progress *' },
-    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *' },
-    { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns, [data-resize="ns"] *, .resize-ns *' },
-    { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw, [data-resize="nesw"] *, .resize-nesw *' },
-    { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse, [data-resize="nwse"] *, .resize-nwse *' },
-  ]
-
-  const rules = []
-  for (const g of groups) {
-    const e = expr(g.key, g.fallback)
-    if (e) rules.push(`${g.selector} { cursor: ${e} !important; }`)
-  }
-
-  if (rules.length === 0) return
-  const style = document.createElement('style')
-  style.id = styleId
-  style.textContent = rules.join('\n')
-  document.head.appendChild(style)
+function onDpAction({ button, action }) {
+  const fn = dpActions[action]
+  if (typeof fn !== 'function') return
+  const item = dpDetailItem.value
+  fn({
+    item,
+    button,
+    base: item ? dpAsset(item.prefix) : '',
+    active: !!dpButtonOverrides.value[button.id]?.active,
+    setActive: (value) => {
+      dpButtonOverrides.value = {
+        ...dpButtonOverrides.value,
+        [button.id]: { ...dpButtonOverrides.value[button.id], active: value },
+      }
+    },
+    setTooltip: (text) => {
+      dpTooltipText.value = text || ''
+    },
+  })
 }
 
 // 对话流逻辑已抽到 src/dialogs/（flows.js + useDialogFlow.js），由 DialogFlowRunner 渲染；
@@ -1824,8 +1776,8 @@ a.note-item[href]:hover {
   white-space: nowrap;
 }
 
-/* Fandom Projects Window */
-.fandom-outer {
+/* Doujin Projects Window */
+.doujin-outer {
   position: absolute;
   top: 106%;
   left: 34%;
@@ -1835,19 +1787,19 @@ a.note-item[href]:hover {
   transition: transform 0.18s ease-out;
 }
 
-.fandom-outer.expand-up {
-  transform: translateY(calc(-1 * var(--fp-height, 0px)));
+.doujin-outer.expand-up {
+  transform: translateY(calc(-1 * var(--dp-height, 0px)));
 }
 
-.fandom-window-inner {
+.doujin-window-inner {
   width: 100%;
 }
 
-.fandom-collapsible {
+.doujin-collapsible {
   cursor: pointer;
 }
 
-.fandom-header {
+.doujin-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1856,7 +1808,7 @@ a.note-item[href]:hover {
   cursor: move;
 }
 
-.fandom-title-text {
+.doujin-title-text {
   font-size: clamp(24px, 2.2vw, 34px);
   font-weight: bold;
   color: #ffffff;
@@ -1864,7 +1816,7 @@ a.note-item[href]:hover {
   letter-spacing: 0.5px;
 }
 
-.fandom-logo-small {
+.doujin-logo-small {
   width: clamp(32px, 2.8vw, 48px);
   height: clamp(32px, 2.8vw, 48px);
   object-fit: cover;
@@ -1873,7 +1825,7 @@ a.note-item[href]:hover {
   transition: opacity 0.08s ease;
 }
 
-.fandom-content {
+.doujin-content {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
@@ -1882,23 +1834,23 @@ a.note-item[href]:hover {
     opacity 0.12s ease;
 }
 
-.fandom-outer.expanded .fandom-content {
-  max-height: var(--fp-height, 0px);
+.doujin-outer.expanded .doujin-content {
+  max-height: var(--dp-height, 0px);
   opacity: 1;
 }
 
-.fandom-outer.expanded .fandom-logo-small {
+.doujin-outer.expanded .doujin-logo-small {
   opacity: 0;
 }
 
-.fandom-body {
+.doujin-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding-top: 8px;
 }
 
-.fandom-item {
+.doujin-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1914,27 +1866,27 @@ a.note-item[href]:hover {
   cursor: pointer;
 }
 
-.fandom-item:hover {
+.doujin-item:hover {
   border-image-source: url('/assets/window_frame.png');
 }
 
-.fandom-info {
+.doujin-info {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.fandom-title {
+.doujin-title {
   font-size: clamp(14px, 1.3vw, 20px);
   color: #ffffff;
 }
 
-.fandom-tags {
+.doujin-tags {
   font-size: clamp(11px, 1vw, 15px);
   color: #808080;
 }
 
-.fandom-logo {
+.doujin-logo {
   width: clamp(60px, 5.5vw, 100px);
   height: clamp(60px, 5.5vw, 100px);
   object-fit: cover;

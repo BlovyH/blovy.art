@@ -202,7 +202,7 @@ const edgeDir = ref('') // '' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw
 const EDGE = 8 // edge hit-zone in px (slightly larger than the 6px border for usability)
 
 // 边缘命中时除了切系统原生 --rc 光标（.is-edge *{cursor:var(--rc)}），还要挂上
-// .resize-* class，让 FP 指针预览（applyCursorPreview 注入的全局 CSS）能命中并
+// .resize-* class，让 DP 指针预览（applyCursorPreview 注入的全局 CSS）能命中并
 // 显示自定义 PNG 指针，而不是系统原生箭头。非预览状态时这些 class 无规则匹配，
 // 边缘照常显示 --rc，零副作用。
 function resizeClassOf(dir) {

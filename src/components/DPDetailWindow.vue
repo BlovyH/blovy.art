@@ -1,7 +1,7 @@
 <template>
   <PixelWindow
     ref="detailRef"
-    class="fp-detail-window"
+    class="dp-detail-window"
     :show-title-bar="false"
     :controls="{ minimize: false, maximize: false, close: false }"
     :bring-to-front-on-click="false"
@@ -14,61 +14,40 @@
     :bottom="vertical === 'below' ? '24px' : ''"
     @close="$emit('close')"
   >
-    <div class="fp-detail-body">
-      <div class="fp-detail-header">
-        <h2 class="fp-detail-title">{{ item.title }}</h2>
-        <time class="fp-detail-date">{{ item.date }}</time>
+    <div class="dp-detail-body">
+      <div class="dp-detail-header">
+        <h2 class="dp-detail-title">{{ item.title }}</h2>
+        <time class="dp-detail-date">{{ item.date }}</time>
       </div>
 
-      <div class="fp-detail-columns">
-        <div class="fp-detail-left">
-          <div
-            class="fp-preview-frame"
-            @mouseenter="onPreviewEnter"
-            @mouseleave="onPreviewLeave"
-          >
-            <img
-              class="fp-preview-image"
-              :src="item.src"
-              :alt="item.title"
-              @click="toggleFloweryCursoryTextbox"
-            />
-            <img
-              v-if="isFlowery"
-              class="flowery-cursory-textbox"
-              :class="{ 'is-visible': maskVisible }"
-              :src="maskUrl"
-              alt="easter egg overlay"
-              @click.stop="toggleFloweryCursoryTextbox"
-            />
+      <div class="dp-detail-columns">
+        <div class="dp-detail-left">
+          <!-- 预览区内容完全由外部提供：各条目自己的视图（DPPreview.vue 按名字挑一块） -->
+          <div class="dp-preview-frame">
+            <slot name="preview"></slot>
           </div>
         </div>
 
-        <div class="fp-detail-right">
-          <div class="fp-detail-text" v-html="item.content"></div>
+        <div class="dp-detail-right">
+          <div class="dp-detail-text" v-html="item.content"></div>
 
-          <div class="fp-detail-actions">
+          <div class="dp-detail-actions">
             <button
-              class="fp-detail-btn fp-detail-btn--download"
-              @click="$emit('download')"
+              v-for="btn in buttons"
+              :key="btn.id"
+              class="dp-detail-btn"
+              :class="{ 'dp-detail-btn--active': stateOf(btn).active }"
+              v-on="listenersFor(btn)"
             >
-              DOWNLOAD
-            </button>
-            <button
-              v-if="hasPreview"
-              class="fp-detail-btn fp-detail-btn--preview"
-              :class="{ 'fp-detail-btn--active': previewActive }"
-              @click="togglePreview"
-            >
-              <span>{{ previewActive ? 'RESET' : 'PREVIEW' }}</span>
-              <span class="fp-help-icon" @click.stop>
+              <span>{{ labelOf(btn) }}</span>
+              <span v-if="btn.tooltip" class="dp-help-icon" @click.stop>
                 <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
                   <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="2" />
                   <text x="10" y="15" text-anchor="middle" fill="currentColor" font-size="12">?</text>
                 </svg>
               </span>
             </button>
-            <span class="fp-help-tooltip">{{ item.tooltip }}</span>
+            <span class="dp-help-tooltip" :class="{ 'is-visible': tooltipText }">{{ tooltipText }}</span>
           </div>
         </div>
       </div>
@@ -77,7 +56,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import PixelWindow from './PixelWindow.vue'
 
 const props = defineProps({
@@ -89,61 +68,53 @@ const props = defineProps({
     type: String,
     default: 'above',
   },
-  previewActive: {
-    type: Boolean,
-    default: false,
+  overrides: {
+    type: Object,
+    default: () => ({}),
+  },
+  tooltipText: {
+    type: String,
+    default: '',
   },
 })
 
-const emit = defineEmits(['close', 'download', 'preview'])
+const emit = defineEmits(['close', 'action'])
 
-const hasPreview = computed(() => {
-  return !!(props.item.previewUrl || (props.item.cursors && Object.keys(props.item.cursors).length))
-})
+const buttons = computed(() => props.item?.buttons || [])
 
-const isFlowery = computed(() => {
-  const t = props.item?.title
-  return typeof t === 'string' && t.toUpperCase().includes('FLOWERY')
-})
-
-// 遮罩图 URL 改由 content.json 的 mask 字段提供
-const maskUrl = computed(() => props.item?.mask || '')
-
-const showMask = ref(false)
-const hovering = ref(false)
-
-const maskVisible = computed(() => isFlowery.value && (showMask.value || hovering.value))
-
-function onPreviewEnter() {
-  if (isFlowery.value) hovering.value = true
+// 按钮的运行时状态由父级通过 overrides 覆盖，这里只做合并
+function stateOf(btn) {
+  return props.overrides[btn.id] || {}
 }
 
-function onPreviewLeave() {
-  if (isFlowery.value) hovering.value = false
+function labelOf(btn) {
+  const state = stateOf(btn)
+  if (state.label) return state.label
+  return state.active && btn.activeLabel ? btn.activeLabel : btn.label
 }
 
-function toggleFloweryCursoryTextbox() {
-  if (!isFlowery.value) return
-  showMask.value = !showMask.value
-  if (!showMask.value) hovering.value = false
+// on 字段把事件名映射到函数名：每个事件统一发出 action，由父级按名字查表执行
+function listenersFor(btn) {
+  const listeners = {}
+  for (const [event, name] of Object.entries(btn.on || {})) {
+    listeners[event] = () => emit('action', { button: btn, action: name })
+  }
+  return listeners
 }
 
-function togglePreview() {
-  emit('preview', { active: !props.previewActive })
-}
 </script>
 
 <style scoped>
-.fp-detail-window {
+.dp-detail-window {
   max-width: none;
 }
 
-.fp-detail-window :deep(.pixel-window__content) {
+.dp-detail-window :deep(.pixel-window__content) {
   padding: 20px 24px;
   overflow: hidden;
 }
 
-.fp-detail-body {
+.dp-detail-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -151,7 +122,7 @@ function togglePreview() {
   overflow-x: hidden;
 }
 
-.fp-detail-header {
+.dp-detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -159,7 +130,7 @@ function togglePreview() {
   flex-shrink: 0;
 }
 
-.fp-detail-title {
+.dp-detail-title {
   font-size: clamp(24px, 2.6vw, 40px);
   font-weight: bold;
   margin: 0;
@@ -167,13 +138,13 @@ function togglePreview() {
   letter-spacing: 1px;
 }
 
-.fp-detail-date {
+.dp-detail-date {
   font-size: clamp(18px, 1.8vw, 28px);
   color: #ffffff;
   white-space: nowrap;
 }
 
-.fp-detail-columns {
+.dp-detail-columns {
   display: flex;
   gap: 24px;
   flex: 1;
@@ -181,7 +152,7 @@ function togglePreview() {
   overflow-x: hidden;
 }
 
-.fp-detail-left {
+.dp-detail-left {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -189,7 +160,7 @@ function togglePreview() {
   min-width: 0;
 }
 
-.fp-preview-frame {
+.dp-preview-frame {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -201,34 +172,7 @@ function togglePreview() {
   position: relative;
 }
 
-.fp-preview-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.flowery-cursory-textbox {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  width: 70%;
-  height: auto;
-  object-fit: contain;
-  image-rendering: pixelated;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-  z-index: 2;
-}
-
-.flowery-cursory-textbox.is-visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.fp-detail-right {
+.dp-detail-right {
   flex: 1.1;
   display: flex;
   flex-direction: column;
@@ -237,7 +181,7 @@ function togglePreview() {
   overflow-x: hidden;
 }
 
-.fp-detail-text {
+.dp-detail-text {
   flex: 1;
   font-size: clamp(14px, 1.2vw, 18px);
   line-height: 1.7;
@@ -250,15 +194,15 @@ function togglePreview() {
   cursor: text;
 }
 
-.fp-detail-text :deep(p) {
+.dp-detail-text :deep(p) {
   margin: 0 0 12px;
 }
 
-.fp-detail-text :deep(p:last-child) {
+.dp-detail-text :deep(p:last-child) {
   margin-bottom: 0;
 }
 
-.fp-detail-actions {
+.dp-detail-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -268,7 +212,7 @@ function togglePreview() {
   position: relative;
 }
 
-.fp-detail-btn {
+.dp-detail-btn {
   width: 180px;
   height: 46px;
   box-sizing: border-box;
@@ -285,30 +229,26 @@ function togglePreview() {
   font-size: clamp(14px, 1.3vw, 20px);
   font-weight: bold;
   cursor: pointer;
+  gap: 8px;
   text-transform: uppercase;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.fp-detail-btn:hover {
+.dp-detail-btn:hover {
   background: #ffffff;
   color: #000000;
 }
 
-.fp-detail-btn--active {
+.dp-detail-btn--active {
   background: #ffffff;
   color: #000000;
 }
 
-.fp-detail-btn--active .fp-help-icon {
+.dp-detail-btn--active .dp-help-icon {
   color: #000000;
 }
 
-.fp-detail-btn--preview {
-  gap: 8px;
-  position: relative;
-}
-
-.fp-help-icon {
+.dp-help-icon {
   width: 18px;
   height: 18px;
   display: inline-flex;
@@ -321,17 +261,17 @@ function togglePreview() {
   transition: color 0.15s ease;
 }
 
-.fp-detail-btn--preview:hover .fp-help-icon {
+.dp-detail-btn:hover .dp-help-icon {
   color: #000000;
 }
 
-.fp-help-icon svg {
+.dp-help-icon svg {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
 }
 
-.fp-help-tooltip {
+.dp-help-tooltip {
   flex: 0 1 auto;
   align-self: center;
   margin-left: 16px;
@@ -357,7 +297,7 @@ function togglePreview() {
   transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
 
-.fp-help-tooltip::before {
+.dp-help-tooltip::before {
   content: '';
   position: absolute;
   right: 100%;
@@ -370,21 +310,21 @@ function togglePreview() {
   border-color: transparent #ffffff transparent transparent;
 }
 
-.fp-detail-actions:has(.fp-detail-btn--preview:hover) .fp-help-tooltip {
+.dp-help-tooltip.is-visible {
   opacity: 1;
   transform: translateX(0);
   visibility: visible;
 }
 
 @media (max-width: 860px) {
-  .fp-detail-columns {
+  .dp-detail-columns {
     flex-direction: column;
     gap: 18px;
     overflow: auto;
   }
 
-  .fp-detail-left,
-  .fp-detail-right {
+  .dp-detail-left,
+  .dp-detail-right {
     flex: none;
   }
 }

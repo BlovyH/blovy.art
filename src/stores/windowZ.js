@@ -6,7 +6,7 @@ export const Z = {
   COMMAND_FRONT: 2, // printf welcome 窗口，压在命令窗口上
   COMMENTS: 40,
   GALLERY: 50,
-  FP: 100,
+  DP: 100,
 
   WINDOW_BASE: 1000, // nextZ() 从这里开始递增
   ICON: 9998, // 桌面图标 .drag-top
