@@ -584,6 +584,17 @@ const dpAsset = (rel, prefix) => {
     : `${assetBase.value}/${dpDir.value}`
   return `${base}/${rel.replace(/^\//, '')}`
 }
+// 贴纸文件名 = 系列名-序号.扩展名。系列名 / 张数 / 扩展名都在 JSON 的 stickerSeries 里，
+// 代码只负责按这条规则展开成完整 URL。
+function buildStickers(series, prefix) {
+  const list = []
+  for (const s of series || []) {
+    for (let i = 1; i <= s.count; i++) {
+      list.push(dpAsset(`${s.series}-${i}.${s.ext}`, prefix))
+    }
+  }
+  return list
+}
 const currentYear = new Date().getFullYear()
 let collapseTimer = null
 
@@ -677,6 +688,7 @@ function preloadFPImages() {
     if (p.logo) urls.push(p.logo)
     if (p.src) urls.push(p.src)
     if (p.mask) urls.push(p.mask)
+    urls.push(...(p.stickers || []))
     if (p.cursors) {
       for (const key of Object.keys(p.cursors)) {
         const c = p.cursors[key]
@@ -736,6 +748,7 @@ async function loadContent() {
       logo: dpAsset(p.logo),
       src: dpAsset(p.src, p.prefix),
       mask: dpAsset(p.mask, p.prefix),
+      stickers: buildStickers(p.stickerSeries, p.prefix),
     }))
     doujinWindowIcon.value = dpAsset(data.doujinWindow?.icon) || '/assets/placeholder.svg'
     preloadFPImages()

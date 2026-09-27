@@ -98,3 +98,24 @@ export function floweryTooltipShow({ button, setTooltip }) {
 export function floweryTooltipHide({ setTooltip }) {
   setTooltip('')
 }
+
+// DOWNLOAD 的 hover 浮层：内容整块放在 JSON 的 downloadTooltip 里
+export function ahogecatTooltipShow({ item, setTooltip }) {
+  setTooltip(item?.downloadTooltip || '')
+}
+
+export function ahogecatTooltipHide({ setTooltip }) {
+  setTooltip('')
+}
+
+// DOWNLOAD：跳到条目的下载链接
+export function ahogecatDownload({ item }) {
+  if (!item?.downloadUrl || item.downloadUrl === '#') return
+  const a = document.createElement('a')
+  a.href = item.downloadUrl
+  a.target = '_blank'
+  a.download = item.title || 'sticker-set'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}

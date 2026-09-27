@@ -47,7 +47,13 @@
                 </svg>
               </span>
             </button>
-            <span class="dp-help-tooltip" :class="{ 'is-visible': tooltipText }">{{ lastTooltip }}</span>
+            <!-- 内容由条目自己给（dpActions 里的 xxxTooltipShow 塞进来），可以是 HTML -->
+            <div
+              class="dp-help-tooltip"
+              :class="{ 'is-visible': tooltipText }"
+              :style="{ '--arrow-x': `${arrowX}px` }"
+              v-html="lastTooltip"
+            ></div>
           </div>
         </div>
       </div>
@@ -92,6 +98,9 @@ watch(
   },
 )
 
+// 触发浮层的按钮中心（相对按钮行的横向位置），浮层尖嘴对着它
+const arrowX = ref(0)
+
 // 按钮的运行时状态由父级通过 overrides 覆盖，这里只做合并
 function stateOf(btn) {
   return props.overrides[btn.id] || {}
@@ -107,7 +116,12 @@ function labelOf(btn) {
 function listenersFor(btn) {
   const listeners = {}
   for (const [event, name] of Object.entries(btn.on || {})) {
-    listeners[event] = () => emit('action', { button: btn, action: name })
+    listeners[event] = (e) => {
+      if (event === 'mouseenter' && e?.currentTarget) {
+        arrowX.value = e.currentTarget.offsetLeft + e.currentTarget.offsetWidth / 2
+      }
+      emit('action', { button: btn, action: name })
+    }
   }
   return listeners
 }
@@ -144,7 +158,6 @@ function listenersFor(btn) {
   font-size: clamp(24px, 2.6vw, 40px);
   font-weight: bold;
   margin: 0;
-  text-transform: uppercase;
   letter-spacing: 1px;
 }
 
@@ -218,7 +231,7 @@ function listenersFor(btn) {
   flex-wrap: wrap;
   gap: 12px;
   flex-shrink: 0;
-  overflow-x: hidden;
+  /* 故意不设 overflow：hover 出来的浮层要能盖到这一行的上方 */
   position: relative;
 }
 
@@ -281,14 +294,15 @@ function listenersFor(btn) {
   image-rendering: pixelated;
 }
 
+/* hover 浮层：绝对定位盖在按钮行上方，内容由 JSON 提供（v-html，可含图片） */
 .dp-help-tooltip {
-  flex: 0 1 auto;
-  align-self: center;
-  margin-left: 16px;
-  padding: 5px 10px;
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
   width: max-content;
   max-width: 100%;
   box-sizing: border-box;
+  padding: 10px 12px;
   background: #000000;
   color: #ffffff;
   border: 2px solid #ffffff;
@@ -300,9 +314,10 @@ function listenersFor(btn) {
   text-transform: none;
   white-space: normal;
   z-index: 20;
-  /* 右侧微微滑入 + 淡入 */
+  /* 浮层只负责显示：吃到指针会打断按钮自身的 hover，导致闪烁 */
+  pointer-events: none;
   opacity: 0;
-  transform: translateX(-8px);
+  transform: translateY(8px);
   visibility: hidden;
   transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
@@ -310,19 +325,19 @@ function listenersFor(btn) {
 .dp-help-tooltip::before {
   content: '';
   position: absolute;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 100%;
+  /* 对准触发它的那个按钮中心；比框还靠外时夹在框内，别飘出去 */
+  left: clamp(12px, var(--arrow-x, 24px), calc(100% - 12px));
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 6px 8px 6px 0;
-  border-color: transparent #ffffff transparent transparent;
+  border-width: 8px 6px 0 6px;
+  border-color: #ffffff transparent transparent transparent;
 }
 
 .dp-help-tooltip.is-visible {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
   visibility: visible;
 }
 
