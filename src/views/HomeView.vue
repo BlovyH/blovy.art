@@ -833,6 +833,13 @@ function handleDoujinDrag(e) {
   doujinWindowRef.value?.startDrag(e)
 }
 
+// 如在动画期间内 hover，需要反推出静止终点位置再判定展开方向否则会误判
+function restingShiftY(el) {
+  if (!el) return 0
+  const transform = getComputedStyle(el).transform
+  return transform && transform !== 'none' ? new DOMMatrixReadOnly(transform).m42 : 0
+}
+
 function onDoujinEnter() {
   clearTimeout(collapseTimer)
   isDoujinHovered.value = true
@@ -854,7 +861,8 @@ function onDoujinEnter() {
   content.style.transition = ''
 
   expandHeight.value = height
-  expandUp.value = headerRect.bottom + height > window.innerHeight
+  expandUp.value =
+    headerRect.bottom - restingShiftY(doujinOuterRef.value) + height > window.innerHeight
 
   requestAnimationFrame(() => {
     isExpanded.value = true
@@ -880,7 +888,8 @@ function forceExpandDoujin() {
   content.style.transition = ''
 
   expandHeight.value = height
-  expandUp.value = headerRect.bottom + height > window.innerHeight
+  expandUp.value =
+    headerRect.bottom - restingShiftY(doujinOuterRef.value) + height > window.innerHeight
 
   requestAnimationFrame(() => {
     isExpanded.value = true
