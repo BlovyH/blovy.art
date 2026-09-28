@@ -19,22 +19,13 @@
     />
   </template>
 
-  <!-- 贴纸条目：静态网格。张数与顺序全在 JSON 的 stickers 里，这里只按数组渲染 -->
-  <template v-else-if="name === 'stickerPreview'">
-    <div class="sticker-grid">
-      <img
-        v-for="(src, idx) in item.stickers || []"
-        :key="src"
-        class="sticker-cell"
-        :src="src"
-        :alt="`sticker ${idx + 1}`"
-      />
-    </div>
-  </template>
+  <!-- 贴纸条目：静态网格与弹幕游戏都在 StickerStg.vue 里 -->
+  <StickerStg v-else-if="name === 'stickerPreview'" :item="item" />
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
+import StickerStg from './StickerStg.vue'
 
 const props = defineProps({
   // 条目在 content.json 里声明的视图名
@@ -91,22 +82,5 @@ function toggleMask() {
 .flowery-cursory-textbox.is-visible {
   opacity: 1;
   visibility: visible;
-}
-
-.sticker-grid {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  align-content: start;
-  gap: 4px;
-  padding: 4px;
-  overflow-y: auto;
-}
-
-.sticker-cell {
-  width: 100%;
-  height: auto;
-  image-rendering: pixelated;
 }
 </style>

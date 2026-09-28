@@ -7,6 +7,8 @@
 // JSON 里 button.on[*] 写的就是这里的导出名，改导出名要同步改 content.json。
 // 取不到对应函数时什么都不做：不抛错，也不打日志（站点 console 面向访客）。
 
+import { ref } from 'vue'
+
 // 把一套光标注入成全局样式。只有 DP 预览用得到，故不导出。
 function applyCursorPreview(cursors, base = '') {
   const styleId = 'dp-cursor-preview'
@@ -97,6 +99,16 @@ export function tooltipShow({ button, setTooltip }) {
 
 export function tooltipHide({ setTooltip }) {
   setTooltip('')
+}
+
+// PREVIEW 触发的贴纸弹幕游戏：按钮动作和预览区内容分居两处（一个在父级执行、
+// 一个在 slot 里渲染），靠这个计数器指到同一件事上 —— 每点一次 +1，
+// StickerStg.vue watch 到就重开一局。用计数而不是布尔开关，是为了让
+// 「游戏中再点 PREVIEW」也能重开，不用先回到 idle。
+export const stickerStgRun = ref(0)
+
+export function ahogecatPreview() {
+  stickerStgRun.value++
 }
 
 // DOWNLOAD：跳到条目的下载链接
