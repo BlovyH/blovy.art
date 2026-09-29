@@ -13,37 +13,40 @@
   <!-- 弹幕游戏层：整局都挂在 body 上，坐标用视口坐标，暗幕盖住整屏 -->
   <Teleport to="body">
     <div v-if="phase !== 'idle'" class="stg-layer">
-      <div class="stg-veil"></div>
+      <!-- 游戏本体 -->
+      <div v-if="phase !== 'clear'" class="stg-stage">
+        <div class="stg-veil"></div>
 
-      <img
-        v-for="b in bullets"
-        :key="b.id"
-        class="stg-bullet"
-        :src="b.src"
-        :style="{ width: `${b.size}px`, transform: `translate3d(${b.x}px, ${b.y}px, 0)` }"
-        alt=""
-      />
+        <img
+          v-for="b in bullets"
+          :key="b.id"
+          class="stg-bullet"
+          :src="b.src"
+          :style="{ width: `${b.size}px`, transform: `translate3d(${b.x}px, ${b.y}px, 0)` }"
+          alt=""
+        />
 
-      <!-- debug：子弹判定区域 -->
-      <div
-        v-for="b in DEBUG_HITBOX ? bullets : []"
-        :key="`hit-${b.id}`"
-        class="stg-hitbox"
-        :style="hitboxStyle(b)"
-      ></div>
+        <!-- debug：子弹判定区域 -->
+        <div
+          v-for="b in DEBUG_HITBOX ? bullets : []"
+          :key="`hit-${b.id}`"
+          class="stg-hitbox"
+          :style="hitboxStyle(b)"
+        ></div>
 
-      <div v-if="phase === 'playing'" class="stg-player" :style="playerStyle"></div>
+        <div v-if="phase === 'playing'" class="stg-player" :style="playerStyle"></div>
 
-      <div
-        v-if="phase === 'playing' && grazing"
-        class="stg-graze"
-        :style="grazeStyle"
-      ></div>
+        <div
+          v-if="phase === 'playing' && grazing"
+          class="stg-graze"
+          :style="grazeStyle"
+        ></div>
 
-      <div v-if="phase === 'bonus'" class="stg-bonus">Sticker Card Bonus!!</div>
+        <div v-if="phase === 'bonus'" class="stg-bonus">Sticker Card Bonus!!</div>
 
-      <!-- 符卡名：本条目的演出文案，全程挂在左上角 -->
-      <div class="stg-card">{{ CARD_NAME }}</div>
+        <!-- 符卡名：本条目的演出文案，全程挂在左上角（只属于本条目，所以留在视图里，不进 JSON） -->
+        <div class="stg-card">{{ CARD_NAME }}</div>
+      </div>
 
       <div
         class="stg-flash"
@@ -87,8 +90,11 @@ const HIT_SCALE = 0.4 // 子弹判定圆直径相对贴图边长：比图片小�
 const GRAZE_RING = 50
 const GRAZE_LINGER = 300 // ms 擦弹提示的滞留时间，不然一闪就过去了
 const BONUS_HOLD = 2222 // BONUS 停留时长 ms
-const FLASH_HIT = 2200 // ms 中弹的白场，进出各一次
-const FLASH_END = 500 // ms 结束的黑场，比白场短
+const FLASH_HIT = 2200 // ms 中弹的白场涨满时长
+const FLASH_END = 500 // ms 结束的黑场涨满时长，比白场短
+// ms 色场退场时长，跟涨场分开算：涨是中弹演出，退只是把画面交还站点 ——
+// 跟着涨场一起长的话，画面早就露出来了，交互却还锁着那一整段。
+const FLASH_FALL = 500
 // debug：把每发的判定区域画出来（红圈）。判定的实际情况是"玩家中心进圈即死"，所以圈比贴图自身的
 // 判定圆大一个玩家尺寸 —— 要看贴图自己的判定圆就把后面的 PLAYER_SIZE 去掉。上线前记得改回 false。
 const DEBUG_HITBOX = true
@@ -310,19 +316,21 @@ function finish(mode) {
   runFlash('black', FLASH_END)
 }
 
-// 色场：涨满（ms）→ 收起元素 → 退掉（ms）。进出用同一条 transition，所以元素要常驻，不能 v-if
-function runFlash(color, ms) {
-  flashMs.value = ms
+// 色场：涨满（rise）→ 收起游戏 → 退掉（FLASH_FALL）。进出用同一条 transition，
+// 所以元素要常驻，不能 v-if；两段时长不同，退场前把 transitionDuration 换成退场那份
+function runFlash(color, rise) {
+  flashMs.value = rise
   flash.value = color
   timers.push(
     setTimeout(() => {
       bullets.value = []
       phase.value = 'clear'
+      flashMs.value = FLASH_FALL
       flash.value = ''
       timers.push(setTimeout(() => {
         phase.value = 'idle'
-      }, ms))
-    }, ms),
+      }, FLASH_FALL))
+    }, rise),
   )
 }
 
@@ -349,10 +357,7 @@ const DIRECTION_KEYS = {
   s: 'down',
 }
 
-// 暗幕期间屏蔽底下的一切鼠标操作。
-// 关键点：详情窗的 click-outside-to-close 是注册在 **document 捕获阶段** 的（PixelWindow.vue），
-// 在它之前掐断只能靠 window —— 捕获顺序是 window → document → ... → target，
-// 晚于 document 的任何监听（包括在遮罩自身上 stopPropagation）都来不及。
+// 游戏存在期间屏蔽底下的一切鼠标操作
 const SWALLOWED = ['mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu']
 function swallowMouse(e) {
   if (phase.value === 'idle') return
@@ -429,6 +434,12 @@ onBeforeUnmount(() => {
   z-index: var(--z-stg);
   /* 暗幕要挡住底下的交互，所以这里不能设 pointer-events: none —— 元素自身的点击/悬停由本层接住，
      挂在 document 上的全局监听（详情窗的 click-outside-to-close）由下面的 window 捕获阶段掐断。 */
+}
+
+/* 游戏本体：与层同区域同坐标系，里面元素的视口坐标照旧，它只是给"整块卸载"划一条边 */
+.stg-stage {
+  position: absolute;
+  inset: 0;
 }
 
 .stg-veil {
