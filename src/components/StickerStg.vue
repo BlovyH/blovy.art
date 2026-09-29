@@ -417,6 +417,8 @@ onBeforeUnmount(() => {
 .sticker-cell {
   width: 100%;
   height: auto;
+  /* 防加载未完成闪烁 */
+  aspect-ratio: 1;
   image-rendering: pixelated;
 }
 

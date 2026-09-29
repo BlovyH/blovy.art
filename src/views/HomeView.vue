@@ -689,6 +689,14 @@ function preloadFPImages() {
     if (p.src) urls.push(p.src)
     if (p.mask) urls.push(p.mask)
     urls.push(...(p.stickers || []))
+    // tooltip 是 HTML，里面可能带图（如下载二维码），加预载
+    for (const btn of p.buttons || []) {
+      if (!btn.tooltip) continue
+      const doc = new DOMParser().parseFromString(btn.tooltip, 'text/html')
+      for (const img of doc.querySelectorAll('img[src]')) {
+        urls.push(dpAsset(img.getAttribute('src'), p.prefix))
+      }
+    }
     if (p.cursors) {
       for (const key of Object.keys(p.cursors)) {
         const c = p.cursors[key]
