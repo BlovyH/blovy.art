@@ -40,6 +40,17 @@
               v-on="listenersFor(btn)"
             >
               <span>{{ labelOf(btn) }}</span>
+              <span v-if="stateOf(btn).badge === 'completed'" class="dp-cleared-badge">
+                <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                  <path
+                    d="M1.5 6.5 L4.5 9.5 L10.5 2.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                </svg>
+                COMPLETED!
+              </span>
               <span v-if="btn.help" class="dp-help-icon" @click.stop>
                 <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
                   <circle cx="10" cy="10" r="9" fill="none" stroke="currentColor" stroke-width="2" />
@@ -236,6 +247,7 @@ function listenersFor(btn) {
 }
 
 .dp-detail-btn {
+  position: relative;
   width: 180px;
   height: 46px;
   box-sizing: border-box;
@@ -269,6 +281,23 @@ function listenersFor(btn) {
 
 .dp-detail-btn--active .dp-help-icon {
   color: #000000;
+}
+
+/* 通关角标：贴在按钮右上角外侧 —— 按钮里的文字是居中的，放进内部会压到字 */
+.dp-cleared-badge {
+  position: absolute;
+  top: -11px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  background: #000000;
+  color: #46d369;
+  border: 2px solid #46d369;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .dp-help-icon {

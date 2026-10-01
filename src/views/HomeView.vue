@@ -1186,6 +1186,8 @@ function updateDpDetailVertical() {
 function openDpDetail(index) {
   updateDpDetailVertical()
   dpDetailIndex.value = index
+  // 按钮状态按条目重来：通关过的条目在这里把记录读回来，其余的归零
+  dpButtonOverrides.value = dpActions.clearedOverrides(dpDetailItem.value)
   dpDetailVisible.value = true
   forceExpandDoujin()
 }
@@ -1205,11 +1207,14 @@ function closeDpDetail() {
   }
 }
 
+// 最近一次按钮调用的上下文：过关这类「不在按钮上发生」的后续需要它（要改的就是当时点的那个按钮）
+let lastDpCtx = null
+
 function onDpAction({ button, action }) {
   const fn = dpActions[action]
   if (typeof fn !== 'function') return
   const item = dpDetailItem.value
-  fn({
+  const ctx = {
     item,
     button,
     base: item ? dpAsset(item.prefix) : '',
@@ -1220,11 +1225,24 @@ function onDpAction({ button, action }) {
         [button.id]: { ...dpButtonOverrides.value[button.id], active: value },
       }
     },
+    setOverride: (patch) => {
+      dpButtonOverrides.value = {
+        ...dpButtonOverrides.value,
+        [button.id]: { ...dpButtonOverrides.value[button.id], ...patch },
+      }
+    },
     setTooltip: (text) => {
       dpTooltipText.value = text || ''
     },
-  })
+  }
+  lastDpCtx = ctx
+  fn(ctx)
 }
+
+// 贴纸弹幕过关：把当时点的那个按钮换成通关后的样子
+watch(dpActions.stickerStgCleared, () => {
+  if (lastDpCtx) dpActions.stgCleared(lastDpCtx)
+})
 
 // 对话流逻辑已抽到 src/dialogs/（flows.js + useDialogFlow.js），由 DialogFlowRunner 渲染；
 // 本文件不再维护 noticeFlow / openNoticeSign / onDialogClick / onOptionSelect。

@@ -107,6 +107,49 @@ export function tooltipHide({ setTooltip }) {
 // 「游戏中再点 PREVIEW」也能重开，不用先回到 idle。
 export const stickerStgRun = ref(0)
 
+// 真正过关时 +1（按 B 清屏走的是另一条收尾，不算过关）
+export const stickerStgCleared = ref(0)
+
+// 通关记录按条目存 localStorage。取不到条目的键、或者读写失败，一律静默跳过 —— 无痕模式下写不进
+const CLEARED_KEY = 'stg.cleared.'
+
+function entryKey(item) {
+  return item?.prefix || item?.id || item?.title || ''
+}
+
+function isCleared(item) {
+  const key = entryKey(item)
+  if (!key) return false
+  try {
+    return localStorage.getItem(CLEARED_KEY + key) === '1'
+  } catch {
+    return false
+  }
+}
+
+// 打开条目时按钮的初始运行时状态：通关过的条目，声明了 clearedLabel 的按钮换文案并打上角标
+export function clearedOverrides(item) {
+  const out = {}
+  if (!isCleared(item)) return out
+  for (const btn of item?.buttons || []) {
+    if (!btn.clearedLabel) continue
+    out[btn.id] = { label: btn.clearedLabel, badge: 'completed' }
+  }
+  return out
+}
+
+// 记住过关状态
+export function stgCleared({ item, button, setOverride }) {
+  const key = entryKey(item)
+  if (!key || typeof setOverride !== 'function') return
+  try {
+    localStorage.setItem(CLEARED_KEY + key, '1')
+  } catch {
+    // 存不下就不存了
+  }
+  if (button?.clearedLabel) setOverride({ label: button.clearedLabel, badge: 'completed' })
+}
+
 export function ahogecatPreview() {
   stickerStgRun.value++
 }

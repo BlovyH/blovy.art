@@ -74,7 +74,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
-import { stickerStgRun } from '../dpActions.js'
+import { stickerStgCleared, stickerStgRun } from '../dpActions.js'
 import * as patterns from '../stg/patterns.js'
 import { SCRIPT } from '../stg/script.js'
 import { BULLET_DRAG, GRAVITY } from '../stg/physics.js'
@@ -377,6 +377,8 @@ function bomb() {
 function finish(mode) {
   stop()
   if (mode === 'bonus') {
+    // 只有打完才算过关：按 B 清屏走的是下面那条，不通知外面
+    stickerStgCleared.value++
     phase.value = 'bonus'
     timers.push(setTimeout(() => runFlash('black', FLASH_END), BONUS_HOLD))
     return
