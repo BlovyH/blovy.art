@@ -241,17 +241,17 @@ export const SCRIPT = [
     "pattern": "burst",
     "count": 66,
     "size": 0.9,
-    "speed": 0.45,
+    "speed": 1,
     "origin": {
       "x": 0,
       "y": 1
     },
     "spread": 0.6000000000000001,
     "from": "point",
-    "lanes": 20,
+    "lanes": 39,
     "rise": [
-      0.7000000000000001,
-      1.35
+      1,
+      1.8
     ]
   },
   {
@@ -259,17 +259,67 @@ export const SCRIPT = [
     "pattern": "burst",
     "count": 66,
     "size": 0.9,
-    "speed": 0.45,
+    "speed": 1,
     "origin": {
       "x": 1,
       "y": 1
     },
     "spread": 0.6000000000000001,
     "from": "point",
-    "lanes": 20,
+    "lanes": 39,
     "rise": [
-      0.7000000000000001,
-      1.35
+      0.65,
+      1.6
     ]
+  },
+  {
+    "at": 6500,
+    "pattern": "burst",
+    "from": "top",
+    "count": 123,
+    "lanes": 60,
+    "size": 0.5,
+    "rise": [
+      0.8500000000000001,
+      2.75
+    ],
+    "spread": 0.9,
+    "origin": {
+      "x": 0.254269588264801,
+      "y": 0.5977933015988075
+    },
+    "speed": 0.75,
+    "angle": 0,
+    "spacing": 40,
+    "drop": [
+      0.30000000000000004,
+      1.2
+    ]
+  },
+  {
+    "at": 6800,
+    "pattern": "fall",
+    "from": "grid",
+    "count": 60,
+    "lanes": 60,
+    "size": 0.35000000000000003,
+    "rise": [
+      1,
+      1.7
+    ],
+    "spread": 0.5,
+    "speed": 0.35,
+    "drop": [
+      0,
+      1.2
+    ],
+    "origin": {
+      "x": 0.254269588264801,
+      "y": 0.5977933015988075
+    },
+    "mode": "ballistic",
+    "duration": 3000,
+    "tilt": 0,
+    "sway": 0.15
   }
 ]

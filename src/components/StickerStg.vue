@@ -93,6 +93,7 @@ const PLAYER_SIZE = 16 // px 自机直径，也参与判定
 const HIT_SCALE = 0.42 // 子弹判定圆直径相对贴图边长：比图片小一圈
 const GRAZE_RING = 50 // 擦弹范围
 const GRAZE_LINGER = 300 // 擦弹圈滞留时间 ms
+const SWAY_FREQ = (Math.PI * 2) / 2000 // 摆动周期 2000ms，换算成每 ms 的弧度
 const BONUS_HOLD = 2222 // BONUS 停留时长 ms
 const FLASH_HIT = 2200 // ms 中弹的白场涨满时长
 const FLASH_END = 500 // ms 结束的黑场涨满时长，比白场短
@@ -144,6 +145,7 @@ const scriptRef = ref(SCRIPT)
 // 本局采到的弹源，调参面板拿它按真实 pattern 算预览，所以是 ref 不是局部变量
 const ctxRef = ref(null)
 let pending = []
+let delayed = []
 let nextId = 0
 
 // 调参面板：dev 下才动态加载，路径写成变量是为了让打包器别去解析它（文件不在仓库里）
@@ -151,22 +153,33 @@ const showTuner = ref(false)
 const tunerComp = shallowRef(null)
 const tunerRef = ref(null)
 
-async function toggleTuner() {
-  if (!import.meta.env.DEV) return
-  if (!tunerComp.value) {
-    const path = '../stg/StgTuner.vue'
-    try {
-      tunerComp.value = (await import(/* @vite-ignore */ path)).default
-    } catch {
-      return
-    }
+// 面板按变量路径动态加载，不在模块图里，HMR 推不到它 —— 改完面板文件只能靠刷新页面才生效。
+// 所以每次打开都换一个时间戳重取一份：同一个 URL 第二次 import 会直接吃浏览器缓存。
+async function loadTuner() {
+  try {
+    return (await import(/* @vite-ignore */ `../stg/StgTuner.vue?t=${Date.now()}`)).default
+  } catch {
+    return (await import(/* @vite-ignore */ '../stg/StgTuner.vue')).default
   }
-  showTuner.value = !showTuner.value
 }
 
-function applyScript(list) {
+async function toggleTuner() {
+  if (!import.meta.env.DEV) return
+  if (showTuner.value) {
+    showTuner.value = false
+    return
+  }
+  try {
+    tunerComp.value = await loadTuner()
+  } catch {
+    return
+  }
+  showTuner.value = true
+}
+
+function applyScript(list, opts = {}) {
   scriptRef.value = list
-  start()
+  start(opts)
 }
 
 // 面板里的键盘与鼠标要能正常工作：否则输入被游戏的方向键吃掉、点击被吞鼠标的那段掐断
@@ -196,7 +209,10 @@ function collectCells() {
   return list
 }
 
-function start() {
+const noHit = ref(false)
+
+function start(opts) {
+  noHit.value = !!(opts && opts.noHit)
   stop()
 
   const cells = collectCells()
@@ -210,6 +226,7 @@ function start() {
   }
   pending = scriptRef.value.slice().sort((a, b) => a.at - b.at)
   bullets.value = []
+  delayed = []
   nextId = 0
   player.value = {
     x: (window.innerWidth - PLAYER_SIZE) / 2,
@@ -236,9 +253,26 @@ function spawnDue() {
     const make = patterns[wave.pattern]
     if (typeof make !== 'function') continue
     for (const s of make(ctx, wave)) {
-      bullets.value.push({ id: nextId++, ...s })
+      const b = { id: nextId++, ...s }
+      if (b.delay > 0) {
+        b.due = elapsed + b.delay
+        delayed.push(b)
+      } else {
+        bullets.value.push(b)
+      }
     }
   }
+}
+
+// 到点的延迟弹幕入场
+function flushDelayed() {
+  if (!delayed.length) return
+  const keep = []
+  for (const b of delayed) {
+    if (elapsed >= b.due) bullets.value.push(b)
+    else keep.push(b)
+  }
+  delayed = keep
 }
 
 function tick(now) {
@@ -247,6 +281,7 @@ function tick(now) {
   elapsed += dt
 
   spawnDue()
+  flushDelayed()
   movePlayer(dt)
 
   const px = player.value.x + PLAYER_SIZE / 2
@@ -261,6 +296,12 @@ function tick(now) {
     let vy = b.vy
     let nx
     let ny
+
+    // 摆动：横向速度按正弦来回，幅度就是 sway，落速不受影响
+    if (b.sway) {
+      b.age = (b.age || 0) + dt
+      vx = Math.cos(b.age * SWAY_FREQ) * b.sway
+    }
 
     if (b.move === 'linear') {
       // 匀速直飞：不吃阻力也不吃重力，四边出界就丢
@@ -277,7 +318,8 @@ function tick(now) {
       if (ny > vh) continue
     }
 
-    if (elapsed > GRACE) {
+    // 不判定的一局：中弹与擦弹都不算，跑完整段就结束
+    if (elapsed > GRACE && !noHit.value) {
       // 圆对圆：子弹判定圆半径 + 玩家半径。逐轴比较是方形判定，会在贴图的四个角多判一块
       const reach = (b.size * HIT_SCALE + PLAYER_SIZE) / 2
       const dx = nx + b.size / 2 - px
@@ -298,9 +340,10 @@ function tick(now) {
 
   bullets.value = alive
 
-  // 清屏判定：场上没弹且波次也发完了才算过 —— 还有波次没到点时不能提前给 BONUS
-  if (!alive.length && !pending.length) {
-    finish('bonus')
+  // 清屏判定：场上没弹、波次发完、延迟入场的也全进来了才算过 —— 还有波次没到点时不能提前给 BONUS
+  if (!alive.length && !pending.length && !delayed.length) {
+    // 不判定的一局跑完不算过关：否则单波预览也会往 localStorage 写通关、按钮提前变 REVIEW
+    finish(noHit.value ? 'clear' : 'bonus')
     return
   }
 

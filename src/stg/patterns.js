@@ -1,4 +1,4 @@
-import { DRAG_RATE, GRAVITY_SHARE, clamp } from './physics.js'
+import { DRAG_RATE, GRAVITY, GRAVITY_SHARE } from './physics.js'
 
 // 弹幕脚本的"能力表"：脚本里写 pattern 名，这里按名字查函数（跟 dpActions 一个套路）。
 // ctx 由调用方给：cells（贴纸格子的中心与贴图）、vw / vh（视口）、player（自机中心）、playerSize。
@@ -9,12 +9,15 @@ import { DRAG_RATE, GRAVITY_SHARE, clamp } from './physics.js'
 
 const RAD = Math.PI / 180
 const ASCENT = 0.12 // 「刚够冲过屏幕顶部」所需的上升高度里，顶部以上的余量（视口高度比例）
-// 实际最高点 = 刚够过顶的高度 × 这个倍数。飞得越高回来越晚，整片因此错开时间落下 ——
-// 全队同一个高度就是"一堵墙砸下来"，没有缝可钻。
+// 下界是 1 ，低于 1 顶点落在屏幕里
 const APEX_SCALE = { min: 1, max: 1.7 }
-const UP_SPEED = { min: 1.2, max: 6 } // px/ms 向上初速的反推结果夹在这里
+const MIN_START = 0.5 // 冲顶高度按起点算，但基数不低于这个视口高度比例
+// 自由落体的终端速度：from='top' 的初速按它折算，speed=1 时正好等于自由落体
+const FALL_SPEED = GRAVITY / DRAG_RATE
 const SPREAD = 0.7 // 横向落点在各自槽位内的抖动幅度（占一个槽位宽度的比例）
-const DROP_SPREAD = 0.15 // from='top' 时起点在屏幕上方的错开幅度（视口高度比例）
+// from='top' 时起点在屏幕上方的错开区间（视口高度比例）。同一起点高度就是"一堵墙压下来"，
+// 拉开区间才有先后到达的时间差。
+const DROP = [0, 1.2]
 // 按序号造一个 -1..1 的确定值：random 换成正弦，分布才有规律可看、可预览
 function wave(i, phase) {
   return Math.sin(i * phase)
@@ -56,6 +59,8 @@ export function burst(ctx, opts = {}) {
   const scale = opts.size ?? 1
   const rise = opts.rise ?? [APEX_SCALE.min, APEX_SCALE.max]
   const spread = opts.spread ?? SPREAD
+  const drop = opts.drop ?? DROP
+  const speed = opts.speed ?? 1
 
   const center = cellsCenter(ctx)
   const o = pointOf(opts.origin, ctx.vw, ctx.vh, center)
@@ -73,18 +78,11 @@ export function burst(ctx, opts = {}) {
 
     // 起点在屏幕上方时不用冲顶，直接靠重力落下来
     if (from === 'top') {
-      list.push(
-        make(
-          ctx,
-          i,
-          size,
-          targetX,
-          -size - Math.abs(wave(i, 1.1)) * ctx.vh * DROP_SPREAD,
-          0,
-          0,
-          'ballistic',
-        ),
-      )
+      const fy = (wave(i, 1.1) + 1) / 2 // 0..1
+      const above = drop[0] + fy * (drop[1] - drop[0])
+      // 1 = 自由落体。再往上调就是"甩下来"，往下调会先被抛起再落
+      const vDown = (speed - 1) * FALL_SPEED
+      list.push(make(ctx, i, size, targetX, -size - above * ctx.vh, 0, vDown, 'ballistic'))
       continue
     }
 
@@ -94,11 +92,51 @@ export function burst(ctx, opts = {}) {
 
     // 纵向：整片先冲过屏幕顶部。起点会随拖拽/窗口位置变，所以按各自起点反推所需初速，
     // 而不是给固定值 —— 否则窗口一低就冲不上去，又变成在中途四散。
-    const bare = start.y + ctx.vh * ASCENT
+    // 基数有下限：起点越靠上，"刚够过顶"这点高度越小，同一段升幅摊出来的高度差也越小，
+    // 整片就会同时回来 —— 那还是一堵墙。起点拖到屏幕外上方时同理，也会把初速算成朝下。
+    const bare = Math.max(start.y, ctx.vh * MIN_START) + ctx.vh * ASCENT
     const riseH = bare * (rise[0] + ((wave(i, 1.7) + 1) / 2) * (rise[1] - rise[0]))
-    const vUp = clamp((riseH * DRAG_RATE) / GRAVITY_SHARE, UP_SPEED.min, UP_SPEED.max)
+    // 不夹初速：夹了之后凡是超过上限的弹都拿到同一个值 → 顶点同高、整排一起落下来，
+    // 而且升幅怎么调都在（调高只会让更多弹撞上限）。顶点高度必须与 riseH 成正比。
+    // speed 也不乘进来：它和升幅是同一个量，乘了就等于把"顶点落在屏幕里"又开一个口子。
+    const vUp = (riseH * DRAG_RATE) / GRAVITY_SHARE
 
     list.push(make(ctx, i, size, start.x, start.y, (targetX - start.x) * DRAG_RATE, -vUp, 'ballistic'))
+  }
+  return list
+}
+
+// 随机下雨
+// 每发有一个独立 delay 值
+export function fall(ctx, opts = {}) {
+  const count = opts.count ?? 60
+  const scale = opts.size ?? 0.8
+  const speed = opts.speed ?? 0.35
+  const mode = opts.mode ?? 'linear'
+  const duration = opts.duration ?? 3000
+  const spread = opts.spread ?? 0.3
+  const tilt = opts.tilt ?? 0
+  const amp = opts.sway ?? 0.15
+
+  const list = []
+  for (let i = 0; i < count; i++) {
+    const s = seedAt(ctx, i)
+    const size = s.size * scale
+    const v = Math.max(speed * (1 + (Math.random() * 2 - 1) * spread), 0.02)
+    const a = tilt * RAD
+    const b = make(
+      ctx,
+      i,
+      size,
+      Math.random() * ctx.vw,
+      -size / 2,
+      Math.sin(a) * v,
+      Math.cos(a) * v,
+      mode === 'ballistic' ? 'ballistic' : 'linear',
+    )
+    b.delay = Math.round(Math.random() * duration)
+    if (mode === 'sway') b.sway = amp
+    list.push(b)
   }
   return list
 }
@@ -220,8 +258,31 @@ export const SCHEMA = {
     { key: 'count', label: '弹数', min: 1, max: 200, step: 1, def: 60 },
     { key: 'lanes', label: '槽位', min: 1, max: 120, step: 1, def: 60 },
     { key: 'size', label: '尺寸', min: 0.2, max: 2, step: 0.05, def: 1 },
-    { key: 'rise', label: '升幅', min: 0.5, max: 3, step: 0.05, pair: true, def: [1, 1.7] },
+    // 1 = 顶点刚好擦过屏幕顶，所以下界锁死在 1：再低顶点就落在屏幕里，弹幕到顶时速度是 0，
+    // 会停在半空不动 —— 那是卡住不是难，不该拖得出来。
+    { key: 'rise', label: '升幅', min: APEX_SCALE.min, max: 3, step: 0.05, pair: true, def: [1, 1.7] },
     { key: 'spread', label: '偏移', min: 0, max: 1, step: 0.05, def: 0.7 },
+    // 冲顶的高度只由升幅决定，速度再插一手就是把上面那条下界又开个口子，
+    // 所以速度只留给 from='top' —— 那里它是"自由落体的倍数"。
+    {
+      key: 'speed',
+      label: '速度',
+      min: 0.2,
+      max: 3,
+      step: 0.05,
+      def: 1,
+      only: { key: 'from', in: ['top'] },
+    },
+    {
+      key: 'drop',
+      label: '高度',
+      min: 0,
+      max: 3,
+      step: 0.05,
+      pair: true,
+      def: DROP,
+      only: { key: 'from', in: ['top'] },
+    },
     {
       key: 'origin',
       label: '起点位置',
@@ -229,6 +290,24 @@ export const SCHEMA = {
       anchor: 'cells',
       def: { x: 0.5, y: 0.55 },
       only: { key: 'from', in: ['grid', 'point'] },
+    },
+  ],
+  fall: [
+    { key: 'count', label: '雨量', min: 1, max: 400, step: 1, def: 60 },
+    { key: 'size', label: '尺寸', min: 0.2, max: 2, step: 0.05, def: 0.8 },
+    { key: 'speed', label: '速度', min: 0.02, max: 1.5, step: 0.01, def: 0.35 },
+    { key: 'mode', label: '落法', values: ['linear', 'ballistic', 'sway'], def: 'linear' },
+    { key: 'duration', label: '时长', min: 0, max: 20000, step: 100, def: 3000 },
+    { key: 'spread', label: '快慢差', min: 0, max: 1, step: 0.05, def: 0.3 },
+    { key: 'tilt', label: '倾角', min: -60, max: 60, step: 1, def: 0 },
+    {
+      key: 'sway',
+      label: '摆幅',
+      min: 0.02,
+      max: 0.6,
+      step: 0.02,
+      def: 0.15,
+      only: { key: 'mode', in: ['sway'] },
     },
   ],
   wall: [
