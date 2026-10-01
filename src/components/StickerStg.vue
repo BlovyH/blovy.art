@@ -98,7 +98,8 @@ const BONUS_HOLD = 2222 // BONUS 停留时长 ms
 const FLASH_HIT = 2200 // ms 中弹的白场涨满时长
 const FLASH_END = 500 // ms 结束的黑场涨满时长，比白场短
 const FLASH_FALL = 500
-const DEBUG_HITBOX = true // 碰撞箱总开关：false 时面板上那个开关怎么拨都不显示
+// 省得我发版忘了
+const DEBUG_HITBOX = import.meta.env.DEV
 // 面板开关上次的选择存这里 —— 保存会触发重载，不记下来每保存一次就掉回上面的初值
 const HITBOX_KEY = 'stg.hitbox'
 // 符卡名：全程显示在左上角。只属于本条目，所以留在视图里，不进 JSON
@@ -155,12 +156,11 @@ const tunerRef = ref(null)
 
 // 面板按变量路径动态加载，不在模块图里，HMR 推不到它 —— 改完面板文件只能靠刷新页面才生效。
 // 所以每次打开都换一个时间戳重取一份：同一个 URL 第二次 import 会直接吃浏览器缓存。
+// 路径必须整体是变量：写成字面量（哪怕只是兜底那一次）打包器就会去解析它，
+// 而这个文件是 gitignore 的 —— CI 干净 checkout 下不存在，构建直接失败。
 async function loadTuner() {
-  try {
-    return (await import(/* @vite-ignore */ `../stg/StgTuner.vue?t=${Date.now()}`)).default
-  } catch {
-    return (await import(/* @vite-ignore */ '../stg/StgTuner.vue')).default
-  }
+  const path = `../stg/StgTuner.vue?t=${Date.now()}`
+  return (await import(/* @vite-ignore */ path)).default
 }
 
 async function toggleTuner() {
