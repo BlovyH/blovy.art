@@ -240,7 +240,7 @@ export const SCRIPT = [
     "at": 2600,
     "pattern": "burst",
     "count": 66,
-    "size": 0.9,
+    "size": 0.8500000000000001,
     "speed": 1,
     "origin": {
       "x": 0,
@@ -258,7 +258,7 @@ export const SCRIPT = [
     "at": 2600,
     "pattern": "burst",
     "count": 66,
-    "size": 0.9,
+    "size": 0.8500000000000001,
     "speed": 1,
     "origin": {
       "x": 1,
@@ -273,7 +273,7 @@ export const SCRIPT = [
     ]
   },
   {
-    "at": 6500,
+    "at": 7200,
     "pattern": "burst",
     "from": "top",
     "count": 123,
@@ -297,18 +297,18 @@ export const SCRIPT = [
     ]
   },
   {
-    "at": 6800,
+    "at": 6600,
     "pattern": "fall",
     "from": "grid",
     "count": 60,
     "lanes": 60,
-    "size": 0.35000000000000003,
+    "size": 0.30000000000000004,
     "rise": [
       1,
       1.7
     ],
     "spread": 0.5,
-    "speed": 0.35,
+    "speed": 0.42,
     "drop": [
       0,
       1.2
