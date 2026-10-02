@@ -198,7 +198,7 @@
             <div class="social-email" @click="copyEmail">
               <span class="email-default-text">contact via email</span>
               <div class="email-hover-content">
-                <span class="email-address">blovysol@gmail.com</span>
+                <span class="email-address">email@blovy.art</span>
                 <span class="email-copy-btn">{{ emailCopyText }}</span>
               </div>
             </div>
@@ -973,7 +973,7 @@ function updateSocialHeight() {
 }
 
 function copyEmail() {
-  navigator.clipboard.writeText('blovysol@gmail.com').then(() => {
+  navigator.clipboard.writeText('email@blovy.art').then(() => {
     emailCopyText.value = 'copied!'
     clearTimeout(emailCopyTimer)
     emailCopyTimer = setTimeout(() => {
