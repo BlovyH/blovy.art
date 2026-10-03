@@ -85,10 +85,22 @@ export function floweryDownload({ item }) {
   document.body.removeChild(a)
 }
 
+const previewing = new Set()
+
+function previewKey(item, buttonId) {
+  const k = entryKey(item)
+  return k && buttonId ? `${k}|${buttonId}` : ''
+}
+
 // PREVIEW / RESET：把该条目的光标套到全站，再次点击还原
-export function floweryPreview({ item, base, active, setActive }) {
+export function floweryPreview({ item, base, button, active, setActive }) {
   const next = !active
   setActive(next)
+  const key = previewKey(item, button?.id)
+  if (key) {
+    if (next) previewing.add(key)
+    else previewing.delete(key)
+  }
   applyCursorPreview(next ? item?.cursors || null : null, base)
 }
 
@@ -127,13 +139,15 @@ function isCleared(item) {
   }
 }
 
-// 打开条目时按钮的初始运行时状态：通关过的条目，声明了 clearedLabel 的按钮换文案并打上角标
-export function clearedOverrides(item) {
+// 打开条目时按钮的初始运行时状态，以及设置全局类按钮的已有状态
+export function initialOverrides(item) {
   const out = {}
-  if (!isCleared(item)) return out
+  const cleared = isCleared(item)
   for (const btn of item?.buttons || []) {
-    if (!btn.clearedLabel) continue
-    out[btn.id] = { label: btn.clearedLabel, badge: 'completed' }
+    if (cleared && btn.clearedLabel) out[btn.id] = { label: btn.clearedLabel, badge: 'completed' }
+    if (btn.activeLabel && previewing.has(previewKey(item, btn.id))) {
+      out[btn.id] = { ...out[btn.id], active: true }
+    }
   }
   return out
 }

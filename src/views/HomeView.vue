@@ -1186,8 +1186,8 @@ function updateDpDetailVertical() {
 function openDpDetail(index) {
   updateDpDetailVertical()
   dpDetailIndex.value = index
-  // 按钮状态按条目重来：通关过的条目在这里把记录读回来，其余的归零
-  dpButtonOverrides.value = dpActions.clearedOverrides(dpDetailItem.value)
+  // 按钮状态按条目重置初始态，除了一些全局状态性质的按钮
+  dpButtonOverrides.value = dpActions.initialOverrides(dpDetailItem.value)
   dpDetailVisible.value = true
   forceExpandDoujin()
 }
