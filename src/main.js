@@ -5,6 +5,7 @@ import router from './router'
 import draggable from './directives/draggable'
 import { installZVariables } from './stores/windowZ.js'
 import { installConsoleMenu } from './utils/consoleMenu'
+import { installErrorReporting } from './utils/alert'
 import './assets/styles/global.css'
 
 // 子集字体走 Vite 资源管线（构建时自动带 [hash]），此处动态注入 preload 以保留防闪烁优化
@@ -24,6 +25,8 @@ preloadFont(fpFontUrl)
 preloadFont(zqFontUrl)
 
 installZVariables()
+// 挂在 createApp 之前：挂载期自己抛的错也在捕获范围内
+installErrorReporting()
 
 const app = createApp(App)
 app.use(createPinia())

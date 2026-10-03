@@ -1,0 +1,14 @@
+name = "blovy-logalert"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# 子域走 CF 代理稳定点
+routes = [{ pattern = "log.blovy.art", custom_domain = true }]
+
+#  安全考虑，换个不公开给网站的桶
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "blovy-logs"
+
+# ALERT_KEY 用 npx wrangler secret put ALERT_KEY 写入

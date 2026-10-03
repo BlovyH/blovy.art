@@ -34,4 +34,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  define: {
+    // 报错带版本号
+    // 用时间戳而不是 git rev：构建机不一定有 git，也不想在构建里跑外部命令
+    __BUILD_AT__: JSON.stringify(new Date().toISOString()),
+  },
 })
