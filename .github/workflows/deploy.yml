@@ -35,7 +35,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # wrangler 要求 >= 22，否则构建报错 Wrangler requires at least Node.js v22.0.0. You are using v20.20.2. Please update your version of Node.js.
+          node-version: 22
           cache: npm
 
       - name: Install deps
@@ -43,6 +44,21 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # 归档失败不阻塞发布，漏了 map 只是这条构建的堆栈解不出来
+      - name: Archive sourcemaps
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          for f in $(ls dist/assets/*.map 2>/dev/null); do
+            npx wrangler r2 object put "blovy-logs/maps/$(basename "$f")" --file "$f" --remote
+          done
+
+      # 线上不挂 .map，传完 r2 移除掉
+      - name: Strip sourcemaps
+        run: rm -f dist/assets/*.map
 
       - name: SPA fallback
         run: cp dist/index.html dist/404.html

@@ -40,6 +40,7 @@ R2 用独立的 `blovy-logs` 桶，**不要换成站点的 `blovy-art`** —— 
 | GET | `/list?date=YYYY-MM-DD&key=` | 取某天的条目，最多 100 条 |
 | GET | `/list?from=&to=&key=` | 取日期区间，最多 1000 条、跨度 ≤ 31 天。加 `&download=1` 带 `content-disposition`，浏览器直接存文件 |
 | GET | `/` | 查询页。范围下拉（今天 / 近 3 天 / 近 7 天 / 近 30 天 / 指定范围）同时决定**查询和导出**的范围 —— 导出的就是当前查的那段。默认近 30 天，选「指定范围」出两个日期框 |
+| GET | `/map?file=&key=` | 取 sourcemap，解码堆栈用。文件名白名单 `[A-Za-z0-9._-]+\.js\.map` |
 
 同指纹 60 秒内只归档一条 —— 循环报错一秒几百条，全存会把 R2 的写操作额度烧掉。
 
@@ -58,6 +59,18 @@ R2 用独立的 `blovy-logs` 桶，**不要换成站点的 `blovy-art`** —— 
 dev 下不配，本地开发时的报错不会混进归档，访客也不会多下载一个字节。
 
 `build` 是 `vite.config.js` 里 `define` 注入的构建时刻时间戳，用来分辨「这个错是哪一版带出来的」。
+
+## 堆栈解码
+
+线上产物是压缩的，`stack` 里只有 `index-XXX.js:30:51832` 这种坐标，得靠 sourcemap 翻回源码位置。
+
+- `vite.config.js` 里 `sourcemap: 'hidden'`（产出 `.map` 但不写 `sourceMappingURL`，否则 DevTools 会去请求一个不存在的公开地址）+ `sourcemapExcludeSources: true`（不内嵌源码正文，1.1 MB → 300 kB，也顺带解决源码泄露）。
+- CI 在 build 之后把 `.map` 传到 `blovy-logs/maps/<文件名>`，然后从 `dist` 里删掉；归档那步 `continue-on-error`，缺密钥也不会阻断发布。
+- 查询页点开某条堆栈时才去取图（按文件缓存），解码器写在页面里，零依赖。
+
+⚠️ **map 只在构建那一刻才有**：某次构建没产出，那批日志就永远解不回源码。
+
+CI 归档需要在仓库 Settings → Secrets 里配 `CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`；没配的话 map 不会进桶，解码会提示取不到图。
 
 ## 已知代价
 

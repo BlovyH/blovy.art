@@ -3,6 +3,7 @@
 const CONFIG = {
   TZ: 'Asia/Shanghai',
   PREFIX: 'logs/',
+  MAPS: 'maps/',
   MAX_BODY: 8 * 1024,
   MAX_MSG: 2000,
   MAX_STACK: 4000,
@@ -210,6 +211,23 @@ export default {
         },
       })
     }
+    // 解码用的 sourcemap：按产物文件名取，跟堆栈里写的那个名字对得上
+    if (url.pathname === '/map') {
+      if (req.method !== 'GET') return json({ error: 'method not allowed' }, 405)
+      if (!env.ALERT_KEY || url.searchParams.get('key') !== env.ALERT_KEY) {
+        return json({ error: 'unauthorized' }, 401)
+      }
+      const file = url.searchParams.get('file') ?? ''
+      if (!/^[A-Za-z0-9._-]+\.js\.map$/.test(file)) return json({ error: 'bad file' }, 400)
+      const obj = await env.BUCKET.get(`${CONFIG.MAPS}${file}`)
+      if (!obj) return json({ error: 'not found' }, 404)
+      return new Response(await obj.text(), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'private, max-age=86400',
+        },
+      })
+    }
     if (url.pathname === '/' && req.method === 'GET') {
       // 页面本身改得比访客刷新频繁，没有 cache-control 时浏览器会按启发式缓存留着旧版
       return new Response(PAGE, {
@@ -220,6 +238,7 @@ export default {
   },
 }
 
+// 页面是模板字符串：脚本里的反斜杠得写两遍，否则 \d 会被当成转义吃掉、'\n' 会变成真换行
 const PAGE = `<!doctype html>
 <html lang="zh">
 <head>
@@ -244,6 +263,8 @@ const PAGE = `<!doctype html>
   .msg { margin-top: 6px; white-space: pre-wrap; word-break: break-all; }
   .stack { margin-top: 6px; white-space: pre-wrap; color: #767670; display: none; }
   .row.open .stack { display: block; }
+  .orig { margin-top: 6px; white-space: pre-wrap; color: #2f6f4e; display: none; }
+  .row.open .orig { display: block; }
   .msg.clickable { cursor: pointer; }
 </style>
 </head>
@@ -273,6 +294,91 @@ const PAGE = `<!doctype html>
     var d = new Date();
     var p = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  var mapCache = {};
+
+  // sourcemap v3 的 mappings 是 base64 VLQ：每段最多 5 个数，除第一个外全是相对上一个段的增量
+  function decodeSeg(seg) {
+    var out = [], shift = 0, value = 0;
+    for (var i = 0; i < seg.length; i++) {
+      var c = B64.indexOf(seg.charAt(i));
+      if (c < 0) break;
+      value += (c & 31) << shift;
+      if (c & 32) {
+        shift += 5;
+      } else {
+        var v = value >> 1;
+        out.push(value & 1 ? -v : v);
+        value = 0;
+        shift = 0;
+      }
+    }
+    return out;
+  }
+
+  function parseMap(text) {
+    var map = JSON.parse(text);
+    var sources = map.sources || [], names = map.names || [];
+    var lines = [];
+    var raw = String(map.mappings || '').split(';');
+    // 只有产物列每行归零，源文件那几个字段是跨行累积的 —— 一起归零会解出负行号
+    var src = 0, sline = 0, scol = 0, name = 0;
+    for (var gl = 0; gl < raw.length; gl++) {
+      var entries = [];
+      lines.push(entries);
+      if (!raw[gl]) continue;
+      var col = 0;
+      var parts = raw[gl].split(',');
+      for (var i = 0; i < parts.length; i++) {
+        var d = decodeSeg(parts[i]);
+        if (!d.length) continue;
+        col += d[0];
+        if (d.length < 4) continue;
+        src += d[1];
+        sline += d[2];
+        scol += d[3];
+        if (d.length > 4) name += d[4];
+        entries.push({ col: col, src: src, sline: sline, scol: scol, name: d.length > 4 ? name : -1 });
+      }
+    }
+    return {
+      // 一行里的段按 col 递增，取最后一个不超过目标的
+      lookup: function (line, column) {
+        var e = lines[line - 1] || [], lo = 0, hi = e.length - 1, hit = null;
+        while (lo <= hi) {
+          var mid = (lo + hi) >> 1;
+          if (e[mid].col <= column) { hit = e[mid]; lo = mid + 1; } else hi = mid - 1;
+        }
+        if (!hit || hit.src === undefined) return null;
+        return sources[hit.src] + ':' + (hit.sline + 1) + ':' + hit.scol + (hit.name >= 0 ? '  ' + names[hit.name] : '');
+      },
+    };
+  }
+
+  function loadMap(file) {
+    if (!mapCache[file]) {
+      mapCache[file] = fetch('/map?file=' + encodeURIComponent(file) + '&key=' + encodeURIComponent($('key').value.trim()))
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error(String(r.status))); })
+        .then(parseMap)
+        .catch(function () { return null; });
+    }
+    return mapCache[file];
+  }
+
+  var FRAME = /\\/assets\\/([A-Za-z0-9._-]+\\.js):(\\d+):(\\d+)/g;
+
+  async function decodeStack(stack) {
+    var out = [];
+    var m;
+    FRAME.lastIndex = 0;
+    while ((m = FRAME.exec(stack))) {
+      var where = m[1] + ':' + m[2] + ':' + m[3];
+      var map = await loadMap(m[1] + '.map');
+      out.push(where + '  →  ' + (map ? map.lookup(parseInt(m[2], 10), parseInt(m[3], 10)) || 'map 里没有这一格' : '没有这个构建的 sourcemap'));
+    }
+    return out;
   }
 
   function render(data, label) {
@@ -305,17 +411,26 @@ const PAGE = `<!doctype html>
       var msg = document.createElement('div');
       msg.className = 'msg';
       msg.textContent = it.msg || '';
-      if (it.stack) {
-        msg.className += ' clickable';
-        msg.addEventListener('click', function () { row.classList.toggle('open'); });
-      }
       row.appendChild(msg);
 
       if (it.stack) {
+        msg.className += ' clickable';
         var stack = document.createElement('div');
         stack.className = 'stack';
         stack.textContent = it.stack;
         row.appendChild(stack);
+
+        // 展开才去取 map：一页几十条，全查会把取图请求放大成几十倍
+        var orig = document.createElement('div');
+        orig.className = 'orig';
+        row.appendChild(orig);
+        msg.addEventListener('click', function () {
+          if (!row.classList.toggle('open') || orig.textContent) return;
+          orig.textContent = '解码中…';
+          decodeStack(it.stack).then(function (lines) {
+            orig.textContent = lines.length ? lines.join('\\n') : '（这段堆栈里没有产物坐标）';
+          });
+        });
       }
       host.appendChild(row);
     });
