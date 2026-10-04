@@ -124,6 +124,56 @@ const tallchDoneFlow = {
   },
 }
 
+const sunglassesNightChoice = {
+  type: 'option',
+  options: [
+    { label: 'OK fine', value: 'ok' },
+    {
+      label: "Shouldn't it be something like an eye protection mode that only turns up at night",
+      value: 'moonglasses',
+    },
+  ],
+  next: { ok: null, moonglasses: 'moonglasses_1' },
+}
+
+// 选了「护眼模式」之后那段，两串共用（步按流查，所以 spread 进各自的流）
+const sunglassesNightTail = {
+  moonglasses_1: {
+    type: 'dialog',
+    content: "Eye protection mode?<br>Hmm... I have a little sister Moonglasses.",
+    next: 'moonglasses_2',
+  },
+  moonglasses_2: {
+    type: 'dialog',
+    content:
+      "She ran away from home, and only turns up when she's out of money.<br>" +
+      'If you ever meet her, you can ask her \'bout the eye protection mode.',
+    next: null,
+  },
+}
+
+// 晚上禁止戴太阳镜
+const sunglassesNightFlow = {
+  start: {
+    type: 'dialog',
+    content: "It's night now hon.<br>There's no sun to block, hahaha...",
+    next: 'choice',
+  },
+  choice: sunglassesNightChoice,
+  ...sunglassesNightTail,
+}
+
+// 如果戴着跨越了节点，自动摘下
+const sunglassesNightOffFlow = {
+  start: {
+    type: 'dialog',
+    content: "It's night now hon, so I took the sunglasses off for you.<br>Pretty thoughtful of me, huh?",
+    next: 'choice',
+  },
+  choice: sunglassesNightChoice,
+  ...sunglassesNightTail,
+}
+
 // 事不过三
 const tilted3TimesFlow = {
   start: {
@@ -143,6 +193,8 @@ export const dialogFlows = {
   torchDone: torchDoneFlow,
   tallchDone: tallchDoneFlow,
   tilted3Times: tilted3TimesFlow,
+  sunglassesNight: sunglassesNightFlow,
+  sunglassesNightOff: sunglassesNightOffFlow,
 }
 
 export default dialogFlows

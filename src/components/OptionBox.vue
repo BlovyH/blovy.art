@@ -6,7 +6,7 @@
       :style="{ zIndex }"
     >
       <p v-if="content" class="option-box__content" v-html="content"></p>
-      <div class="option-box__row">
+      <div class="option-box__row" :class="{ 'option-box__row--split': isPair }">
         <button
           v-for="(option, index) in options"
           :key="option.value"
@@ -24,7 +24,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
@@ -53,6 +53,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select'])
 
 const zIndex = Z.BANNER
+// 均分只对两项成立；三项以上的排法另定
+const isPair = computed(() => props.options.length === 2)
 const selectedIndex = ref(props.modelValue)
 
 watch(() => props.modelValue, (val) => {
@@ -103,7 +105,8 @@ onUnmounted(() => {
   transform: translateX(-50%);
   width: calc(100% - 48px);
   max-width: 1400px;
-  height: clamp(220px, 28vh, 320px);
+  /* refactor: 高度受内容影响，长选项换行撑高时不会被裁，短选项由 min-height 向后兼容 */
+  min-height: clamp(220px, 28vh, 320px);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -139,8 +142,6 @@ onUnmounted(() => {
 }
 
 .option-box__item {
-  flex: 1;
-  max-width: 320px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,16 +157,24 @@ onUnmounted(() => {
   transition: color 0.15s;
 }
 
+/* refactor: 宽度受内容影响，2 个选项的布局为五五开 */
+.option-box__row--split .option-box__item {
+  flex: 1;
+}
+
 .option-box__item.active {
   color: #ffffff;
 }
 
 .option-box__prefix {
+  /* # 不参与正文的换行计算 */
+  flex: 0 0 1ch;
+  min-width: 0;
+  text-align: center;
   font-weight: bold;
 }
 
 .option-box__label {
-  text-transform: uppercase;
   letter-spacing: 2px;
 }
 </style>

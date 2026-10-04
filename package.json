@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "subset-fonts": "node scripts/subset-fonts.js",
-    "assets:build": "node scripts/build-gallery-assets.mjs"
+    "assets:build": "node scripts/build-gallery-assets.mjs",
+    "tree": "node .workbuddy/dialog-tree.mjs"
   },
   "dependencies": {
     "pinia": "^2.3.0",

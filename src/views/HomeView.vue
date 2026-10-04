@@ -429,9 +429,53 @@ function preloadToggleBanners() {
   }
 }
 
+// 夜间判定取访客本机时钟（new Date 走浏览器所在时区），不是服务器时间 —— 这里要的正是「他那边几点」。
+const NIGHT_FROM_HOUR = 19
+const NIGHT_TO_HOUR = 6
+
+function isNight() {
+  const h = new Date().getHours()
+  return h >= NIGHT_FROM_HOUR || h < NIGHT_TO_HOUR
+}
+
+// 开着滤镜跨过入夜那一刻要自动摘掉。一次性定时器算到点时刻，不做轮询 —— 可能要挂好几个小时。
+let nightOffTimer = null
+
+function turnSunglassesOff() {
+  clearTimeout(nightOffTimer)
+  nightOffTimer = null
+  sunglassesOn.value = false
+  toggleBanner.value = 'off'
+  dlg.start('sunglassesNightOff')
+}
+
+function scheduleNightOff() {
+  clearTimeout(nightOffTimer)
+  const now = new Date()
+  const at = new Date(now)
+  at.setHours(NIGHT_FROM_HOUR, 0, 0, 0)
+  nightOffTimer = setTimeout(() => {
+    // 后台标签页的定时器会被节流、休眠期间也不走，所以醒过来再确认一次，没到点就重排
+    if (!isNight()) {
+      scheduleNightOff()
+      return
+    }
+    turnSunglassesOff()
+  }, at - now)
+}
+
 function toggleSunglasses() {
+  if (isNight()) {
+    dlg.start('sunglassesNight')
+    return
+  }
   sunglassesOn.value = !sunglassesOn.value
   toggleBanner.value = sunglassesOn.value ? 'on' : 'off'
+  if (sunglassesOn.value) scheduleNightOff()
+  else {
+    clearTimeout(nightOffTimer)
+    nightOffTimer = null
+  }
 }
 
 // 整段animation 跑到 100% 时触发（此时横幅已经滑回视口外）：移除 DOM，等待下次切换。
