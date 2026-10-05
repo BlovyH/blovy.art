@@ -3,10 +3,11 @@
 // 根据引擎当前步 type 自动显示 DialogBox（对话）或 OptionBox（选项），
 // 复用现有展示组件，自身不含任何编排逻辑。
 import DialogBox from './DialogBox.vue'
+import DialogAside from './DialogAside.vue'
 import OptionBox from './OptionBox.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 
-const { isDialog, isOption, content, options, visible, advance, select } = useDialogFlow()
+const { isDialog, isOption, content, options, aside, visible, advance, select } = useDialogFlow()
 </script>
 
 <template>
@@ -15,11 +16,19 @@ const { isDialog, isOption, content, options, visible, advance, select } = useDi
     :visible="isDialog"
     :content="content"
     @click="advance"
-  />
+  >
+    <template #aside>
+      <DialogAside v-if="aside" :aside="aside" />
+    </template>
+  </DialogBox>
   <OptionBox
     :visible="isOption"
     :options="options"
     :content="content"
     @select="select"
-  />
+  >
+    <template #aside>
+      <DialogAside v-if="aside" :aside="aside" />
+    </template>
+  </OptionBox>
 </template>

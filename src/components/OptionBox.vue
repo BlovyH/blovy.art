@@ -19,6 +19,9 @@
           <span class="option-box__label">{{ option.label }}</span>
         </button>
       </div>
+      <div v-if="$slots.aside" class="option-box__aside">
+        <slot name="aside" />
+      </div>
     </div>
   </Teleport>
 </template>
@@ -176,5 +179,11 @@ onUnmounted(() => {
 
 .option-box__label {
   letter-spacing: 2px;
+}
+
+.option-box__aside {
+  position: absolute;
+  right: 36px;
+  bottom: 0px;
 }
 </style>

@@ -133,6 +133,7 @@ const sunglassesNightChoice = {
       value: 'moonglasses',
     },
   ],
+  aside: { image: '/assets/eye-protection.png' },
   next: { ok: null, moonglasses: 'moonglasses_1' },
 }
 

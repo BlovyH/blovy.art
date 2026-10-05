@@ -10,6 +10,9 @@
         <span class="dialog-box__prompt">&gt;&gt;</span>
         <span class="dialog-box__text" v-html="content"></span>
       </div>
+      <div v-if="$slots.aside" class="dialog-box__aside">
+        <slot name="aside" />
+      </div>
     </div>
   </Teleport>
 </template>
@@ -116,6 +119,13 @@ onUnmounted(() => {
 .dialog-box__text {
   color: #ffffff;
   overflow-wrap: break-word;
+}
+
+/* 右下角附加位：浮在主文本之上、不参与排版，主文本因此保持满宽 */
+.dialog-box__aside {
+  position: absolute;
+  right: 36px;
+  bottom: 28px;
 }
 
 .dialog-box__text :deep(a) {

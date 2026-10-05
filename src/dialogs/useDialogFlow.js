@@ -28,6 +28,7 @@ const isDialog = computed(() => step.value?.type === 'dialog')
 const isOption = computed(() => step.value?.type === 'option')
 const content = computed(() => step.value?.content ?? '')
 const options = computed(() => step.value?.options ?? [])
+const aside = computed(() => step.value?.aside ?? null)
 
 // 启动一串对话。
 // 默认非抢占（已有流在跑则忽略、不排队），适用于「两件不相干的事」；
@@ -79,6 +80,7 @@ export function useDialogFlow() {
     isOption,
     content,
     options,
+    aside,
     start,
     advance,
     select,
