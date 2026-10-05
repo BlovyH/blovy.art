@@ -385,6 +385,8 @@
     </Transition>
 
     <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :intensity="0.9" />
+
+    <Screensaver />
   </main>
 </template>
 
@@ -402,6 +404,7 @@ import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
+import Screensaver from '@/components/Screensaver.vue'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
