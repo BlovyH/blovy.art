@@ -315,9 +315,9 @@ function minimize() {
   manual.h = props.minHeight
   if (boxState.value === 'maximized') {
     releaseMaximized(releaseSelf)
-    returnToOwnZ()
+    // 让出 MAXIMIZED 那一层，但留住 zBeforeBox：从最小化还原时还要靠它回到原层
+    if (zBeforeBox !== null) zIndex.value = zBeforeBox
   }
-  if (boxState.value === 'normal') zBeforeBox = zIndex.value
   boxState.value = 'minimized'
 }
 
@@ -332,7 +332,6 @@ function maximize() {
   manual.w = Math.max(props.minWidth, window.innerWidth - m * 2)
   manual.h = Math.max(props.minHeight, window.innerHeight - MAXIMIZE_MARGIN_TOP - m)
   // 先把别的已最大化窗口还原掉，再占那一层
-  if (boxState.value === 'normal') zBeforeBox = zIndex.value
   claimMaximized(releaseSelf)
   zIndex.value = Z.MAXIMIZED
   boxState.value = 'maximized'
@@ -340,6 +339,8 @@ function maximize() {
 
 // 窗口通过 box prop 传进来的实现优先
 function runBox(name) {
+  // 置顶抬起来的只是临时层级，不能算进「还原时该回到的那一层」，所以先记再置顶
+  if (boxState.value === 'normal') zBeforeBox = zIndex.value
   // 控制键自己 @mousedown.stop 了，窗口的 mousedown 收不到，所以这里手动置顶
   if (!props.topMost) bringToFront()
   const custom = props.box[name]
