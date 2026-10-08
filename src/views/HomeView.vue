@@ -346,10 +346,9 @@
     </DPDetailWindow>
 
     <!-- Nothing Search Window -->
-    <NothingWindow
-      v-if="nothingVisible"
-      @close="nothingVisible = false"
-    />
+    <div v-if="nothingVisible" class="nothing-stage">
+      <NothingWindow @close="nothingVisible = false" />
+    </div>
 
     <!-- Mobile Notice Toast -->
     <CenterToast
@@ -1310,6 +1309,26 @@ function onTorchClick(axis) {
 </script>
 
 <style scoped>
+/* 翻面需要透视，而 perspective 只能由父元素提供；铺满 .home 让窗口的定位基准保持不变。
+   perspective 会让本元素成为绝对定位子元素的包含块，所以必须自己 absolute + inset 0。
+   铺满会盖住桌面 → 整体 pointer-events: none，只把窗口本身开回来。 */
+.nothing-stage {
+  position: absolute;
+  inset: 0;
+  /* perspective 必然创建层叠上下文，窗口会被困在里面掉到最底下。
+     窗口本身是 topMost（Z.TOP_MOST，永不降级），把 stage 提到同一层即为原状。 */
+  z-index: var(--z-top-most);
+  perspective: 1200px;
+  /* 与窗口的 top: 35% 对齐（窗口是 top + translateY(-50%) 居中，中心正好落在 35% 上），
+     否则透视原点偏在下方，翻转会带一点仰视的斜 */
+  perspective-origin: 50% 35%;
+  pointer-events: none;
+}
+
+.nothing-stage :deep(.pixel-window) {
+  pointer-events: auto;
+}
+
 .home {
   position: relative;
   width: 100%;
