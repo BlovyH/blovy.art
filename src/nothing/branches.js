@@ -15,3 +15,7 @@ export const NOTHING_BRANCHES = [
 
 // 演出里那句没打完的话：卡在 noth 后面，接三个点
 export const PARTIAL_TEXT = 'Sorry, we found noth'
+
+export const NOTHING_FX = {
+  wiki: 'starfield',
+}

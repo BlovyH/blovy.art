@@ -2,7 +2,7 @@
   <div
     ref="windowRef"
     class="pixel-window"
-    :class="[edgeClasses, boxClasses]"
+    :class="[edgeClasses, boxClasses, { 'is-manual': manual.active }]"
     :style="windowStyle"
     @mousedown="onWindowMouseDown"
     @mousemove="onWindowMouseMove"
