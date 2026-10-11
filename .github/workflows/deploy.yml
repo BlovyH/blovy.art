@@ -43,7 +43,11 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        # 版本标识必须用 checkout 出来的那个 commit：workflow_dispatch 下 Actions 自带的
+        # GITHUB_SHA 不一定，同一分支反复部署会被认定没变
+        run: |
+          export GITHUB_SHA=$(git rev-parse HEAD)
+          npm run build
 
       # 归档失败不阻塞发布，漏了 map 只是这条构建的堆栈解不出来
       - name: Archive sourcemaps

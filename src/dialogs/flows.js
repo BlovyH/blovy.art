@@ -184,6 +184,15 @@ const tilted3TimesFlow = {
   },
 }
 
+// 把新版本提示拖进垃圾桶
+const updateDismissedFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You refuse to choose.<br>Ms. Mesbin thanks you for the feeding.',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -196,6 +205,7 @@ export const dialogFlows = {
   tilted3Times: tilted3TimesFlow,
   sunglassesNight: sunglassesNightFlow,
   sunglassesNightOff: sunglassesNightOffFlow,
+  updateDismissed: updateDismissedFlow,
 }
 
 export default dialogFlows

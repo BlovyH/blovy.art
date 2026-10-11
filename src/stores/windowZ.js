@@ -16,6 +16,7 @@ export const Z = {
   OVERLAY: 10010, // 太阳镜滤镜 / 火把暗幕 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
   MENU: 10012, // 跟随点击位置的小浮层菜单
+  UPDATE: 10013, // 右上角「有新版本」提示
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
   TOAST: 20000,

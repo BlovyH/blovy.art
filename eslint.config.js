@@ -24,6 +24,7 @@ export default [
         withDefaults: 'readonly',
         // vite.config.js 里 define 注入的构建时刻常量
         __BUILD_AT__: 'readonly',
+        __BUILD_ID__: 'readonly',
       },
     },
     rules: {
