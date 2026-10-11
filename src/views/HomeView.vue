@@ -142,9 +142,9 @@
         <template #label>sunglasses</template>
       </DesktopIcon>
 
-      <!-- Torch Desktop Icon — 点亮后移除，避免重复触发彩蛋；完全移出视口后不再渲染 -->
+      <!-- Torch Desktop Icon — 点亮后隐藏而非卸载否则会丢失拉伸状态 -->
       <DesktopIcon
-        v-if="!torchOn && !torchGone"
+        v-show="!torchOn && !torchGone"
         ref="torchIconRef"
         :class="[
           'torch-desktop-icon',
