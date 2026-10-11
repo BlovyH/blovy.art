@@ -7,6 +7,7 @@ import { installZVariables } from './stores/windowZ.js'
 import { installConsoleMenu } from './utils/consoleMenu'
 import { installErrorReporting } from './utils/alert'
 import './assets/styles/global.css'
+import './assets/styles/shared.css'
 
 // 子集字体走 Vite 资源管线（构建时自动带 [hash]），此处动态注入 preload 以保留防闪烁优化
 import fpFontUrl from './assets/fonts/generated/fusion-pixel-subset.woff2?url'

@@ -1,7 +1,7 @@
 <template>
   <PixelWindow
     ref="windowRef"
-    class="nothing-window"
+    class="nothing-window nothing-sky"
     :class="{ 'is-starfield': swapped, 'is-flip-in': flipDir === 'in', 'is-flip-out': flipDir === 'out' }"
     :style="{
       '--slide-x': slideX + 'px',
@@ -31,8 +31,27 @@
       </div>
       <div v-if="query.length > 0" class="nothing-results">
         <!-- 换了装就以这把锁代替整段结果文本 -->
-        <div v-if="swapped" class="nothing-lock">
-          <img class="nothing-lock-img" src="/assets/wiki_lock.png" alt="" draggable="false" />
+        <div v-if="swapped" class="nothing-lock" :class="{ 'is-open': codeOpen }">
+          <img
+            class="nothing-lock-img"
+            src="/assets/wiki_lock.png"
+            alt=""
+            draggable="false"
+            @click="openCode"
+          />
+          <div class="nothing-code">
+            <label class="nothing-code-label" for="nothing-code-input">ENTER YOUR CODE:</label>
+            <input
+              id="nothing-code-input"
+              ref="codeInput"
+              v-model="code"
+              class="nothing-input nothing-code-input"
+              type="text"
+              autocomplete="off"
+              @keydown.enter.prevent="submitCode"
+            />
+            <button class="nothing-code-submit" type="button" @click="submitCode">Please show'em</button>
+          </div>
         </div>
         <div v-else-if="isLoading" class="nothing-loading">
           Searching<span class="nothing-dots">...</span>
@@ -56,7 +75,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useInputFreeze } from '@/composables/useInputFreeze'
 import PixelWindow from './PixelWindow.vue'
 import { NOTHING_BRANCHES, NOTHING_FX, PARTIAL_TEXT } from '@/nothing/branches'
@@ -80,7 +99,7 @@ const CROSS = '✕'
 const SURPRISED_FACE = '(°o°)'
 const CHECK = '✓'
 
-defineEmits(['close'])
+const emit = defineEmits(['close', 'something'])
 
 const query = ref('')
 const isLoading = ref(false)
@@ -104,6 +123,23 @@ const { frozen, freeze, release: unfreeze } = useInputFreeze()
 const swapped = ref(false)
 const flipDir = ref(null) // 'in' 翻过去 / 'out' 退回去 / null 没在演
 const titleText = computed(() => (swapped.value ? 'SOMETHING' : 'NOTHING'))
+
+const codeOpen = ref(false)
+const code = ref('')
+const codeInput = ref(null)
+
+function openCode() {
+  if (codeOpen.value) return
+  codeOpen.value = true
+  // 进到这一步就锁定搜索框
+  freeze()
+  nextTick(() => codeInput.value?.focus())
+}
+
+// 回车/提交键
+function submitCode() {
+  // TODO
+}
 
 const resultText = computed(() => {
   if (!branch.value) return NOTHING_TEXT
@@ -193,6 +229,10 @@ watch(starfield, (on) => {
   clearTimeout(titleTimer)
   clearTimeout(settleTimer)
 
+  // 退回时锁整块消失，面板状态要跟着清，否则下次变身后会直接是输入框、锁不出现
+  codeOpen.value = false
+  code.value = ''
+
   if (on) {
     freeze(TRANSFORM_MS)
     flipDir.value = 'in'
@@ -215,6 +255,9 @@ watch(starfield, (on) => {
   titleTimer = setTimeout(() => { swapped.value = false }, FLIP_SWITCH_MS)
   settleTimer = setTimeout(() => { flipDir.value = null }, TRANSFORM_MS)
 })
+
+// 翻成 SOMETHING 之后桌面那个图标也要跟着换装：它在窗口外面，拿不到这里的内部状态
+watch(swapped, (on) => emit('something', on))
 
 onBeforeUnmount(() => {
   clearTimers()
@@ -245,13 +288,8 @@ onBeforeUnmount(() => {
 }
 
 /* NOTHING_FX */
+/* 色卡来自 shared.css 的 .nothing-sky（挂在本组件根元素上），不在这里重复定义 */
 .nothing-window.is-starfield {
-  /* 色卡 */
-  --sky-a: #00e0ff;
-  --sky-b: #7b4bff;
-  --sky-c: #ff2fb3;
-  --sky-d: #3f6bff;
-  --sky-e: #00ffc8;
   --nothing-star-turn: 11s; /* 星空转完一圈 */
   --nothing-star-drift: 4s; /* 标题走完一个 tile */
   --nothing-star-tile: 320px;
@@ -547,12 +585,94 @@ onBeforeUnmount(() => {
   88%, 100% { transform: translateY(0); }
 }
 
+/* 锁与代码面板叠在同一格里，靠透明度交接，切换时结果框的高度不变 */
+.nothing-lock {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+
+.nothing-lock > * {
+  grid-area: 1 / 1;
+}
+
 .nothing-lock-img {
   display: block;
   width: calc(66px * var(--nothing-lock-scale, 2));
   height: auto;
   image-rendering: pixelated;
+  cursor: pointer;
+  transition: opacity 260ms ease, scale 260ms ease;
+}
+
+/* 出场动画只在锁还在时挂：它的 fill-mode 是 both，会一直压着 opacity，留着锁就淡不出去 */
+.nothing-lock:not(.is-open) .nothing-lock-img {
   animation: nothing-lock-drop 400ms cubic-bezier(0.22, 0.61, 0.36, 1) var(--nothing-flip-left, 550ms) both;
+}
+
+/* 用 scale 属性而不是 transform：出场动画那条 transform 还在占着 */
+.nothing-lock.is-open .nothing-lock-img {
+  opacity: 0;
+  scale: 0.9;
+  pointer-events: none;
+}
+
+.nothing-code {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  opacity: 0;
+  translate: 0 6px;
+  pointer-events: none;
+  /* 等锁淡到一半再进场，两者交接而不是同时糊在一起 */
+  transition: opacity 260ms ease 120ms, translate 260ms ease 120ms;
+}
+
+.nothing-lock.is-open .nothing-code {
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
+}
+
+.nothing-code-label {
+  color: #ffffff;
+  font-family: var(--font-pixel);
+  font-size: clamp(14px, 1.3vw, 20px);
+}
+
+.nothing-code-input {
+  flex: none;
+  width: 100%;
+}
+
+/* 与 DP 详情窗的 .dp-detail-btn 同一套外观，改一处另一处要跟着改 */
+.nothing-code-submit {
+  align-self: flex-start; /* 居左，不跟着输入框撑满 */
+  position: relative;
+  box-sizing: border-box;
+  min-width: 180px; /* DP 那边是定宽 180px，这行字更长，定宽会挤成两行 */
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0 20px;
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  border-radius: 0;
+  font-family: var(--font-pixel);
+  font-size: clamp(14px, 1.3vw, 20px);
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nothing-code-submit:hover {
+  background: #ffffff;
+  color: #000000;
 }
 
 @keyframes nothing-lock-drop {

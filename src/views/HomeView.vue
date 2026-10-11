@@ -99,15 +99,22 @@
 
       <!-- Nothing Desktop Icon -->
       <DesktopIcon
-        class="nothing-desktop-icon"
+        class="nothing-desktop-icon nothing-sky"
+        :class="{ 'is-something': somethingOn }"
         initial-left="63%"
         initial-top="4%"
         @click="openNothingWindow"
       >
         <template #icon>
-          <img class="desktop-icon-img" src="/assets/nothing.png" alt="nothing" draggable="false" @dragstart.prevent />
+          <img
+            class="desktop-icon-img"
+            :src="somethingOn ? SOMETHING_ICON_SRC : NOTHING_ICON_SRC"
+            alt="nothing"
+            draggable="false"
+            @dragstart.prevent
+          />
         </template>
-        <template #label>Nothing</template>
+        <template #label>{{ somethingOn ? 'SOMETHING' : 'Nothing' }}</template>
       </DesktopIcon>
 
       <!-- Notice Sign (draggable, always on top like other desktop icons) -->
@@ -347,7 +354,7 @@
 
     <!-- Nothing Search Window -->
     <div v-if="nothingVisible" class="nothing-stage">
-      <NothingWindow @close="nothingVisible = false" />
+      <NothingWindow @close="closeNothingWindow" @something="somethingOn = $event" />
     </div>
 
     <!-- Mobile Notice Toast -->
@@ -825,6 +832,10 @@ function onContentVisibility() {
 onMounted(async () => {
   preloadToggleBanners()
 
+  // SOMETHING 图标预载
+  const somethingIcon = new Image()
+  somethingIcon.src = SOMETHING_ICON_SRC
+
   if (!CONTENT_DATA_URL) {
     console.warn('CONTENT_DATA_URL is empty. Please set it in src/config/data.js')
     return
@@ -993,6 +1004,9 @@ const dpButtonOverrides = ref({})
 const dpTooltipText = ref('')
 const isDoujinHovered = ref(false)
 const nothingVisible = ref(false)
+const somethingOn = ref(false)
+const NOTHING_ICON_SRC = '/assets/nothing.png'
+const SOMETHING_ICON_SRC = '/assets/something.png'
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
 const powerClickCount = ref(0)
@@ -1050,6 +1064,12 @@ function onStickyAction(value) {
 
 function openNothingWindow() {
   nothingVisible.value = true
+}
+
+// 关窗时手动复位，窗口是 v-if 掉的，来不及抛信号，图标会卡在 SOMETHING 状态
+function closeNothingWindow() {
+  nothingVisible.value = false
+  somethingOn.value = false
 }
 
 function isMobile() {
@@ -1327,6 +1347,106 @@ function onTorchClick(axis) {
 
 .nothing-stage :deep(.pixel-window) {
   pointer-events: auto;
+}
+
+.nothing-desktop-icon :deep(.desktop-icon-img) {
+  transition: filter 300ms ease;
+}
+
+/* 字号不做过渡 */
+.nothing-desktop-icon :deep(.desktop-icon__label) {
+  transition: color 300ms ease;
+}
+
+.nothing-desktop-icon.is-something {
+  --nothing-icon-sky: linear-gradient(
+    90deg,
+    var(--sky-a),
+    var(--sky-b),
+    var(--sky-c),
+    var(--sky-d),
+    var(--sky-e),
+    var(--sky-a)
+  );
+}
+
+.nothing-desktop-icon.is-something :deep(.desktop-icon__visual) {
+  animation:
+    nothing-icon-float 4444ms ease-in-out infinite,
+    nothing-icon-flash 600ms ease-out;
+}
+
+.nothing-desktop-icon.is-something :deep(.desktop-icon-img) {
+  filter: drop-shadow(0 0 3px var(--sky-a)) drop-shadow(0 0 7px var(--sky-c));
+  opacity: 44%;
+}
+
+.nothing-desktop-icon :deep(.desktop-icon__visual) {
+  position: relative;
+}
+
+.nothing-desktop-icon :deep(.desktop-icon__visual)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  background-size: 200% 100%;
+  -webkit-mask-image: url('/assets/nothing.png');
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: url('/assets/nothing.png');
+  mask-position: center;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+}
+
+.nothing-desktop-icon.is-something :deep(.desktop-icon__visual)::after {
+  opacity: 1;
+  background-image: var(--nothing-icon-sky);
+  -webkit-mask-image: url('/assets/something.png');
+  mask-image: url('/assets/something.png');
+  animation: nothing-icon-flow 4s linear infinite;
+}
+
+.nothing-desktop-icon.is-something :deep(.desktop-icon__label) {
+  /* SOMETHING 照原字号会在图标框里折行一个 G */
+  font-size: clamp(11px, 1vw, 16px);
+  white-space: nowrap;
+  color: transparent;
+  background-image: var(--nothing-icon-sky);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation:
+    nothing-icon-flow 4s linear infinite,
+    nothing-icon-flash 600ms ease-out;
+}
+
+@keyframes nothing-icon-flash {
+  from {
+    filter: brightness(3) drop-shadow(0 0 6px #ffffff);
+  }
+  to {
+    filter: none;
+  }
+}
+
+@keyframes nothing-icon-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+}
+
+@keyframes nothing-icon-flow {
+  to {
+    background-position: 200% 0;
+  }
 }
 
 .home {
