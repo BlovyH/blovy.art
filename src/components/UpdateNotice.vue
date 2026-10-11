@@ -14,8 +14,8 @@
     >
       <p class="update-notice__text">new version is out.</p>
       <div class="update-notice__actions">
-        <button class="update-notice__btn" type="button" @click="refresh">refresh</button>
-        <button class="update-notice__btn" type="button" @click="later">later</button>
+        <button class="pixel-btn pixel-btn--sm" type="button" @click="refresh">refresh</button>
+        <button class="pixel-btn pixel-btn--sm" type="button" @click="later">later</button>
       </div>
     </div>
 
@@ -188,25 +188,6 @@ onBeforeUnmount(() => {
 .update-notice__actions {
   display: flex;
   gap: 8px;
-}
-
-.update-notice__btn {
-  padding: 6px 10px;
-  background: #000000;
-  color: #ffffff;
-  border: 3px solid #ffffff;
-  border-radius: 0;
-  font-family: var(--font-pixel);
-  font-size: clamp(12px, 1vw, 14px);
-  font-weight: bold;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.update-notice__btn:hover {
-  background: #ffffff;
-  color: #000000;
 }
 
 .update-bin {

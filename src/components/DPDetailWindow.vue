@@ -35,8 +35,8 @@
             <button
               v-for="btn in buttons"
               :key="btn.id"
-              class="dp-detail-btn"
-              :class="{ 'dp-detail-btn--active': stateOf(btn).active }"
+              class="pixel-btn"
+              :class="{ 'pixel-btn--active': stateOf(btn).active }"
               v-on="listenersFor(btn)"
             >
               <span>{{ labelOf(btn) }}</span>
@@ -246,43 +246,6 @@ function listenersFor(btn) {
   position: relative;
 }
 
-.dp-detail-btn {
-  position: relative;
-  width: 180px;
-  height: 46px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  background: #000000;
-  color: #ffffff;
-  border: 3px solid #ffffff;
-  border-radius: 0;
-  padding: 0 20px;
-  font-family: var(--font-pixel);
-  font-size: clamp(14px, 1.3vw, 20px);
-  font-weight: bold;
-  cursor: pointer;
-  gap: 8px;
-  text-transform: uppercase;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.dp-detail-btn:hover {
-  background: #ffffff;
-  color: #000000;
-}
-
-.dp-detail-btn--active {
-  background: #ffffff;
-  color: #000000;
-}
-
-.dp-detail-btn--active .dp-help-icon {
-  color: #000000;
-}
-
 /* 通关角标：贴在按钮右上角外侧 —— 按钮里的文字是居中的，放进内部会压到字 */
 .dp-cleared-badge {
   position: absolute;
@@ -313,7 +276,8 @@ function listenersFor(btn) {
   transition: color 0.15s ease;
 }
 
-.dp-detail-btn:hover .dp-help-icon {
+.pixel-btn:hover .dp-help-icon,
+.pixel-btn--active .dp-help-icon {
   color: #000000;
 }
 

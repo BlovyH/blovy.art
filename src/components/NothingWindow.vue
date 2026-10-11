@@ -50,7 +50,7 @@
               autocomplete="off"
               @keydown.enter.prevent="submitCode"
             />
-            <button class="nothing-code-submit" type="button" @click="submitCode">Please show'em</button>
+            <button class="pixel-btn nothing-code-submit" type="button" @click="submitCode">Please show'em</button>
           </div>
         </div>
         <div v-else-if="isLoading" class="nothing-loading">
@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useInputFreeze } from '@/composables/useInputFreeze'
 import PixelWindow from './PixelWindow.vue'
 import { NOTHING_BRANCHES, NOTHING_FX, PARTIAL_TEXT } from '@/nothing/branches'
@@ -98,6 +98,14 @@ const NOTHING_TEXT = 'Sorry, we found nothing！'
 const CROSS = '✕'
 const SURPRISED_FACE = '(°o°)'
 const CHECK = '✓'
+
+// 预载粗边框
+const STARFIELD_FRAME_SRC = '/assets/window_frame_thick.png'
+
+onMounted(() => {
+  const frame = new Image()
+  frame.src = STARFIELD_FRAME_SRC
+})
 
 const emit = defineEmits(['close', 'something'])
 
@@ -646,33 +654,8 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-/* 与 DP 详情窗的 .dp-detail-btn 同一套外观，改一处另一处要跟着改 */
 .nothing-code-submit {
   align-self: flex-start; /* 居左，不跟着输入框撑满 */
-  position: relative;
-  box-sizing: border-box;
-  min-width: 180px; /* DP 那边是定宽 180px，这行字更长，定宽会挤成两行 */
-  height: 46px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 0 20px;
-  background: #000000;
-  color: #ffffff;
-  border: 3px solid #ffffff;
-  border-radius: 0;
-  font-family: var(--font-pixel);
-  font-size: clamp(14px, 1.3vw, 20px);
-  font-weight: bold;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.nothing-code-submit:hover {
-  background: #ffffff;
-  color: #000000;
 }
 
 @keyframes nothing-lock-drop {

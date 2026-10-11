@@ -9,6 +9,98 @@
 
 import { ref } from 'vue'
 
+// 纯 CSS 有个问题就是，图片超出视口、浏览器接管了就无法挂预览指针了，这部分L形区域暂且称作 ghost area，在这个区域采用 js 绘制指针，不过这部分没法呈现 hdr，会暗一点，并且也会慢一帧
+const GHOST_ID = 'dp-cursor-ghost'
+const GHOST_ON = 'dp-cursor-ghost-on'
+const FALLBACK_CURSOR_SIZE = 32 // 图还没量到尺寸时，按系统光标指标估这条带的宽度
+const GHOST_CSS = `
+#${GHOST_ID} {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: none;
+  pointer-events: none;
+  image-rendering: pixelated;
+  z-index: 30000; /* 压过 CenterToast，见 windowZ.js */
+}
+html.${GHOST_ON} #${GHOST_ID} { display: block; }
+html.${GHOST_ON}, html.${GHOST_ON} * { cursor: none !important; }
+`
+
+let ghost = null
+
+function stopGhost() {
+  if (!ghost) return
+  document.removeEventListener('mousemove', ghost.onMove, true)
+  document.removeEventListener('mouseleave', ghost.onLeave)
+  ghost.el.remove()
+  document.documentElement.classList.remove(GHOST_ON)
+  ghost = null
+}
+
+// groups / specOf 由调用方传入
+function startGhost(groups, specOf) {
+  stopGhost()
+
+  const specs = {}
+  for (const g of groups) {
+    const s = specOf(g.key)
+    if (!s) continue
+    const probe = new Image()
+    probe.onload = () => {
+      s.w = probe.naturalWidth
+      s.h = probe.naturalHeight
+    }
+    probe.src = s.url
+    specs[g.key] = s
+  }
+
+  const el = document.createElement('img')
+  el.id = GHOST_ID
+  el.alt = ''
+  el.draggable = false
+  document.body.appendChild(el)
+
+  const root = document.documentElement
+  // 倒着判：后写的组更具体；default 的选择器是 html,body，谁都能命中，只能最后兜底
+  const order = [...groups].reverse()
+
+  const onMove = (e) => {
+    const target = e.target instanceof Element ? e.target : null
+    let key = 'default'
+    for (const g of order) {
+      if (g.key === 'default') continue
+      if (target?.closest(g.selector)) {
+        key = g.key
+        break
+      }
+    }
+    const s = specs[key] || specs.default
+    if (!s) return
+
+    const [hx, hy] = s.hotspot || [0, 0]
+    const w = s.w || FALLBACK_CURSOR_SIZE
+    const h = s.h || FALLBACK_CURSOR_SIZE
+    // 位图从热点往右、往下伸出的那一段塞不进视口，就是浏览器放弃绘制的区间
+    const overflows = e.clientX >= window.innerWidth - (w - hx) || e.clientY >= window.innerHeight - (h - hy)
+
+    if (!overflows) {
+      root.classList.remove(GHOST_ON)
+      return
+    }
+    root.classList.add(GHOST_ON)
+    if (el.getAttribute('src') !== s.url) el.setAttribute('src', s.url)
+    el.style.translate = `${e.clientX - hx}px ${e.clientY - hy}px`
+  }
+
+  const onLeave = () => root.classList.remove(GHOST_ON)
+
+  // 捕获阶段：拖拽中的组件会 stopPropagation，冒泡阶段收不到
+  document.addEventListener('mousemove', onMove, true)
+  document.addEventListener('mouseleave', onLeave)
+  ghost = { el, onMove, onLeave }
+}
+
 // 把一套光标注入成全局样式。只有 DP 预览用得到，故不导出。
 function applyCursorPreview(cursors, base = '') {
   const styleId = 'dp-cursor-preview'
@@ -16,7 +108,10 @@ function applyCursorPreview(cursors, base = '') {
   if (existing) {
     existing.remove()
   }
-  if (!cursors) return
+  if (!cursors) {
+    stopGhost()
+    return
+  }
 
   // 相对路径（非 http(s):// 且非 / 开头）按 base 拼接；绝对 URL 原样返回
   const resolve = (u) => {
@@ -42,8 +137,8 @@ function applyCursorPreview(cursors, base = '') {
 
   const groups = [
     { key: 'default', fallback: 'auto', selector: 'html, body' },
-    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], label, .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .dp-detail-btn, .page-arrow, .desktop-icon' },
-    { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .dp-detail-text, .detail-desc' },
+    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .pixel-btn, .page-arrow, .desktop-icon, .nothing-lock-img' },
+    { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .dp-detail-text, .detail-desc, .site-footer, .site-footer *' },
     { key: 'help', fallback: 'help', selector: '.dp-help-icon' },
     { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .doujin-header, .desktop-icon.is-dragging, .power-btn.is-dragging' },
     { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
@@ -64,12 +159,14 @@ function applyCursorPreview(cursors, base = '') {
   if (rules.length === 0) return
   const style = document.createElement('style')
   style.id = styleId
-  style.textContent = rules.join('\n')
+  style.textContent = `${rules.join('\n')}\n${GHOST_CSS}`
   document.head.appendChild(style)
+  startGhost(groups, specOf)
 }
 
 // 组件卸载时清掉注入的光标样式，避免全局残留
 export function clearCursorPreview() {
+  stopGhost()
   document.getElementById('dp-cursor-preview')?.remove()
 }
 

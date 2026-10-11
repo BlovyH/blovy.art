@@ -5,3 +5,39 @@
   --sky-d: #3f6bff;
   --sky-e: #00ffc8;
 }
+
+.pixel-btn {
+  position: relative; /* 角标 / 浮层要挂在按钮上 */
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 180px;
+  height: 46px;
+  padding: 0 20px;
+  line-height: 1;
+  background: #000000;
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  border-radius: 0;
+  font-family: var(--font-pixel);
+  font-size: clamp(14px, 1.3vw, 20px);
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pixel-btn:hover,
+.pixel-btn--active {
+  background: #ffffff;
+  color: #000000;
+}
+
+.pixel-btn--sm {
+  min-width: 0;
+  height: auto;
+  padding: 6px 10px;
+  font-size: clamp(12px, 1vw, 14px);
+}
