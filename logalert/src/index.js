@@ -8,6 +8,8 @@ const CONFIG = {
   MAX_MSG: 2000,
   MAX_STACK: 4000,
   DEDUP_MS: 60_000,
+  // 资源加载失败按 fp 一天一条
+  LOAD_FAIL_DEDUP_MS: 24 * 60 * 60 * 1000,
   PUBLIC_PER_MIN: 20,
   LIST_MAX: 100,
   EXPORT_MAX: 1000,
@@ -15,6 +17,12 @@ const CONFIG = {
 }
 
 const LEVELS = new Set(['debug', 'info', 'error', 'severe', 'alert', 'stack', 'slow'])
+
+// 前端把资源加载失败报成 `load failed: <src>`（见 src/utils/alert.js）
+const LOAD_FAIL_PREFIX = 'load failed: '
+// 带构建 hash 的产物：发版后访客手里的旧 HTML/JS 必然去请求上一版文件名，
+// 这种 404 只能等缓存过期，服务端无从修复，落库纯噪音
+const BUILD_ASSET = /-[A-Za-z0-9_-]{6,}\.(?:js|mjs|css|woff2?)$/
 
 const dedup = new Map()
 const publicHits = new Map()
@@ -112,7 +120,10 @@ async function ingest(req, env) {
     trusted && /^[0-9a-f]{6,16}$/.test(body.fp ?? '') ? body.fp : await fingerprint(msg)
 
   const now = Date.now()
-  if (now - (dedup.get(fp) ?? 0) < CONFIG.DEDUP_MS) return json({ ok: true, dedup: true, fp })
+  const loadFail = msg.startsWith(LOAD_FAIL_PREFIX)
+  if (loadFail && BUILD_ASSET.test(msg)) return json({ ok: true, dedup: true, fp })
+  const ttl = loadFail ? CONFIG.LOAD_FAIL_DEDUP_MS : CONFIG.DEDUP_MS
+  if (now - (dedup.get(fp) ?? 0) < ttl) return json({ ok: true, dedup: true, fp })
   dedup.set(fp, now)
   if (dedup.size > 5000) dedup.clear()
 
@@ -144,25 +155,47 @@ function shiftDay(day, delta) {
   return d.toISOString().slice(0, 10)
 }
 
+// R2 没有「按前缀批量取内容」，只能列出 key 再逐个取，所以往返次数是主要成本：
+// 一次查询 = 每个日期一次 list + 每个对象一次 get。并发度是延迟和 R2 限速之间的折中。
+const FETCH_CONCURRENCY = 40
+
+async function fetchAll(keys, fn) {
+  const out = []
+  for (let i = 0; i < keys.length; i += FETCH_CONCURRENCY) {
+    const batch = await Promise.all(keys.slice(i, i + FETCH_CONCURRENCY).map(fn))
+    out.push(...batch)
+  }
+  return out
+}
+
 async function collect(env, days, cap) {
+  // 各日期的 list 之间没有依赖，先并发跑完（一次往返），再从最近的一天往回取内容：
+  // 凑够 cap 就停，没数据的旧日期连 get 都不用发
+  const listed = await Promise.all(
+    days.map((day) =>
+      env.BUCKET.list({ prefix: `${CONFIG.PREFIX}${day}/`, limit: Math.min(cap, 1000) })
+    )
+  )
+  const byDay = listed.map((res, i) => ({
+    truncated: res.truncated,
+    keys: res.objects.map((o) => o.key).sort().reverse(),
+  }))
+
   const items = []
-  let truncated = false
-  for (const day of days) {
+  let truncated = byDay.some((d) => d.truncated)
+  for (let i = byDay.length - 1; i >= 0; i--) {
     const room = cap - items.length
     if (room <= 0) {
       truncated = true
       break
     }
-    const listed = await env.BUCKET.list({
-      prefix: `${CONFIG.PREFIX}${day}/`,
-      limit: Math.min(room, 1000),
-    })
-    if (listed.truncated) truncated = true
-    const keys = listed.objects.map((o) => o.key).sort().reverse()
-    for (const k of keys) {
+    const take = byDay[i].keys.slice(0, room)
+    if (take.length < byDay[i].keys.length) truncated = true
+    const got = await fetchAll(take, async (k) => {
       const obj = await env.BUCKET.get(k)
-      if (obj) items.push(await obj.json())
-    }
+      return obj ? obj.json() : null
+    })
+    items.push(...got.filter(Boolean))
   }
   items.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))
   return { from: days[0], to: days[days.length - 1], count: items.length, truncated, items }

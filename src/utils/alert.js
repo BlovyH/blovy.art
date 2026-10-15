@@ -33,6 +33,22 @@ function firstTime(key) {
   }
 }
 
+// 构建产物的文件名带 hash，每次发版都换；访客手里的旧 HTML 去请求上一版的文件，
+// GitHub Pages 静态资源缓存十分钟 —— 这十分钟里必然来一批 404，服务端无从修复
+const BUILD_ASSET = /\.(?:woff2?|ttf|js|css)(?:[?#]|$)/i
+
+// 静态贴图报错绝大多数不是缺文件：一次十几个首屏贴图同时挂，是访客那一刻的网络断了
+// （或页面加载中被关掉，浏览器把进行中的请求全 cancel，每个都触发一次 error）。
+// 所以复检一次 —— 连得上、且服务器自己说没有，才算真信号；连不上是访客侧的事
+async function confirmMissing(src) {
+  try {
+    const res = await fetch(src, { method: 'HEAD', cache: 'no-store' })
+    return res.status >= 400
+  } catch {
+    return false
+  }
+}
+
 function send(msg, stack) {
   const url = endpoint()
   if (!url) return
@@ -71,7 +87,10 @@ export function installErrorReporting() {
       // 图片 / 字体 / 脚本加载失败：error 不冒泡，只能在这层捕获，且事件对象是元素不是 ErrorEvent
       const el = e.target
       const src = el?.src ?? el?.href ?? ''
-      if (ownOrigin(src)) send(`load failed: ${src}`, '')
+      if (!ownOrigin(src) || BUILD_ASSET.test(src)) return
+      void confirmMissing(src).then((missing) => {
+        if (missing) send(`load failed: ${src}`, '')
+      })
     },
     true,
   )
