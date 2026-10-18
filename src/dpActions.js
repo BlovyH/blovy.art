@@ -137,7 +137,7 @@ function applyCursorPreview(cursors, base = '') {
 
   const groups = [
     { key: 'default', fallback: 'auto', selector: 'html, body' },
-    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .pixel-btn, .page-arrow, .desktop-icon, .nothing-lock-img, .indirecty-icon.is-draggable, .indirecty-icon.is-dragging' },
+    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .pixel-btn, .page-arrow, .desktop-icon, .nothing-lock-img, .indirecty-icon.is-draggable, .indirecty-icon.is-dragging, .dialog-box__prompt.is-star' },
     { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .dp-detail-text, .detail-desc, .site-footer, .site-footer *' },
     { key: 'help', fallback: 'help', selector: '.dp-help-icon' },
     { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .doujin-header, .desktop-icon.is-dragging, .power-btn.is-dragging' },

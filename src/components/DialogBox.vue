@@ -7,7 +7,12 @@
       @click="onClick"
     >
       <div class="dialog-box__content">
-        <span class="dialog-box__prompt">&gt;&gt;</span>
+        <span
+          class="dialog-box__prompt"
+          :class="{ 'is-star': isStar, 'is-launched': launched }"
+          @click="onPromptClick"
+          >{{ isStar ? '*' : '&gt;&gt;' }}</span
+        >
         <span class="dialog-box__text" v-html="content"></span>
       </div>
       <div v-if="$slots.aside" class="dialog-box__aside">
@@ -18,8 +23,12 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
+import { playSnow } from '@/snowTrigger.js'
+
+// 每次出现一个对话框就抽一次：三成概率把提示符换成 *，点它放一次飘雪
+const STAR_CHANCE = 0.3
 
 const props = defineProps({
   visible: {
@@ -36,8 +45,38 @@ const emit = defineEmits(['click'])
 
 const zIndex = Z.OVERLAY
 
+// 按「对话框」抽而不是按组件实例抽一次：这一层是复用的单例，只在挂载时抽的话整场访问只有一次结果
+const isStar = ref(false)
+// 点过之后这颗 * 就「飞走」了，让位给飘雪层里那颗接着变的（本体不藏会变成两颗）
+const launched = ref(false)
+watch(
+  () => [props.visible, props.content],
+  ([visible]) => {
+    isStar.value = visible ? Math.random() < STAR_CHANCE : false
+    launched.value = false
+  },
+  { immediate: true },
+)
+
 function onClick() {
   emit('click')
+}
+
+function onPromptClick(e) {
+  if (!isStar.value) return
+  // 它是独立的交互目标，别顺手把「点对话框任意处推进对话」也触发了 —— 不然点完雪在放、字已经翻页
+  e.stopPropagation()
+  // 量的是文字本身而不是整个 span：span 被锁成两个字符宽（* 只占一个），
+  // 用元素矩形算出来的中心会偏半格，种子盖上去就对不齐
+  const range = document.createRange()
+  range.selectNodeContents(e.currentTarget)
+  const box = range.getBoundingClientRect()
+  launched.value = true
+  playSnow({
+    x: box.left + box.width / 2,
+    y: box.top + box.height / 2,
+    size: getComputedStyle(e.currentTarget).fontSize,
+  })
 }
 
 function onKeydown(e) {
@@ -114,6 +153,19 @@ onUnmounted(() => {
   color: #ffffff;
   font-weight: bold;
   flex-shrink: 0;
+  /* 提示符会换成 *（1 个字符）而当红的 >> 是两个，不锁宽的话正文会跟着左移一格 ——
+     一眼就看出来哪个对话框被换过。等宽字体下 1ch 就是一个字符的步进 */
+  width: 2ch;
+}
+
+/* 可点的那个提示符：预览侧同一批类名登记在 dpActions 的 pointer 组 */
+.dialog-box__prompt.is-star {
+  cursor: pointer;
+}
+
+/* 起飞后留着占位、只把字藏掉：不然宽度塌了，正文又会左移一格 */
+.dialog-box__prompt.is-launched {
+  opacity: 0;
 }
 
 .dialog-box__text {
