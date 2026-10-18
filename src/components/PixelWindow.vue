@@ -13,13 +13,17 @@
       class="pixel-titlebar"
     >
       <div class="pixel-titlebar__left">
-        <span v-if="icon" class="pixel-titlebar__icon">{{ icon }}</span>
+        <span v-if="$slots.icon" class="pixel-titlebar__icon">
+          <slot name="icon" />
+        </span>
         <span class="pixel-titlebar__title">{{ title }}</span>
       </div>
       <div class="pixel-titlebar__controls">
         <button
           v-if="controlFlags.minimize"
           class="pixel-control"
+          :class="{ 'is-disabled': disabledControls.minimize }"
+          :aria-disabled="disabledControls.minimize ? 'true' : null"
           :aria-label="boxState === 'minimized' ? 'restore' : 'minimize'"
           @mousedown.stop
           @click.stop="runBox('minimize')"
@@ -29,6 +33,8 @@
         <button
           v-if="controlFlags.maximize"
           class="pixel-control"
+          :class="{ 'is-disabled': disabledControls.maximize }"
+          :aria-disabled="disabledControls.maximize ? 'true' : null"
           :aria-label="boxState === 'maximized' ? 'restore' : 'maximize'"
           @mousedown.stop
           @click.stop="runBox('maximize')"
@@ -61,10 +67,6 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  icon: {
-    type: String,
-    default: '',
-  },
   showTitleBar: {
     type: Boolean,
     default: true,
@@ -72,6 +74,16 @@ const props = defineProps({
   controls: {
     type: Object,
     default: () => ({}),
+  },
+  // 禁用标题工具栏的情况
+  disabledControls: {
+    type: Object,
+    default: () => ({}),
+  },
+  // 禁用移动窗口的情况
+  noDrag: {
+    type: Boolean,
+    default: false,
   },
   width: {
     type: String,
@@ -339,6 +351,7 @@ function maximize() {
 
 // 窗口通过 box prop 传进来的实现优先
 function runBox(name) {
+  if (props.disabledControls[name]) return
   // 置顶抬起来的只是临时层级，不能算进「还原时该回到的那一层」，所以先记再置顶
   if (boxState.value === 'normal') zBeforeBox = zIndex.value
   // 控制键自己 @mousedown.stop 了，窗口的 mousedown 收不到，所以这里手动置顶
@@ -429,7 +442,7 @@ function onWindowMouseDown(e) {
       return
     }
   }
-  if (e.target.closest('.pixel-titlebar')) {
+  if (e.target.closest('.pixel-titlebar') && !props.noDrag) {
     startDrag(e)
   }
 }
@@ -680,10 +693,22 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+/* 左上角图标（可选） */
 .pixel-titlebar__icon {
-  font-size: 24px;
-  line-height: 1;
+  --icon-size: 28px;
+  width: var(--icon-size);
+  height: var(--icon-size);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pixel-titlebar__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .pixel-titlebar__title {
@@ -723,6 +748,13 @@ onBeforeUnmount(() => {
 }
 
 .pixel-control:hover {
+  opacity: 0.7;
+}
+
+.pixel-control.is-disabled,
+.pixel-control.is-disabled:hover {
+  cursor: default;
+  filter: brightness(0.45);
   opacity: 0.7;
 }
 

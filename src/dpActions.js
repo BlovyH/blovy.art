@@ -137,14 +137,14 @@ function applyCursorPreview(cursors, base = '') {
 
   const groups = [
     { key: 'default', fallback: 'auto', selector: 'html, body' },
-    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .pixel-btn, .page-arrow, .desktop-icon, .nothing-lock-img' },
+    { key: 'pointer', fallback: 'pointer', selector: 'a, button, [role="button"], input[type="submit"], input[type="button"], .tab, .gallery-thumb, .social-item, .social-email, .doujin-item, .pixel-btn, .page-arrow, .desktop-icon, .nothing-lock-img, .indirecty-icon.is-draggable, .indirecty-icon.is-dragging' },
     { key: 'text', fallback: 'text', selector: 'p, li, td, th, h1, h2, h3, h4, h5, h6, blockquote, pre, code, dt, dd, figcaption, summary, [contenteditable], input[type="text"], input[type="email"], input[type="password"], input[type="search"], textarea, .dp-detail-text, .detail-desc, .site-footer, .site-footer *' },
     { key: 'help', fallback: 'help', selector: '.dp-help-icon' },
     { key: 'move', fallback: 'move', selector: '[draggable="true"], .pixel-titlebar, .doujin-header, .desktop-icon.is-dragging, .power-btn.is-dragging' },
     { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
     { key: 'wait', fallback: 'wait', selector: 'html.dp-cursor-wait, html.dp-cursor-wait *' },
     { key: 'progress', fallback: 'progress', selector: 'html.dp-cursor-progress, html.dp-cursor-progress *' },
-    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *' },
+    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *, .indirecty-dial, .indirecty-icon.is-docked' },
     { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns, [data-resize="ns"] *, .resize-ns *' },
     { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw, [data-resize="nesw"] *, .resize-nesw *' },
     { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse, [data-resize="nwse"] *, .resize-nwse *' },

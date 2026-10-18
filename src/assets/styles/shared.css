@@ -6,6 +6,16 @@
   --sky-e: #00ffc8;
 }
 
+.rainbow-palette {
+  --rainbow-a: #ff2f4d;
+  --rainbow-b: #ff8a00;
+  --rainbow-c: #ffe600;
+  --rainbow-d: #2bff6a;
+  --rainbow-e: #00e0ff;
+  --rainbow-f: #3f6bff;
+  --rainbow-g: #b14bff;
+}
+
 .pixel-btn {
   position: relative; /* 角标 / 浮层要挂在按钮上 */
   box-sizing: border-box;

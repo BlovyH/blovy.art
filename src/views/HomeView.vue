@@ -244,6 +244,53 @@
         </div>
       </PixelWindow>
 
+      <!-- IndirectY 10000 -->
+      <PixelWindow
+        class="indirecty-window rainbow-palette"
+        :class="{ 'is-locked': dialLocked, 'is-flying': dialFlying || iconFlying, 'is-gone': dialGone }"
+        :title="`IndirectY ${dialCount}`"
+        width="30%"
+        :disabled-controls="{ minimize: true, maximize: true }"
+        :no-drag="(dialLocked && !dialGone) || (iconLocked && !iconGone)"
+      >
+        <template #icon>
+          <span
+            ref="iconEl"
+            class="indirecty-icon"
+            :class="{
+              'is-draggable': iconDraggable,
+              'is-dragging': iconDragging,
+              'is-docked': iconDocked,
+              'is-locked': iconLocked,
+              'is-flying': iconFlying,
+              'is-gone': iconGone,
+            }"
+            :style="{
+              '--iy-icon-x': iconOffset.x + 'px',
+              '--iy-icon-y': iconOffset.y + 'px',
+              '--iy-icon-dock-scale': ICON_DOCK_SCALE,
+            }"
+            aria-hidden="true"
+            @mousedown="onIconMouseDown"
+            @pointerdown="onIconPointerDown"
+            @pointermove="onIconSpinMove"
+            @pointerup="onIconSpinUp"
+            @pointercancel="onIconSpinUp"
+          />
+        </template>
+        <div
+          ref="dialEl"
+          class="indirecty-dial"
+          @pointerdown="onDialDown"
+          @pointermove="onDialMove"
+          @pointerup="onDialUp"
+          @pointercancel="onDialUp"
+        />
+<!--        <p class="indirecty-debug">-->
+<!--          {{ Math.round(dialSpeedShown) }} px/s · {{ dialFramesPerSec.toFixed(1) }} f/s-->
+<!--        </p>-->
+      </PixelWindow>
+
       <!-- Doujin Projects Window -->
       <div
         ref="doujinOuterRef"
@@ -415,6 +462,7 @@ import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
 import * as dpActions from '@/dpActions.js'
+import { createSpinControl, SPIN_PX_PER_FRAME } from '@/spinControl.js'
 
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
@@ -1007,6 +1055,148 @@ const nothingVisible = ref(false)
 const somethingOn = ref(false)
 const NOTHING_ICON_SRC = '/assets/nothing.png'
 const SOMETHING_ICON_SRC = '/assets/something.png'
+
+/* IndirectY 拨盘：拖动逐帧转，净转过的帧数直接进标题数字（左减右加）。
+   帧数在 CSS 里还有一份（background-size 与逐帧位移），换图要一起改 */
+const DIAL_SHEET = '/assets/signal_receiver-Sheet.png'
+const DIAL_FRAMES = 9
+const DIAL_START = 10000
+const ICON_DOCK_SCALE = 4 // 32px × 4 = 128px，正好是源图 16px 的 8 倍（整数倍才不糊）
+const ICON_DRAG_THRESHOLD = 3 // 超过这么多 px 才算在拖，免得单击也被当成拖动
+const ICON_FRAMES = 8 // sheet 横排帧数，CSS 的 mask-size 里还有一份
+const ICON_IDLE_FPS = 8 // 空转速度：取它原本 CSS 动画的节奏（8 帧 / 1000ms）
+new Image().src = DIAL_SHEET
+
+const dialEl = ref(null)
+const iconEl = ref(null)
+const iconOffset = ref({ x: 0, y: 0 })
+const iconDragging = ref(false)
+const iconDocked = ref(false)
+// 图升出视口之后它才变成可拖的落位件；一旦落位就锁死不再能拖
+const iconDraggable = computed(() => dialGone.value && !iconDocked.value)
+const dialCount = ref(DIAL_START)
+const {
+  locked: dialLocked,
+  flying: dialFlying,
+  gone: dialGone,
+  speedShown: dialSpeedShown,
+  down: onDialDown,
+  move: onDialMove,
+  up: onDialUp,
+  dispose: disposeDialSpin,
+} = createSpinControl({
+  frames: DIAL_FRAMES,
+  el: dialEl,
+  varName: '--iy-frame',
+  onFrame: (_frame, total) => {
+    dialCount.value = DIAL_START + total
+  },
+})
+
+// 问号落位后接替信号锅当第二个转盘：拖转 / 惯性 / 连续超快三次起飞全一样，
+// 差别只有它自己一直在转、以及转过的帧数不进标题数字
+const {
+  locked: iconLocked,
+  flying: iconFlying,
+  gone: iconGone,
+  down: onIconSpinDown,
+  move: onIconSpinMove,
+  up: onIconSpinUp,
+  start: startIconSpin,
+  dispose: disposeIconSpin,
+} = createSpinControl({
+  frames: ICON_FRAMES,
+  idleFps: ICON_IDLE_FPS,
+  el: iconEl,
+  varName: '--iy-icon-frame',
+  enabled: () => iconDocked.value,
+})
+
+// 拖动速度折合的帧率，调试读数用，定完手感删掉
+const dialFramesPerSec = computed(() => dialSpeedShown.value / SPIN_PX_PER_FRAME)
+
+// 问号从一开始就在自己转，挂载后把循环起起来（锅只在被拖时才转，等 pointerdown 就够）
+onMounted(() => {
+  startIconSpin()
+})
+
+onBeforeUnmount(() => {
+  disposeDialSpin()
+  disposeIconSpin()
+})
+
+// 标题栏的 mousedown 会启动拖窗，图标可拖期间要把它拦在自己这层
+function onIconMouseDown(e) {
+  if (iconDraggable.value || iconDocked.value) e.stopPropagation()
+}
+
+// 拖动照抄 UpdateNotice 那一套：位移写 translate，松手去掉 is-dragging 让过渡把元素送回去
+let iconStart = null
+let iconMoved = false
+
+function onIconDown(e) {
+  if (e.button !== 0 || !iconDraggable.value) return
+  iconStart = { x: e.clientX, y: e.clientY, ox: iconOffset.value.x, oy: iconOffset.value.y }
+  iconMoved = false
+  window.addEventListener('pointermove', onIconMove)
+  window.addEventListener('pointerup', onIconUp)
+}
+
+// 落位前是「拖去停靠」、落位后是「拖着转」，两条路互斥，合成一个入口给模板
+function onIconPointerDown(e) {
+  onIconDown(e)
+  onIconSpinDown(e)
+}
+
+function onIconMove(e) {
+  const dx = e.clientX - iconStart.x
+  const dy = e.clientY - iconStart.y
+  if (!iconMoved && Math.hypot(dx, dy) > ICON_DRAG_THRESHOLD) {
+    iconMoved = true
+    iconDragging.value = true
+  }
+  if (!iconMoved) return
+  iconOffset.value = { x: iconStart.ox + dx, y: iconStart.oy + dy }
+}
+
+function onIconUp() {
+  window.removeEventListener('pointermove', onIconMove)
+  window.removeEventListener('pointerup', onIconUp)
+  if (!iconMoved) return
+  iconDragging.value = false
+  if (overDockSpot()) dockIcon()
+  else iconOffset.value = { x: 0, y: 0 }
+}
+
+// 落点是「内容区」而不是信号锅本身：锅被 translate 抬出视口了，它的矩形早就在屏幕外，
+// 拿它判落点必然永远不中。父级（.pixel-window__content）没被位移过，就是那块空出来的地方
+function dockSpotRect() {
+  return dialEl.value?.parentElement?.getBoundingClientRect() ?? null
+}
+
+// 判定看图标自己的中心而不是指针：被拖着走的是图标，看它落哪儿才符合手感
+function overDockSpot() {
+  const el = iconEl.value
+  const b = dockSpotRect()
+  if (!el || !b) return false
+  const a = el.getBoundingClientRect()
+  const cx = a.left + a.width / 2
+  const cy = a.top + a.height / 2
+  return cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom
+}
+
+function dockIcon() {
+  const el = iconEl.value
+  const b = dockSpotRect()
+  if (!el || !b) return
+  const a = el.getBoundingClientRect()
+  iconOffset.value = {
+    x: iconOffset.value.x + (b.left + b.width / 2) - (a.left + a.width / 2),
+    y: iconOffset.value.y + (b.top + b.height / 2) - (a.top + a.height / 2),
+  }
+  iconDocked.value = true
+}
+
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
 const powerClickCount = ref(0)
@@ -1939,6 +2129,164 @@ function onTorchClick(axis) {
 .email-copy-btn {
   font-size: 10px;
   color: #808080;
+}
+
+/* IndirectY Window —— 位置待定，先把锚点放这儿，改 top / left 即可 */
+.indirecty-window {
+  position: absolute;
+  top: 30%;
+  left: 60%;
+  /* 贴图单帧 16×16，图标位取整数倍才不糊 */
+  --icon-size: 32px;
+}
+
+/* 形状来自 sheet（当蒙版逐帧跳），颜色来自 shared.css 的 .rainbow-palette。
+   ⚠️ 蒙版只留形状、不留明暗，贴图那层 3D 光影会被压成平色 —— 要保留立体感得改成叠加混合。
+   sheet 是 8 帧横排，整条按 --icon-size 的整数倍渲（非整数倍会把像素插值糊掉），改帧数要同步改下面两处 */
+.indirecty-icon {
+  --iy-sheet: url('/assets/iy_icon-Sheet.png');
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-mask-image: var(--iy-sheet);
+  mask-image: var(--iy-sheet);
+  -webkit-mask-size: calc(var(--icon-size) * 8) var(--icon-size);
+  mask-size: calc(var(--icon-size) * 8) var(--icon-size);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* 首尾同色，横向平铺才能无缝流动 */
+  background-image: linear-gradient(
+    90deg,
+    var(--rainbow-a),
+    var(--rainbow-b),
+    var(--rainbow-c),
+    var(--rainbow-d),
+    var(--rainbow-e),
+    var(--rainbow-f),
+    var(--rainbow-g),
+    var(--rainbow-a)
+  );
+  background-size: calc(var(--icon-size) * 2) 100%;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+  /* 帧位置由 JS 逐帧写（拖转与空转共用这个变量），CSS 这边只剩彩虹流动 */
+  -webkit-mask-position: calc(var(--icon-size) * var(--iy-icon-frame, 0) * -1) 0;
+  mask-position: calc(var(--icon-size) * var(--iy-icon-frame, 0) * -1) 0;
+  animation: iy-rainbow 2400ms linear infinite;
+  /* 位移同 UpdateNotice：写进 CSS 变量，去掉 is-dragging 就有过渡把元素送回去。
+     用 scale / translate 属性而不是 transform，是为了不跟上面那条 animation 抢一个属性。
+     --fly-y 由起飞的 rAF 逐帧写，跟落位偏移叠加 */
+  translate: var(--iy-icon-x, 0px) calc(var(--iy-icon-y, 0px) + var(--fly-y, 0px));
+  transition:
+    translate 220ms ease-out,
+    scale 220ms ease-out;
+}
+
+/* 图标要被拖出标题栏、最后停在内容区，标题栏那层 overflow 会把移出去的部分裁掉 */
+.indirecty-window :deep(.pixel-titlebar__left) {
+  overflow: visible;
+}
+
+/* 可拖与拖拽中同一个关键字。预览侧同一批类名登记在 pointer 组，改这里要一起改 */
+.indirecty-icon.is-draggable,
+.indirecty-icon.is-dragging {
+  cursor: pointer;
+}
+
+.indirecty-icon.is-dragging {
+  transition: none;
+}
+
+.indirecty-icon.is-docked {
+  /* 落位后它就是转盘了，光标跟信号锅同款；预览侧同一批类名登记在 ew-resize 组。
+     别选中文字、别让浏览器把手势当成滚动 —— 这两条信号锅也有 */
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+  scale: var(--iy-icon-dock-scale);
+  /* 它在 DOM 里排在内容区前面，不抬一层会被内容盖住 */
+  position: relative;
+  z-index: 1;
+  /* 回弹：末值大于 1 的贝塞尔会先冲过头再落回来 */
+  transition:
+    translate 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 起飞：锁死期间不再接受拖动，且得关掉过渡 —— 不然回弹那条会拖着上升走 */
+.indirecty-icon.is-locked {
+  pointer-events: none;
+}
+
+.indirecty-icon.is-flying {
+  transition: none;
+}
+
+.indirecty-icon.is-gone {
+  opacity: 0;
+}
+
+/* 位移只能用 px：background-position / mask-position 的百分比都是相对「容器宽 − 图宽」的差值，不是图宽 */
+@keyframes iy-rainbow {
+  to {
+    background-position: calc(var(--icon-size) * -2) 0;
+  }
+}
+
+/* 彩蛋：锁死期间不再接受拖动，指针也不该再提示可交互 */
+.indirecty-window.is-locked .indirecty-dial {
+  pointer-events: none;
+}
+
+/* 起飞的是**图**不是窗口：所以窗口自己和内容区都要放开裁剪，否则图只是贴着窗口上沿消失 */
+.indirecty-window.is-flying,
+.indirecty-window.is-flying :deep(.pixel-window__content) {
+  overflow: visible;
+}
+
+.indirecty-window.is-gone .indirecty-dial {
+  opacity: 0;
+}
+
+/* 位移走 translate 属性而不是 transform —— PixelWindow 的 transform 是内联样式（拖窗用的），
+   写在样式表里的 transform 会被它顶掉；translate 是独立属性，两者叠加生效 */
+
+/* 调试读数，定完手感删掉（连同模板里那个 <p> 与 dialSpeedShown / dialFramesPerSec） */
+.indirecty-debug {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 10px;
+  color: #808080;
+  pointer-events: none;
+}
+
+/* 标题按原名大小写显示，不吃 PixelWindow 那条 uppercase；
+   数字位数会变（10000 → 9999），等宽才不会让标题左右抖 */
+.indirecty-window :deep(.pixel-titlebar__title) {
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 内容：9 帧横排 sheet，单帧 66×66，按整数倍渲（非整数倍会把像素插值糊掉） */
+.indirecty-dial {
+  --iy-dial: 198px;
+  width: var(--iy-dial);
+  height: var(--iy-dial);
+  margin: 0 auto;
+  background-image: url('/assets/signal_receiver-Sheet.png');
+  background-size: calc(var(--iy-dial) * 9) var(--iy-dial);
+  background-repeat: no-repeat;
+  /* 只按整帧跳：半帧在像素图上是错位，不是中间态 */
+  background-position: calc(var(--iy-dial) * var(--iy-frame, 0) * -1) 0;
+  image-rendering: pixelated;
+  /* 只能左右拖，光标照这个语义给（.resize-ew 同款）；预览侧要同步登记进 ew-resize 组 */
+  cursor: ew-resize;
+  /* 拖动别选中文字、别让浏览器把手势当成滚动 */
+  user-select: none;
+  touch-action: none;
+  /* 彩蛋起飞时由 rAF 逐帧写入（见 stepFlyUp） */
+  translate: 0 var(--fly-y, 0px);
 }
 
 /* Comments Window */
