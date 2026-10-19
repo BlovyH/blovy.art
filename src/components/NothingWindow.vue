@@ -331,9 +331,10 @@ onBeforeUnmount(() => {
   animation: nothing-float 4444ms ease-in-out infinite;
 }
 
+/* 变换中心在窗口被拖拽后要更新（--pw-ox/oy 由 PixelWindow 按锚定方式 + 拖拽位移算出来） */
 .nothing-window.is-flip-in,
 .nothing-window.is-flip-out {
-  transform-origin: 0 0;
+  transform-origin: var(--pw-ox, 50%) var(--pw-oy, 50%);
 }
 
 .nothing-window.is-flip-in {
@@ -342,11 +343,6 @@ onBeforeUnmount(() => {
 
 .nothing-window.is-flip-out {
   animation: nothing-flip-back var(--nothing-transform-ms, 1000ms) linear;
-}
-
-.nothing-window.is-manual.is-flip-in,
-.nothing-window.is-manual.is-flip-out {
-  transform-origin: 50% 50%;
 }
 
 .nothing-window.is-starfield :deep(.pixel-window__content) {

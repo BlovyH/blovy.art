@@ -376,6 +376,8 @@ const windowStyle = computed(() => {
       bottom: 'auto',
       transform: 'none',
       zIndex: zIndex.value,
+      '--pw-ox': '50%',
+      '--pw-oy': '50%',
     }
     if (boxState.value === 'minimized') s.height = 'auto'
     if (edgeDir.value) s['--rc'] = resizeCursor(edgeDir.value)
@@ -386,35 +388,49 @@ const windowStyle = computed(() => {
   }
   const verticalBase = props.top || '50%'
   const yShift = props.topAnchor ? `${drag.y}px` : `calc(-50% + ${drag.y}px)`
+  // 哪条轴上带了 -50% 的居中位移
+  let hCentered = false
+  let vCentered = false
 
   if (props.bottom) {
     style.position = 'fixed'
     style.bottom = props.bottom
     style.left = '50%'
     style.transform = `translate(calc(-50% + ${drag.x}px), ${drag.y}px)`
+    hCentered = true
   } else if (props.top && props.topAnchor) {
     style.position = 'fixed'
     style.top = props.top
     style.left = '50%'
     style.transform = `translate(calc(-50% + ${drag.x}px), ${drag.y}px)`
+    hCentered = true
   } else if (props.centered) {
     style.position = 'fixed'
     style.top = verticalBase
     style.left = '50%'
     style.transform = `translate(calc(-50% + ${drag.x}px), calc(-50% + ${drag.y}px))`
+    hCentered = true
+    vCentered = true
   } else if (props.right) {
     style.position = 'fixed'
     style.top = verticalBase
     style.right = props.right
     style.transform = `translate(${drag.x}px, ${yShift})`
+    vCentered = true
   } else if (props.left) {
     style.position = 'fixed'
     style.top = verticalBase
     style.left = props.left
     style.transform = `translate(${drag.x}px, ${yShift})`
+    vCentered = true
   } else {
     style.transform = `translate(${drag.x}px, ${drag.y}px)`
   }
+  /* 旋转轴心 rotate 合成在 transform 之后，
+     transform 的设计契约就是"绘制之后再偏移"，位移先作用在顶点上，视觉中心此时不等于布局盒中心（layout阶段定死了）
+     写死百分比的话，窗口被拖动之后仍旧绕默认位置那条中轴转 */
+  style['--pw-ox'] = hCentered ? `${drag.x}px` : `calc(50% + ${drag.x}px)`
+  style['--pw-oy'] = vCentered ? `${drag.y}px` : `calc(50% + ${drag.y}px)`
   if (props.width && props.width !== 'auto') {
     style.width = props.width
   }
