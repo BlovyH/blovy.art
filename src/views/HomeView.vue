@@ -246,12 +246,29 @@
 
       <!-- IndirectY 10000 -->
       <PixelWindow
+        v-if="indirectyVisible"
+        ref="iyWinRef"
         class="indirecty-window rainbow-palette"
-        :class="{ 'is-locked': dialLocked, 'is-flying': dialFlying || iconFlying, 'is-gone': dialGone }"
+        :class="{
+          'is-locked': dialLocked,
+          'is-flying': dialFlying || iconFlying,
+          'is-gone': dialGone,
+          'is-recalling': dialRecalling,
+          'is-shown': dialShown,
+          'is-edge': winEdgeHover,
+          'is-spinning': winSpinning,
+          'is-back': winBack,
+        }"
         :title="`IndirectY ${dialCount}`"
         width="30%"
         :disabled-controls="{ minimize: true, maximize: true }"
-        :no-drag="(dialLocked && !dialGone) || (iconLocked && !iconGone)"
+        :no-drag="(dialLocked && !dialGone) || (iconLocked && !iconGone) || winLocked"
+        @close="closeIndirectyWindow"
+        @pointerdown="onWinPointerDown"
+        @pointermove="onWinPointerMove"
+        @pointerup="onWinPointerUp"
+        @pointercancel="onWinPointerUp"
+        @pointerleave="onWinPointerLeave"
       >
         <template #icon>
           <span
@@ -281,10 +298,20 @@
         <div
           ref="dialEl"
           class="indirecty-dial"
+          :class="{ 'is-returning': dialReturning }"
+          :style="{ '--iy-return-ms': DIAL_RETURN_MS + 'ms' }"
           @pointerdown="onDialDown"
           @pointermove="onDialMove"
           @pointerup="onDialUp"
           @pointercancel="onDialUp"
+        />
+        <CallbackButton
+          ref="callbackEl"
+          v-if="callbackVisible"
+          :leaving="callbackLeaving"
+          @hit="onCallbackHit"
+          @dismissed="onCallbackDismissed"
+          @gone="onCallbackGone"
         />
 <!--        <p class="indirecty-debug">-->
 <!--          {{ Math.round(dialSpeedShown) }} px/s · {{ dialFramesPerSec.toFixed(1) }} f/s-->
@@ -417,7 +444,7 @@
       v-if="stickyVisible"
       title="StickyKeys"
       icon="⚠"
-      message="Do you want to turn on StickyKeys?"
+      :message="stickyMessage"
       description="StickyKeys lets you activate ?!%$!? mode. The shortcut to turn it on is to tap the <br><span style='font-family: var(--font-fangsong)'>巨硬™办公室力量点2003</span> button 5 times in a row."
       :buttons="[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]"
       @action="onStickyAction"
@@ -464,6 +491,7 @@ import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
 import Screensaver from '@/components/Screensaver.vue'
 import SnowLayer from '@/components/SnowLayer.vue'
+import CallbackButton from '@/components/CallbackButton.vue'
 import { snowActive, stopSnow } from '@/snowTrigger.js'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
@@ -1074,13 +1102,14 @@ const ICON_FRAMES = 8 // sheet 横排帧数，CSS 的 mask-size 里还有一份
 const ICON_IDLE_FPS = 8 // 空转速度：取它原本 CSS 动画的节奏（8 帧 / 1000ms）
 new Image().src = DIAL_SHEET
 
+const indirectyVisible = ref(false)
+
 const dialEl = ref(null)
 const iconEl = ref(null)
 const iconOffset = ref({ x: 0, y: 0 })
 const iconDragging = ref(false)
 const iconDocked = ref(false)
-// 图升出视口之后它才变成可拖的落位件；一旦落位就锁死不再能拖
-const iconDraggable = computed(() => dialGone.value && !iconDocked.value)
+const iconDraggable = computed(() => callbackCleared.value && !iconDocked.value)
 const dialCount = ref(DIAL_START)
 const {
   locked: dialLocked,
@@ -1090,6 +1119,7 @@ const {
   down: onDialDown,
   move: onDialMove,
   up: onDialUp,
+  reset: resetDialSpin,
   dispose: disposeDialSpin,
 } = createSpinControl({
   frames: DIAL_FRAMES,
@@ -1110,6 +1140,7 @@ const {
   move: onIconSpinMove,
   up: onIconSpinUp,
   start: startIconSpin,
+  reset: resetIconSpin,
   dispose: disposeIconSpin,
 } = createSpinControl({
   frames: ICON_FRAMES,
@@ -1119,17 +1150,176 @@ const {
   enabled: () => iconDocked.value,
 })
 
-// 拖动速度折合的帧率，调试读数用，定完手感删掉
-const dialFramesPerSec = computed(() => dialSpeedShown.value / SPIN_PX_PER_FRAME)
+/* 窗口转盘 梅开三度 实现类似 callback 按钮 */
+const WIN_EDGE_PX = 8 // 边线识别宽度
+const WIN_DEG_PER_FRAME = 15 // 一格转多少度
+const WIN_SETTLE_DELAY_MS = 64 // 多久没转算停下，可以惯性
+const WIN_SETTLE_MS = 260 // 惯性时长
 
-// 问号从一开始就在自己转，挂载后把循环起起来（锅只在被拖时才转，等 pointerdown 就够）
-onMounted(() => {
-  startIconSpin()
+const iyWinRef = ref(null)
+// PixelWindow 把根元素 expose 出来了（expose 里的 ref 是解包的，拿到的是元素本身）
+const iyWinEl = computed(() => iyWinRef.value?.windowRef ?? null)
+const winEdgeHover = ref(false)
+const winSpinning = ref(false)
+const winBack = ref(false)
+
+function writeWinTurn(deg) {
+  winShownDeg = deg
+  iyWinEl.value?.style.setProperty('--iy-win-turn', deg + 'deg')
+  const norm = ((deg % 360) + 360) % 360
+  winBack.value = norm > 90 && norm < 270
+}
+
+const {
+  locked: winLocked,
+  gone: winGone,
+  down: onWinSpinDown,
+  move: onWinSpinMove,
+  up: onWinSpinUp,
+  reset: resetWinSpin,
+  dispose: disposeWinSpin,
+} = createSpinControl({
+  // 只用来取模，窗口不用跳帧，给 1 就不会有帧序
+  frames: 1,
+  el: iyWinEl,
+  varName: '--iy-win-frame',
+  // 变量会继承：写 --fly-y 的话，里面的锅和问号会有速度叠加
+  flyVar: '--iy-win-fly-y',
+  onFrame: (_frame, total) => {
+    writeWinTurn((total - winTurnBase) * WIN_DEG_PER_FRAME)
+    if (total === winLastTotal) return
+    if (winLastTotal !== null) winSpinDir = Math.sign(total - winLastTotal) || winSpinDir
+    winLastTotal = total
+    armWinSettle()
+  },
 })
+
+let winTurnBase = 0
+let winShownDeg = 0
+let winLastTotal = null
+let winSpinDir = 1
+let winSettleTimer = 0
+let winSettleRaf = 0
+
+function armWinSettle() {
+  clearTimeout(winSettleTimer)
+  winSettleTimer = setTimeout(settleWinTurn, WIN_SETTLE_DELAY_MS)
+}
+
+function settleWinTurn() {
+  winSettleTimer = 0
+  if (winSpinning.value || winLocked.value || winLastTotal === null) return
+  const from = winShownDeg
+  const to = (winSpinDir < 0 ? Math.floor(from / 360) : Math.ceil(from / 360)) * 360
+  const delta = to - from
+  if (Math.abs(delta) < 1) return
+  const t0 = performance.now()
+  cancelAnimationFrame(winSettleRaf)
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / WIN_SETTLE_MS)
+    writeWinTurn(from + delta * (1 - (1 - p) ** 3))
+    if (p < 1) {
+      winSettleRaf = requestAnimationFrame(step)
+      return
+    }
+    winSettleRaf = 0
+    winTurnBase = winLastTotal - to / WIN_DEG_PER_FRAME
+  }
+  winSettleRaf = requestAnimationFrame(step)
+}
+
+function cancelWinSettle() {
+  clearTimeout(winSettleTimer)
+  winSettleTimer = 0
+  cancelAnimationFrame(winSettleRaf)
+  winSettleRaf = 0
+  if (winLastTotal !== null) winTurnBase = winLastTotal - winShownDeg / WIN_DEG_PER_FRAME
+}
+
+function resetWindowSpin() {
+  resetWinSpin()
+  winShownDeg = 0
+  winBack.value = false
+  winSpinDir = 1
+  cancelWinSettle()
+}
+
+function winEdgeHit(e) {
+  const el = iyWinEl.value
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  const x = e.clientX - r.left
+  return x <= WIN_EDGE_PX || x >= r.width - WIN_EDGE_PX
+}
+
+function onWinPointerDown(e) {
+  if (e.button !== 0 || !winEdgeHit(e)) return
+  // 标题栏交互优先于边线识别
+  if (e.target.closest?.('.pixel-titlebar')) return
+  cancelWinSettle()
+  winSpinning.value = true
+  onWinSpinDown(e)
+}
+
+function onWinPointerMove(e) {
+  winEdgeHover.value = winEdgeHit(e)
+  onWinSpinMove(e)
+}
+
+function onWinPointerUp() {
+  winSpinning.value = false
+  onWinSpinUp()
+  armWinSettle()
+}
+
+function onWinPointerLeave() {
+  winEdgeHover.value = false
+}
+
+// iy 飞出去了就销毁
+watch(winGone, (v) => {
+  if (v) closeIndirectyWindow()
+})
+
+// debug 帧率用
+// const dialFramesPerSec = computed(() => dialSpeedShown.value / SPIN_PX_PER_FRAME)
+
+// 问号从窗口被创建的那一刻就在自己转（锅只在被拖时才转，等 pointerdown 就够）。
+// rAF 在 Vue 更新完 DOM 之后才跑，所以这里虽然早于渲染、拿到的是下一帧才存在的元素也没关系
+watch(indirectyVisible, (v) => {
+  if (v) startIconSpin()
+})
+
+function closeIndirectyWindow() {
+  stopRecall()
+  clearTimeout(returnTimer)
+  clearTimeout(fadeTimer)
+  resetDialSpin()
+  resetIconSpin()
+  resetWindowSpin()
+  winSpinning.value = false
+  // 锁着 / 飞着 / 已落位这些状态活在 spinControl 里，reset 只清了锅的，剩下的手动归零
+  dialCount.value = DIAL_START
+  iconOffset.value = { x: 0, y: 0 }
+  iconDocked.value = false
+  callbackHidden.value = false
+  callbackLeaving.value = false
+  callbackCleared.value = false
+  dialShown.value = false
+  dialRecalling.value = false
+  dialReturning.value = false
+  indirectyVisible.value = false
+}
 
 onBeforeUnmount(() => {
   disposeDialSpin()
   disposeIconSpin()
+  disposeWinSpin()
+  clearTimeout(winSettleTimer)
+  cancelAnimationFrame(winSettleRaf)
+  stopRecall()
+  clearTimeout(returnTimer)
+  clearTimeout(fadeTimer)
 })
 
 // 标题栏的 mousedown 会启动拖窗，图标可拖期间要把它拦在自己这层
@@ -1204,8 +1394,197 @@ function dockIcon() {
   iconDocked.value = true
 }
 
+/* callback 阶段 */
+const DIAL_RETURN_MS = 1200 // 归位动画时长，CSS 的 --iy-return-ms 用的是同一个值
+const CALLBACK_FADE_MS = 460 // 按钮渐隐，跟组件里 --cb-swallow-ms 对齐
+const QTE_HOLD_MS = 220 // 一击能拽多久，不续上下一击，锅立刻又开始往上跑
+// 连点的速度门槛
+const QTE_GAP_MS = 200 // ≈ 每秒 5 下
+const DIAL_ESCAPE_SPEED = 110
+const DIAL_PULL_SPEED = 170 // 拽回来的速度 px/s
+// 出视口之后再退多少就停住
+const DIAL_ESCAPE_EXTRA = 200
+
+const callbackEl = ref(null)
+const callbackHidden = ref(false)
+const callbackLeaving = ref(false)
+const callbackCleared = ref(false)
+const dialRecalling = ref(false)
+// 在视口里就必须看得见（不管有没有在拽）；出视口之后只在正被拽的那一段显形
+const dialShown = ref(false)
+const dialReturning = ref(false)
+const callbackVisible = computed(() => dialGone.value && !callbackHidden.value)
+
+let recallRaf = 0
+let recallLast = 0
+let recallY = 0
+// 锅从等待位到内容区这段路有多长：按钮的放大比例按它折算，否则「近了多少」没有参照
+let qteSpan = 0
+let pullUntil = 0
+// 上一击的时刻：判定「连没连上」用的就是它
+let lastHitAt = 0
+// 没人拽的时候锅该待的屏幕 bottom（视口坐标）：窗口再怎么拖它都留在这个高度上
+let anchorBottom = null
+let returnTimer = 0
+let fadeTimer = 0
+
+// 锅一出视口就瞬移到视口外 DIAL_ESCAPE_EXTRA 停住等，否则立即点击 callback 会闪现（因为还没真正移出去）
+watch(dialGone, (v) => {
+  if (!v) return
+  pullUntil = 0
+  anchorBottom = null
+  const el = dialEl.value
+  if (!el) return
+  const y = parseFloat(el.style.getPropertyValue('--fly-y')) || 0
+  recallY = y - (el.getBoundingClientRect().bottom + DIAL_ESCAPE_EXTRA)
+  el.style.setProperty('--fly-y', recallY + 'px')
+  // 先落位再量：等待位到内容区的距离就是这一段 QTE 的全长
+  qteSpan = Math.max(dialGap() ?? 0, 1)
+  startRecall()
+})
+
+function startRecall() {
+  const el = dialEl.value
+  if (!el || recallRaf) return
+  recallY = parseFloat(el.style.getPropertyValue('--fly-y')) || 0
+  recallLast = performance.now()
+  dialRecalling.value = true
+  recallRaf = requestAnimationFrame(stepRecall)
+}
+
+function stepRecall(now) {
+  const dt = Math.min((now - recallLast) / 1000, 0.1)
+  recallLast = now
+  const pulling = performance.now() < pullUntil
+  const el = dialEl.value
+  const rect = el?.getBoundingClientRect()
+  if (pulling) {
+    // 被拽着走的时候锅是相对窗口运动的，之前那个锚点作废
+    anchorBottom = null
+    recallY = Math.min(recallY + DIAL_PULL_SPEED * dt, 0)
+  } else if (rect) {
+    if (anchorBottom === null) anchorBottom = rect.bottom
+    // 抵消窗口拖动是瞬时、不限速的（它只是把锅放回锚点）—— 限速的 90px/s 跟不上手拖窗口的速度，
+    // 锅会被一路带进视口。锚点只升不降：窗口往上抬时让锅跟着，否则一抬窗口等于把锅接回来了
+    anchorBottom = Math.min(anchorBottom, rect.bottom)
+    recallY += anchorBottom - rect.bottom
+    // 没人拽就继续往上退，退到视口外 DIAL_ESCAPE_EXTRA 停住
+    if (anchorBottom > -DIAL_ESCAPE_EXTRA) {
+      const step = Math.min(DIAL_ESCAPE_SPEED * dt, anchorBottom + DIAL_ESCAPE_EXTRA)
+      anchorBottom -= step
+      recallY -= step
+    }
+  }
+  el?.style.setProperty('--fly-y', recallY + 'px')
+  const gap = dialGap()
+  if (gap !== null) {
+    callbackEl.value?.setCharge(1 - Math.min(Math.max(gap, 0) / qteSpan, 1))
+  }
+  if (pulling) dialShown.value = true
+  else if (!dialInViewport()) dialShown.value = false
+  if (dialInContent()) {
+    finishRecall()
+    return
+  }
+  // 退到位之后位置不动了，但循环不能停：显形以后要一直盯着它有没有又出视口，
+  // 而拖窗口也会改变这个判定
+  recallRaf = requestAnimationFrame(stepRecall)
+}
+
+// 判断锅有没有进到视口里：进视口就必须显形，没进就必须透明
+function dialInViewport() {
+  const a = dialEl.value?.getBoundingClientRect()
+  if (!a) return false
+  return a.bottom > 0 && a.top < window.innerHeight
+}
+
+// 锅底到内容区上沿还差多少
+function dialGap() {
+  const el = dialEl.value
+  const b = dockSpotRect()
+  if (!el || !b) return null
+  return b.top - el.getBoundingClientRect().bottom
+}
+
+// 成功判据是锅的任意一部分进了内容区
+function dialInContent() {
+  const el = dialEl.value
+  const b = dockSpotRect()
+  if (!el || !b) return false
+  const a = el.getBoundingClientRect()
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+}
+
+function stopRecall() {
+  cancelAnimationFrame(recallRaf)
+  recallRaf = 0
+  anchorBottom = null
+  dialShown.value = false
+}
+
+function onCallbackHit() {
+  const now = performance.now()
+  if (now - lastHitAt <= QTE_GAP_MS) pullUntil = now + QTE_HOLD_MS
+  else {
+    // 没连上，这一击不生效，并弹一下作为提示
+    pullUntil = 0
+    callbackEl.value?.nudge()
+  }
+  lastHitAt = now
+  startRecall()
+}
+
+function finishRecall() {
+  stopRecall()
+  // 归位那一段要看得见（is-gone 把它压成透明了）
+  dialShown.value = true
+  callbackLeaving.value = true
+  fadeTimer = setTimeout(() => {
+    callbackHidden.value = true
+  }, CALLBACK_FADE_MS)
+  dialLocked.value = false
+  dialReturning.value = true
+  requestAnimationFrame(() => {
+    dialEl.value?.style.setProperty('--fly-y', '0px')
+  })
+  returnTimer = setTimeout(endReturn, DIAL_RETURN_MS)
+}
+
+function endReturn() {
+  dialReturning.value = false
+  dialRecalling.value = false
+  dialShown.value = false
+  resetDialSpin()
+  callbackLeaving.value = false
+  // 锅复原了，下一轮它再飞走时按钮要能再出来
+  callbackHidden.value = false
+}
+
+function onCallbackDismissed() {
+  stopRecall()
+  callbackHidden.value = true
+  dlg.start('updateDismissed')
+  // 开启问号拖拽
+  const stop = watch(dlg.visible, (v) => {
+    if (v) return
+    stop()
+    callbackCleared.value = true
+  })
+}
+
+function onCallbackGone() {
+  stopRecall()
+  callbackHidden.value = true
+  callbackCleared.value = true
+}
+
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
+const stickyMessage = computed(() =>
+  indirectyVisible.value
+    ? 'Do you mess up your StickyKeys?'
+    : 'Do you want to turn on StickyKeys?',
+)
 const powerClickCount = ref(0)
 let lastPowerClick = 0
 
@@ -1253,10 +1632,9 @@ function onPowerBtnClick() {
 }
 
 function onStickyAction(value) {
-  if (value === 'no') {
-    stickyVisible.value = false
-  }
-  // value === 'yes': ?!%$!? mode 暂未实现，点了不关闭、无反应
+  if (value !== 'yes' && value !== 'no') return
+  stickyVisible.value = false
+  if (value === 'yes') indirectyVisible.value = true
 }
 
 function openNothingWindow() {
@@ -2134,10 +2512,32 @@ function onTorchClick(axis) {
 /* IndirectY Window —— 位置待定，先把锚点放这儿，改 top / left 即可 */
 .indirecty-window {
   position: absolute;
-  top: 30%;
-  left: 60%;
+  top: 23%;
+  left: 25%;
   /* 贴图单帧 16×16，图标位取整数倍才不糊 */
   --icon-size: 32px;
+  /* 起飞位移与旋转：都用独立属性，跟 PixelWindow 内联那条定位 transform 叠加
+     （写 transform 会把定位整条盖掉） */
+  translate: 0 var(--iy-win-fly-y, 0px);
+  rotate: y var(--iy-win-turn, 0deg);
+  animation: indirecty-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.indirecty-window.is-back :deep(.pixel-titlebar),
+.indirecty-window.is-back :deep(.pixel-window__content) {
+  visibility: hidden;
+}
+
+.indirecty-window.is-edge,
+.indirecty-window.is-spinning {
+  cursor: ew-resize;
+}
+
+@keyframes indirecty-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
 }
 
 /* 形状来自 sheet（当蒙版逐帧跳），颜色来自 shared.css 的 .rainbow-palette。
@@ -2246,6 +2646,35 @@ function onTorchClick(axis) {
 
 .indirecty-window.is-gone .indirecty-dial {
   opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+/* 出视口之后一律透明 */
+.indirecty-window.is-shown .indirecty-dial {
+  opacity: 1;
+}
+
+/* 按钮要落在内容区正中，内容区得先成为定位父级 */
+.indirecty-window :deep(.pixel-window__content) {
+  position: relative;
+}
+
+/* 拽回来 / 归位那一段：它是从内容区上方外面进来的，内容区不能裁；这段时间内也不接受交互 */
+.indirecty-window.is-recalling .indirecty-dial {
+  pointer-events: none;
+}
+
+.indirecty-window.is-recalling :deep(.pixel-window__content) {
+  overflow: visible;
+}
+
+/* 归位：JS 把 --fly-y 归零，过渡负责缓慢移动回原本位置。
+   选择器要带上 .is-gone，归位期间窗口还是 gone，而 .is-gone 那条也在改 transition，
+   特异性比单类名高，会把这里的 translate 整条替掉（表现为瞬移） */
+.indirecty-window.is-gone .indirecty-dial.is-returning {
+  transition:
+    translate var(--iy-return-ms) cubic-bezier(0.33, 0, 0.2, 1),
+    opacity 140ms ease;
 }
 
 /* 位移走 translate 属性而不是 transform —— PixelWindow 的 transform 是内联样式（拖窗用的），

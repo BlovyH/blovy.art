@@ -12,10 +12,11 @@ const SPIN_HYPER_FPS = SPIN_MAX_STEP * 222 // rAF 约 60 次/秒 × 每帧最多
 const SPIN_HYPER_STREAK = 3 // 触发飞起来的连续高速旋转次数
 const SPIN_HYPER_VEL = 2 // 起飞前每 rAF 推进多少画面帧，大于 SPIN_MAX_STEP 才会糊成一坨
 const SPIN_FLYAWAY_DELAY_MS = 1000 // 停顿多久飞起来
-const SPIN_FLY_SPEED = 40 // 飞起来上升速度 px/s
+export const SPIN_FLY_SPEED = 40 // 飞起来上升速度 px/s
 const SPIN_MAX_DT = 0.1 // 空转推进的时间步长上限，切到后台再回来别一次跳一大段
 
-export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, enabled }) {
+// 自定义属性会继承导致父子速度叠加，名字要区分
+export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, enabled, flyVar = '--fly-y' }) {
   const locked = ref(false)
   const flying = ref(false)
   const gone = ref(false)
@@ -138,7 +139,7 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
     }, SPIN_FLYAWAY_DELAY_MS)
   }
 
-  // 上升走 rAF 逐帧写 --fly-y 且按元素真实位置判断何时飞出了视口
+  // 上升走 rAF 逐帧写 flyVar 且按元素真实位置判断何时飞出了视口
   function startFlyUp() {
     flyY = 0
     flyLast = performance.now()
@@ -151,7 +152,7 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
     const dt = (now - flyLast) / 1000
     flyLast = now
     flyY -= SPIN_FLY_SPEED * dt
-    node.style.setProperty('--fly-y', flyY + 'px')
+    node.style.setProperty(flyVar, flyY + 'px')
     if (node.getBoundingClientRect().bottom < 0) {
       flyRaf = 0
       gone.value = true
@@ -171,5 +172,26 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
     ensureRaf()
   }
 
-  return { locked, flying, gone, speedShown, down, move, up, start, dispose }
+  // callback 成功，状态重置、清连击计数
+  function reset() {
+    cancelAnimationFrame(raf)
+    cancelAnimationFrame(flyRaf)
+    raf = 0
+    flyRaf = 0
+    locked.value = false
+    flying.value = false
+    gone.value = false
+    dragging = false
+    vel = 0
+    speed = 0
+    hyperThisDrag = false
+    hyperStreak = 0
+    flyY = 0
+    lastTickAt = 0
+    lastX = 0
+    lastMoveAt = 0
+    el?.value?.style.setProperty(flyVar, '0px')
+  }
+
+  return { locked, flying, gone, speedShown, down, move, up, start, reset, dispose }
 }

@@ -564,6 +564,7 @@ function moveBy(dx, dy) {
 }
 
 defineExpose({
+  windowRef,
   startDrag,
   moveBy,
   minimize,

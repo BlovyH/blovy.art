@@ -18,6 +18,8 @@ export const Z = {
   MENU: 10012, // 跟随点击位置的小浮层菜单
   UPDATE: 10013, // 右上角「有新版本」提示
   SNOW: 10014, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
+  CALLBACK_MESBIN: 10015, // callback 按钮的 mesbin 待抽出
+  CALLBACK_ITEM: 10016, // iy 的 callback 按钮
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
   TOAST: 20000,

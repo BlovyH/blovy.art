@@ -144,7 +144,7 @@ function applyCursorPreview(cursors, base = '') {
     { key: 'not-allowed', fallback: 'not-allowed', selector: '[disabled], [aria-disabled="true"]' },
     { key: 'wait', fallback: 'wait', selector: 'html.dp-cursor-wait, html.dp-cursor-wait *' },
     { key: 'progress', fallback: 'progress', selector: 'html.dp-cursor-progress, html.dp-cursor-progress *' },
-    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *, .indirecty-dial, .indirecty-icon.is-docked' },
+    { key: 'ew-resize', fallback: 'ew-resize', selector: '[data-resize="ew"], .resize-ew, [data-resize="ew"] *, .resize-ew *, .indirecty-dial, .indirecty-icon.is-docked, .indirecty-window.is-edge, .indirecty-window.is-spinning' },
     { key: 'ns-resize', fallback: 'ns-resize', selector: '[data-resize="ns"], .resize-ns, [data-resize="ns"] *, .resize-ns *' },
     { key: 'nesw-resize', fallback: 'nesw-resize', selector: '[data-resize="nesw"], .resize-nesw, [data-resize="nesw"] *, .resize-nesw *' },
     { key: 'nwse-resize', fallback: 'nwse-resize', selector: '[data-resize="nwse"], .resize-nwse, [data-resize="nwse"] *, .resize-nwse *' },
