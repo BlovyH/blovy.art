@@ -244,7 +244,11 @@
         </div>
       </PixelWindow>
 
-      <IndirectyWindow v-if="indirectyVisible" @close="indirectyVisible = false" />
+      <IndirectyStage
+        v-if="indirectyVisible"
+        ref="iyStage"
+        @close="indirectyVisible = false"
+      />
 
       <!-- Doujin Projects Window -->
       <div
@@ -419,7 +423,7 @@ import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
 import Screensaver from '@/components/Screensaver.vue'
 import SnowLayer from '@/components/SnowLayer.vue'
-import IndirectyWindow from '@/indirecty/IndirectyWindow.vue'
+import IndirectyStage from '@/indirecty/IndirectyStage.vue'
 import { snowActive, stopSnow } from '@/snowTrigger.js'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
@@ -1020,6 +1024,7 @@ const SOMETHING_ICON_SRC = '/assets/something.png'
 
 // 窗口本体已抽到 src/indirecty/，可见性留在这儿：粘滞键那句问句拿它判
 const indirectyVisible = ref(false)
+const iyStage = ref(null)
 
 const mobileNoticeVisible = ref(false)
 const stickyVisible = ref(false)
@@ -1077,7 +1082,10 @@ function onPowerBtnClick() {
 function onStickyAction(value) {
   if (value !== 'yes' && value !== 'no') return
   stickyVisible.value = false
-  if (value === 'yes') indirectyVisible.value = true
+  if (value !== 'yes') return
+  // 神秘的非 early return 防重处理
+  if (indirectyVisible.value) iyStage.value?.spawnSecond()
+  else indirectyVisible.value = true
 }
 
 function openNothingWindow() {

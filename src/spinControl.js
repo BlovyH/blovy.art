@@ -24,6 +24,10 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
 
   let pos = 0
   let target = 0
+     /* frameBias = 读数 − 帧号
+     其实直接维护一个基准映射（帧号-数字）也行但总之这样写了 */
+  let frameBias = 0
+  let lastIndex = 0
   let vel = 0
   let dragging = false
   let lastX = 0
@@ -40,11 +44,20 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
   const canUse = () => (enabled ? enabled() : true)
 
   function sync() {
-    const total = Math.round(pos)
+    writeFrame()
+    onFrame?.(frameIndex(), Math.round(pos))
+  }
+
+  /* 惯性会让读数变成小数，不能直接拿去计算 */
+  function frameIndex() {
+    const shown = Math.round(pos - frameBias)
     // 帧序方向是往左转的（相反）
-    const index = ((-total % frames) + frames) % frames
-    el?.value?.style.setProperty(varName, index)
-    onFrame?.(index, total)
+    return ((-shown % frames) + frames) % frames
+  }
+
+  function writeFrame() {
+    lastIndex = frameIndex()
+    el?.value?.style.setProperty(varName, lastIndex)
   }
 
   function ensureRaf() {
@@ -172,7 +185,7 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
     ensureRaf()
   }
 
-  // callback 成功，状态重置、清连击计数
+  // callback 成功，状态重置、清连击计数等
   function reset() {
     cancelAnimationFrame(raf)
     cancelAnimationFrame(flyRaf)
@@ -191,7 +204,22 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
     lastX = 0
     lastMoveAt = 0
     el?.value?.style.setProperty(flyVar, '0px')
+    pos = 0
+    target = 0
+    frameBias = 0
+    sync()
   }
 
-  return { locked, flying, gone, speedShown, down, move, up, start, reset, dispose }
+  function setTotal(n) {
+    cancelAnimationFrame(raf)
+    raf = 0
+    vel = 0
+    dragging = false
+    frameBias += n - Math.round(pos)
+    pos = n
+    target = n
+    onFrame?.(lastIndex, n)
+  }
+
+  return { locked, flying, gone, speedShown, down, move, up, start, reset, setTotal, dispose }
 }

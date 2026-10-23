@@ -12,11 +12,14 @@
       'is-edge': winEdgeHover,
       'is-spinning': winSpinning,
       'is-back': winBack,
+      'is-frozen': frozen,
+      'is-hit': hitOn,
+      'is-settling': settling,
     }"
-    :title="`IndirectY ${dialCount}`"
+    :style="anchorStyle"
     width="30%"
     :disabled-controls="{ minimize: true, maximize: true }"
-    :no-drag="(dialLocked && !dialGone) || (iconLocked && !iconGone) || winLocked"
+    :no-drag="(dialLocked && !dialGone) || (iconLocked && !iconGone) || winLocked || frozen"
     @close="closeIndirectyWindow"
     @pointerdown="onWinPointerDown"
     @pointermove="onWinPointerMove"
@@ -24,6 +27,30 @@
     @pointercancel="onWinPointerUp"
     @pointerleave="onWinPointerLeave"
   >
+    <template #title>
+      IndirectY
+      <input
+        v-if="countEditing"
+        ref="countInput"
+        :value="countDraft"
+        class="iy-count-input"
+        type="text"
+        inputmode="numeric"
+        :style="{ width: 'calc(' + Math.max(countDraft.length, 1) + 'ch + 12px)' }"
+        @mousedown="onCountMouseDown"
+        @click="onCountClick"
+        @input="onCountInput"
+        @keydown.enter.prevent="commitCount"
+        @keydown.esc.prevent="cancelCount"
+        @blur="commitCount"
+      />
+      <span
+        v-else
+        class="iy-count"
+        @mousedown="onCountMouseDown"
+        @click="onCountClick"
+      >{{ dialCount }}</span>
+    </template>
     <template #icon>
       <span
         ref="iconEl"
@@ -47,6 +74,13 @@
         @pointermove="onIconSpinMove"
         @pointerup="onIconSpinUp"
         @pointercancel="onIconSpinUp"
+      />
+      <DialogBubble
+        v-if="bubble"
+        :text="bubble"
+        :side="bubbleSide"
+        :below="bubbleBelow"
+        :leaving="bubbleLeaving"
       />
     </template>
     <div
@@ -74,20 +108,39 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, watch, nextTick } from 'vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import CallbackButton from './CallbackButton.vue'
+import DialogBubble from '@/components/DialogBubble.vue'
 import { createSpinControl } from '@/spinControl.js'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 
 const emit = defineEmits(['close'])
 const dlg = useDialogFlow()
 
+const props = defineProps({
+  anchor: { type: Object, default: null },
+  frozen: { type: Boolean, default: false },
+  settling: { type: Boolean, default: false },
+  bubble: { type: String, default: '' },
+  bubbleSide: { type: String, default: 'left' },
+  bubbleBelow: { type: Boolean, default: false },
+  bubbleLeaving: { type: Boolean, default: false },
+})
+
+// 锚点走 CSS 变量而不是内联 top / left：内联那条会被 PixelWindow 自己的定位样式合并掉
+const anchorStyle = computed(() =>
+  props.anchor
+    ? { '--iy-anchor-left': props.anchor.left, '--iy-anchor-top': props.anchor.top }
+    : null,
+)
+
 /* IndirectY 拨盘：拖动逐帧转，净转过的帧数直接进标题数字（左减右加）。
    帧数在 CSS 里还有一份（background-size 与逐帧位移），换图要一起改 */
 const DIAL_SHEET = '/assets/signal_receiver-Sheet.png'
 const DIAL_FRAMES = 9
 const DIAL_START = 10000
+const COUNT_MAX_DIGITS = 5 // 不包括负号
 const ICON_DOCK_SCALE = 4 // 32px × 4 = 128px，正好是源图 16px 的 8 倍（整数倍才不糊）
 const ICON_DRAG_THRESHOLD = 3 // 超过这么多 px 才算在拖，免得单击也被当成拖动
 const ICON_FRAMES = 8 // sheet 横排帧数，CSS 的 mask-size 里还有一份
@@ -111,6 +164,7 @@ const {
   move: onDialMove,
   up: onDialUp,
   reset: resetDialSpin,
+  setTotal: setDialTotal,
   dispose: disposeDialSpin,
 } = createSpinControl({
   frames: DIAL_FRAMES,
@@ -227,9 +281,10 @@ function cancelWinSettle() {
 }
 
 function resetWindowSpin() {
+  winLastTotal = null
+  winTurnBase = 0
   resetWinSpin()
-  winShownDeg = 0
-  winBack.value = false
+  writeWinTurn(0)
   winSpinDir = 1
   cancelWinSettle()
 }
@@ -280,7 +335,7 @@ onMounted(() => {
   startIconSpin()
 })
 
-function closeIndirectyWindow() {
+function resetState() {
   stopRecall()
   clearTimeout(returnTimer)
   clearTimeout(fadeTimer)
@@ -288,8 +343,6 @@ function closeIndirectyWindow() {
   resetIconSpin()
   resetWindowSpin()
   winSpinning.value = false
-  // 锁着 / 飞着 / 已落位这些状态活在 spinControl 里，reset 只清了锅的，剩下的手动归零
-  dialCount.value = DIAL_START
   iconOffset.value = { x: 0, y: 0 }
   iconDocked.value = false
   callbackHidden.value = false
@@ -298,14 +351,105 @@ function closeIndirectyWindow() {
   dialShown.value = false
   dialRecalling.value = false
   dialReturning.value = false
+  startIconSpin()
+}
+
+const countEditing = ref(false)
+const countDraft = ref('')
+const countInput = ref(null)
+const COUNT_DRAG_SLOP = 5
+let countDownAt = null
+
+function beginEditCount() {
+  if (props.frozen) return
+  countDraft.value = String(dialCount.value)
+  countEditing.value = true
+  // 元素下一帧才存在，focus 得等它挂上
+  nextTick(() => {
+    const el = countInput.value
+    if (!el) return
+    el.focus()
+    const end = el.value.length
+    el.setSelectionRange(end, end)
+  })
+}
+
+/* 加文本框不影响拖拽标题栏不然体验不是很好，加个判定 */
+function onCountMouseDown(e) {
+  countDownAt = { x: e.clientX, y: e.clientY }
+  e.preventDefault()
+}
+function onCountClick(e) {
+  const from = countDownAt
+  countDownAt = null
+  if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > COUNT_DRAG_SLOP) return
+  if (!countEditing.value) {
+    beginEditCount()
+    return
+  }
+  const el = countInput.value
+  if (!el) return
+  el.focus()
+  const end = el.value.length
+  el.setSelectionRange(end, end)
+}
+
+/* 最多五位数字，不包括开头允许的- */
+function onCountInput(e) {
+  const el = e.target
+  const raw = el.value
+  const signed = raw.replace(/[^\d-]/g, '').replace(/(?!^)-/g, '')
+  const neg = signed.startsWith('-')
+  const digits = (neg ? signed.slice(1) : signed).slice(0, COUNT_MAX_DIGITS)
+  const cleaned = (neg ? '-' : '') + digits
+  countDraft.value = cleaned
+  if (cleaned === raw) return
+  const pos = el.selectionStart ?? raw.length
+  const back = Math.max(0, pos - (raw.length - cleaned.length))
+  el.value = cleaned
+  el.setSelectionRange(back, back)
+}
+
+function cancelCount() {
+  countEditing.value = false
+}
+
+function commitCount() {
+  if (!countEditing.value) return
+  countEditing.value = false
+  const n = Number.parseInt(countDraft.value.trim(), 10)
+  if (!Number.isFinite(n)) return
+  setDialTotal(n - DIAL_START)
+}
+
+function closeIndirectyWindow() {
+  resetState()
   emit('close')
 }
+
+function focusWindow() {
+  iyWinRef.value?.bringToFront()
+}
+
+const HIT_FLASH_MS = 160
+let hitTimer = 0
+function flashHit() {
+  clearTimeout(hitTimer)
+  hitOn.value = false
+  requestAnimationFrame(() => {
+    hitOn.value = true
+    hitTimer = setTimeout(() => (hitOn.value = false), HIT_FLASH_MS)
+  })
+}
+
+defineExpose({ rootEl: iyWinEl, resetState, resetWindowSpin, focusWindow, flashHit })
 
 onBeforeUnmount(() => {
   disposeDialSpin()
   disposeIconSpin()
   disposeWinSpin()
   clearTimeout(winSettleTimer)
+  clearTimeout(hitTimer)
   cancelAnimationFrame(winSettleRaf)
   stopRecall()
   clearTimeout(returnTimer)
@@ -396,6 +540,7 @@ const DIAL_PULL_SPEED = 170 // 拽回来的速度 px/s
 const DIAL_ESCAPE_EXTRA = 200
 
 const callbackEl = ref(null)
+const hitOn = ref(false)
 const callbackHidden = ref(false)
 const callbackLeaving = ref(false)
 const callbackCleared = ref(false)
@@ -570,23 +715,54 @@ function onCallbackGone() {
 </script>
 
 <style scoped>
-/* IndirectY Window —— 位置待定，先把锚点放这儿，改 top / left 即可 */
 .indirecty-window {
   position: absolute;
-  top: 23%;
-  left: 25%;
+  top: var(--iy-anchor-top, 23%);
+  left: var(--iy-anchor-left, 25%);
   /* 贴图单帧 16×16，图标位取整数倍才不糊 */
   --icon-size: 32px;
-  /* 起飞位移与旋转：都用独立属性，跟 PixelWindow 内联那条定位 transform 叠加
-     （写 transform 会把定位整条盖掉） */
-  translate: 0 var(--iy-win-fly-y, 0px);
+  translate: var(--iy-duel-x, 0px) calc(var(--iy-win-fly-y, 0px) + var(--iy-duel-y, 0px));
   rotate: y var(--iy-win-turn, 0deg);
   animation: indirecty-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: var(--iy-lift-w, 30%) !important;
+}
+
+.indirecty-window.is-frozen {
+  z-index: var(--z-duel) !important;
+  pointer-events: none;
+  overflow: visible;
+  transition: rotate 300ms ease-out;
+}
+
+.indirecty-window.is-settling {
+  transition:
+    translate 460ms cubic-bezier(0.33, 0, 0.2, 1),
+    rotate 300ms ease-out;
 }
 
 .indirecty-window.is-back :deep(.pixel-titlebar),
 .indirecty-window.is-back :deep(.pixel-window__content) {
   visibility: hidden;
+}
+
+.indirecty-window.is-hit::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  z-index: 30;
+  background: #ffffff;
+  pointer-events: none;
+  animation: indirecty-hit-flash 160ms steps(4, end) both;
+}
+
+@keyframes indirecty-hit-flash {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .indirecty-window.is-edge,
@@ -756,6 +932,32 @@ function onCallbackGone() {
 .indirecty-window :deep(.pixel-titlebar__title) {
   text-transform: none;
   font-variant-numeric: tabular-nums;
+}
+
+.iy-count {
+  cursor: text;
+  /* 点它是「进来编辑」，不是选文字 */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.iy-count-input {
+  box-sizing: border-box;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  letter-spacing: inherit;
+  background: rgb(255 255 255 / 6%);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 34%);
+  border: none;
+  border-radius: 3px;
+  padding: 0 5px;
+  caret-color: #ffffff;
+  cursor: text;
+}
+
+.iy-count-input:focus {
+  outline: none;
 }
 
 /* 内容：9 帧横排 sheet，单帧 66×66，按整数倍渲（非整数倍会把像素插值糊掉） */

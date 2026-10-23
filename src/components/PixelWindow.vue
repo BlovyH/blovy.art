@@ -16,7 +16,7 @@
         <span v-if="$slots.icon" class="pixel-titlebar__icon">
           <slot name="icon" />
         </span>
-        <span class="pixel-titlebar__title">{{ title }}</span>
+        <span class="pixel-titlebar__title"><slot name="title">{{ title }}</slot></span>
       </div>
       <div class="pixel-titlebar__controls">
         <button
@@ -565,6 +565,7 @@ function moveBy(dx, dy) {
 
 defineExpose({
   windowRef,
+  bringToFront,
   startDrag,
   moveBy,
   minimize,
