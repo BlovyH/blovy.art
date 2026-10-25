@@ -1,6 +1,7 @@
 <template>
   <Teleport to="body">
     <div
+      ref="toastRef"
       class="win-toast"
       :style="toastStyle"
       @mousedown="onMouseDown"
@@ -38,8 +39,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onBeforeUnmount } from 'vue'
 import { nextZ } from '@/stores/windowZ.js'
+import { skiMode } from '@/skiMode.js'
+import { SKI_MIN_SPEED, createVelSampler, startGlide } from '@/skiGlide.js'
 
 const props = defineProps({
   // 标题文字
@@ -93,6 +96,8 @@ defineEmits(['action'])
 // 层级走全局窗口计数器，会被 focus 规则影响
 const zIndex = ref(nextZ())
 
+const toastRef = ref(null)
+
 // 拖动状态
 const drag = reactive({
   isDragging: false,
@@ -101,6 +106,35 @@ const drag = reactive({
   offsetX: 0,
   offsetY: 0,
 })
+
+/* 溜冰场模式 */
+const velSampler = createVelSampler()
+let glideStop = null
+
+function stopGlide() {
+  glideStop?.()
+  glideStop = null
+}
+
+function startSkiGlide() {
+  if (!skiMode.value) return
+  const { vx, vy } = velSampler.take()
+  if (Math.hypot(vx, vy) < SKI_MIN_SPEED) return
+  const el = toastRef.value
+  if (!el) return
+  stopGlide()
+  glideStop = startGlide({
+    getRect: () => el.getBoundingClientRect(),
+    move: (dx, dy) => {
+      drag.offsetX += dx
+      drag.offsetY += dy
+    },
+    vx,
+    vy,
+  })
+}
+
+onBeforeUnmount(stopGlide)
 
 function bringToFront() {
   zIndex.value = nextZ()
@@ -112,6 +146,9 @@ function onMouseDown(e) {
   if (!e.target.closest('.win-toast__titlebar')) return
   if (e.target.closest('.win-toast__close') || e.target.closest('.win-toast__btn')) return
 
+  // 重新抓住就掐掉上一段滑行并清掉采样，否则两段一起推
+  stopGlide()
+  velSampler.reset()
   drag.isDragging = true
   drag.startX = e.clientX
   drag.startY = e.clientY
@@ -127,12 +164,14 @@ function onDrag(e) {
   drag.offsetY += dy
   drag.startX = e.clientX
   drag.startY = e.clientY
+  velSampler.sample(drag.offsetX, drag.offsetY)
 }
 
 function stopDrag() {
   drag.isDragging = false
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
+  startSkiGlide()
 }
 
 const normalizedButtons = computed(() =>

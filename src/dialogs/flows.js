@@ -202,6 +202,20 @@ const callbackDismissedFlow = {
   },
 }
 
+// 冒牌 SKI MODE
+export const skiImpostorFlow = {
+  start: {
+    type: 'dialog',
+    content: "GOT FOOLED AH?？<br>THE REAL ONE'S BEEN KIDNAPPED!！!!!！!AHAHAHAHAHAHA！!!！！！",
+    next: 'taunt',
+  },
+  taunt: {
+    type: 'dialog',
+    content: 'UNLESS YOU FOUND <span style="color:#00ffff">WIKI</span> AND GO JUDGE ME！!！<br>GO KILL ME！!!！!<br>AHAHAHAHAHAHAHAAHAHA！!!!!!！!!!!!！',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -216,6 +230,7 @@ export const dialogFlows = {
   sunglassesNightOff: sunglassesNightOffFlow,
   updateDismissed: updateDismissedFlow,
   callbackDismissed: callbackDismissedFlow,
+  skiImpostor: skiImpostorFlow,
 }
 
 export default dialogFlows

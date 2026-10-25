@@ -16,9 +16,22 @@
 //     the native click so `@click` handlers don't fire after repositioning.
 
 import { keepInView } from '@/keepInView.js'
+import { skiMode } from '@/skiMode.js'
+import { SKI_MIN_SPEED, createVelSampler, startGlide } from '@/skiGlide.js'
 
 const THRESHOLD = 3
 const base = new WeakMap()
+const vels = new WeakMap()
+const glides = new WeakMap()
+
+function samplerOf(el) {
+  let s = vels.get(el)
+  if (!s) {
+    s = createVelSampler()
+    vels.set(el, s)
+  }
+  return s
+}
 
 export default {
   mounted(el, binding) {
@@ -30,6 +43,10 @@ export default {
       const startX = e.clientX
       const startY = e.clientY
       const b = base.get(el) || { x: 0, y: 0 }
+      // 还在滑就被抓住：先掐掉，否则两段一起推
+      glides.get(el)?.()
+      glides.delete(el)
+      samplerOf(el).reset()
       let draggingAdded = false
 
       function onMove(ev) {
@@ -45,6 +62,7 @@ export default {
         }
         el.style.setProperty('--ddx', dx + 'px')
         el.style.setProperty('--ddy', dy + 'px')
+        samplerOf(el).sample(dx, dy)
       }
 
       function onUp(ev) {
@@ -64,6 +82,30 @@ export default {
           if (dx || dy) {
             el.style.setProperty('--ddx', next.x + dx + 'px')
             el.style.setProperty('--ddy', next.y + dy + 'px')
+          }
+          // 溜冰场模式：松手后接着滑，位置一样写回 base + CSS vars
+          if (skiMode.value) {
+            const { vx, vy } = samplerOf(el).take()
+            if (Math.hypot(vx, vy) >= SKI_MIN_SPEED) {
+              const shift = (sx, sy) => {
+                const cur = base.get(el) || { x: 0, y: 0 }
+                const nx = cur.x + sx
+                const ny = cur.y + sy
+                base.set(el, { x: nx, y: ny })
+                el.style.setProperty('--ddx', nx + 'px')
+                el.style.setProperty('--ddy', ny + 'px')
+              }
+              glides.get(el)?.()
+              glides.set(
+                el,
+                startGlide({
+                  getRect: () => el.getBoundingClientRect(),
+                  move: shift,
+                  vx,
+                  vy,
+                })
+              )
+            }
           }
           // Swallow the native click that follows a real drag so @click
           // handlers don't fire after repositioning.

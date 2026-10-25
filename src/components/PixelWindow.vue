@@ -62,6 +62,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Z, claimMaximized, nextZ, releaseMaximized } from '@/stores/windowZ.js'
 import { keepInView } from '@/keepInView.js'
+import { skiMode } from '@/skiMode.js'
+import { SKI_MIN_SPEED, createVelSampler, startGlide } from '@/skiGlide.js'
 
 const props = defineProps({
   title: {
@@ -514,6 +516,9 @@ onMounted(() => {
 })
 
 function startDrag(e) {
+  // 如果上一次滑行还没停就又被抓住，先掐掉
+  stopGlide()
+  velSampler.reset()
   if (!props.topMost) {
     bringToFront()
   }
@@ -545,6 +550,7 @@ function onManualDrag(e) {
   const dy = e.clientY - manual.startMouseY
   manual.x = manual.startX + dx
   manual.y = manual.startY + dy
+  velSampler.sample(manual.x, manual.y)
   // 与 onDrag 一致：拖拽中的位置流，供「晃动检测」之类的消费方采样。
   emit('dragmove', { x: manual.x, y: manual.y })
 }
@@ -556,6 +562,7 @@ function stopManualDrag() {
   document.removeEventListener('mouseup', stopManualDrag)
   if (wasDragging) {
     keepWindowGrabbable()
+    startSkiGlide()
     emit('dragend')
   }
 }
@@ -587,6 +594,30 @@ function moveBy(dx, dy) {
   }
 }
 
+/* 溜冰场模式：松手后接着滑，撞到视口边反弹。滑哪一种坐标由 moveBy 分流（manual / drag） */
+const velSampler = createVelSampler()
+let glideStop = null
+
+function stopGlide() {
+  glideStop?.()
+  glideStop = null
+}
+
+function startSkiGlide() {
+  if (!skiMode.value) return
+  const { vx, vy } = velSampler.take()
+  if (Math.hypot(vx, vy) < SKI_MIN_SPEED) return
+  const root = windowRef.value
+  if (!root) return
+  stopGlide()
+  glideStop = startGlide({
+    getRect: () => root.getBoundingClientRect(),
+    move: (dx, dy) => moveBy(dx, dy),
+    vx,
+    vy,
+  })
+}
+
 defineExpose({
   windowRef,
   bringToFront,
@@ -604,6 +635,7 @@ function onDrag(e) {
   const dy = e.clientY - drag.startMouseY
   drag.x = drag.startX + dx
   drag.y = drag.startY + dy
+  velSampler.sample(drag.x, drag.y)
   // 拖拽中的位置流：拖拽期间每次 mousemove 都派发，供「晃动检测」之类的消费方采样。
   emit('dragmove', { x: drag.x, y: drag.y })
 }
@@ -615,6 +647,7 @@ function stopDrag() {
   document.removeEventListener('mouseup', stopDrag)
   if (wasDragging) {
     keepWindowGrabbable()
+    startSkiGlide()
     emit('dragend')
   }
 }
@@ -695,6 +728,7 @@ function stopResize() {
 
 onBeforeUnmount(() => {
   releaseMaximized(releaseSelf)
+  stopGlide()
   stopDrag()
   stopResize()
   if (props.clickOutsideToClose) {

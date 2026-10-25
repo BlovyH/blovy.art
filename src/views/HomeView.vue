@@ -149,6 +149,49 @@
         <template #label>sunglasses</template>
       </DesktopIcon>
 
+      <DesktopIcon
+        v-if="!skiGone"
+        ref="skiIconRef"
+        class="ski-mode-icon"
+        :class="{
+          'is-ski-on': skiMode && !skiImpostor,
+          'is-ski-fake': skiImpostor,
+          'is-fleeing': skiFleeing,
+        }"
+        initial-left="70%"
+        initial-top="32%"
+        @click="onSkiIconClick"
+      >
+        <template #icon>
+          <div v-if="skiImpostor" class="ski-fake">
+            <img
+              class="desktop-icon-img ski-fake__arm"
+              :src="SKI_MODE_ICON[0]"
+              alt="ski mode"
+              draggable="false"
+              @dragstart.prevent
+            />
+            <img
+              class="desktop-icon-img ski-fake__arm ski-fake__arm--turned"
+              :src="SKI_MODE_ICON[0]"
+              alt=""
+              draggable="false"
+              @dragstart.prevent
+            />
+          </div>
+          <img
+            v-else
+            class="desktop-icon-img"
+            :class="{ 'is-ski-glow': skiMode }"
+            :src="skiMode ? SKI_MODE_ICON[1] : SKI_MODE_ICON[0]"
+            alt="ski mode"
+            draggable="false"
+            @dragstart.prevent
+          />
+        </template>
+        <template #label>{{ skiImpostor ? 'SKl M0DE' : 'SKI MODE' }}</template>
+      </DesktopIcon>
+
       <!-- Torch Desktop Icon — 点亮后隐藏而非卸载否则会丢失拉伸状态 -->
       <DesktopIcon
         v-show="!torchOn && !torchGone"
@@ -418,6 +461,8 @@ import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import DPDetailWindow from '@/components/DPDetailWindow.vue'
 import DPPreview from '@/components/DPPreview.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
+import { SKI_MODE_ICON, skiImpostor, skiMode, toggleSkiMode } from '@/skiMode.js'
+import { SKI_BOUNCE, SKI_MIN_SPEED } from '@/skiGlide.js'
 import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
@@ -502,6 +547,118 @@ function toggleSunglasses() {
   }
 }
 
+function onSkiIconClick() {
+  if (!skiImpostor) {
+    toggleSkiMode()
+    return
+  }
+  if (skiFleeing.value) return
+  if (skiMode.value) toggleSkiMode()
+  skiFleePending = true
+  dlg.start('skiImpostor')
+}
+
+// 冒牌货的逃跑：先像溜冰场里的窗口那样滑行 → 撞视口边反弹，弹够回合数就加速飞出视口消失。
+const SKI_FLEE_SPEED = 6666 // 起飞速度（px/s），斜着甩出去
+const SKI_FLEE_FRICTION = 0.9 // 每秒剩下的速度比例。正牌那档（skiGlide 的 SKI_FRICTION）太黏
+const SKI_FLEE_BOUNCES = 6 // 弹够几个回合就飞走
+const SKI_FLEE_OUT_SPEED = 2600 // 飞走段的初速（px/s）
+const SKI_FLEE_OUT_ACCEL = 4200 // 飞走段的加速度（px/s²）——越飞越快，不是匀速飘走
+const SKI_FLEE_OUT_RISE = 0.6 // 飞走方向的纵向分量（相对水平分量），永远是往画面外飞
+
+const skiGone = ref(false)
+const skiFleeing = ref(false)
+const skiIconRef = ref(null)
+let skiFleePending = false
+let skiFleeRaf = null
+let skiFleeLast = 0
+let skiFleeX = 0
+let skiFleeY = 0
+
+function startSkiFlee() {
+  const el = skiIconRef.value?.$el
+  if (!el) return
+  skiFleeing.value = true
+  skiFleeX = 0
+  skiFleeY = 0
+  skiFleeLast = performance.now()
+
+  const r = el.getBoundingClientRect()
+  const awayX = r.left + r.width / 2 < window.innerWidth / 2 ? -1 : 1
+  let vx = awayX * SKI_FLEE_SPEED * 0.8
+  let vy = SKI_FLEE_SPEED * 0.6
+  let bounces = 0
+  let flying = false
+  let flyX = 0
+  let flyY = 0
+  let flySpeed = 0
+
+  function step(now) {
+    const dt = Math.min((now - skiFleeLast) / 1000, 0.05)
+    skiFleeLast = now
+    if (flying) {
+      flySpeed += SKI_FLEE_OUT_ACCEL * dt
+      skiFleeX += flyX * flySpeed * dt
+      skiFleeY += flyY * flySpeed * dt
+    } else {
+      skiFleeX += vx * dt
+      skiFleeY += vy * dt
+      const k = Math.pow(SKI_FLEE_FRICTION, dt)
+      vx *= k
+      vy *= k
+      const b = el.getBoundingClientRect()
+      if (b.left < 0 && vx < 0) {
+        vx = -vx * SKI_BOUNCE
+        bounces++
+        skiFleeX -= b.left
+      } else if (b.right > window.innerWidth && vx > 0) {
+        vx = -vx * SKI_BOUNCE
+        bounces++
+        skiFleeX += window.innerWidth - b.right
+      }
+      if (b.top < 0 && vy < 0) {
+        vy = -vy * SKI_BOUNCE
+        bounces++
+        skiFleeY -= b.top
+      } else if (b.bottom > window.innerHeight && vy > 0) {
+        vy = -vy * SKI_BOUNCE
+        bounces++
+        skiFleeY += window.innerHeight - b.bottom
+      }
+      if (bounces >= SKI_FLEE_BOUNCES || Math.hypot(vx, vy) < SKI_MIN_SPEED) {
+        const dx = b.left + b.width / 2 < window.innerWidth / 2 ? -1 : 1
+        const len = Math.hypot(1, SKI_FLEE_OUT_RISE)
+        flyX = dx / len
+        flyY = -SKI_FLEE_OUT_RISE / len
+        flySpeed = SKI_FLEE_OUT_SPEED
+        flying = true
+      }
+    }
+    el.style.setProperty('--ski-flee-x', skiFleeX + 'px')
+    el.style.setProperty('--ski-flee-y', skiFleeY + 'px')
+
+    const out = el.getBoundingClientRect()
+    if (
+      out.bottom < 0 ||
+      out.top > window.innerHeight ||
+      out.right < 0 ||
+      out.left > window.innerWidth
+    ) {
+      skiGone.value = true
+      stopSkiFlee()
+      return
+    }
+    skiFleeRaf = requestAnimationFrame(step)
+  }
+  skiFleeRaf = requestAnimationFrame(step)
+}
+
+function stopSkiFlee() {
+  if (skiFleeRaf) cancelAnimationFrame(skiFleeRaf)
+  skiFleeRaf = null
+  skiFleeing.value = false
+}
+
 // 整段animation 跑到 100% 时触发（此时横幅已经滑回视口外）：移除 DOM，等待下次切换。
 function endToggleBanner() {
   toggleBanner.value = ''
@@ -542,6 +699,11 @@ watch(
     if (key === null && torchLeavingPending) {
       torchLeavingPending = false
       startTorchLeaving()
+    }
+    // 冒牌 SKI MODE 嘲讽完（流自关）→ 滑行弹几下再飞走。
+    if (key === null && skiFleePending) {
+      skiFleePending = false
+      startSkiFlee()
     }
   }
 )
@@ -851,6 +1013,9 @@ onMounted(async () => {
   const somethingIcon = new Image()
   somethingIcon.src = SOMETHING_ICON_SRC
 
+  // SKI MODE 两张贴图预载：切换时立刻换图，不留「点了一下要等网络」的空档
+  for (const src of SKI_MODE_ICON) new Image().src = src
+
   if (!CONTENT_DATA_URL) {
     console.warn('CONTENT_DATA_URL is empty. Please set it in src/config/data.js')
     return
@@ -877,6 +1042,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   stopTorchLeaving()
+  stopSkiFlee()
   if (socialResizeObserver) {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
@@ -1707,6 +1873,43 @@ function onTorchClick(axis) {
    会把它一起压暗，所以亮度半径比看着够的量再放大一档 */
 .desktop-icon-img.is-glow {
   filter: drop-shadow(0 0 3px #fff0b8) drop-shadow(0 0 9px #ffc23d) drop-shadow(0 0 18px rgba(255, 160, 30, 0.9));
+}
+
+.desktop-icon-img.is-ski-glow {
+  filter: drop-shadow(0 0 3px #e8fbff) drop-shadow(0 0 9px #6fd8ff) drop-shadow(0 0 18px rgba(60, 190, 255, 0.85));
+}
+
+/* ON 态文本变青色 */
+.ski-mode-icon.is-ski-on :deep(.desktop-icon__label) {
+  color: var(--color-text-cyan);
+}
+
+/* 冒牌 SKI MODE 其实是十字指针兄弟错开 45° 交叠的结果 */
+.ski-fake {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.ski-fake__arm {
+  position: absolute;
+  inset: 0;
+}
+
+.ski-fake__arm--turned {
+  transform: rotate(45deg);
+}
+
+.ski-mode-icon.is-ski-fake :deep(.desktop-icon__label) {
+  text-transform: none;
+}
+
+.desktop-icon.ski-mode-icon.is-fleeing {
+  transform: translate(
+    calc(var(--ddx, 0px) + var(--ski-flee-x, 0px)),
+    calc(var(--ddy, 0px) + var(--ski-flee-y, 0px))
+  );
+  pointer-events: none;
 }
 
 /* 全局太阳镜滤镜：固定覆盖全屏、不接指针事件，所以只是「看」起来像戴了墨镜。
