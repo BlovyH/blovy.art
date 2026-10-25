@@ -262,9 +262,10 @@
         <PixelWindow
           ref="doujinWindowRef"
           class="doujin-window-inner"
-          :show-title-bar="false"
-          width="100%"
-          :initial-z-index="Z.DP"
+  :show-title-bar="false"
+  width="100%"
+  :initial-z-index="Z.DP"
+  no-keep-in-view
           @dragend="onDoujinDragEnd"
         >
           <div
@@ -998,14 +999,20 @@ function checkDoujinOutOfViewport() {
   const headerRect = header.getBoundingClientRect()
   const outerRect = outer.getBoundingClientRect()
 
-  // 标题栏已跑到视口底部以下，用户无法操作
-  if (headerRect.top > window.innerHeight - 40) {
-    const padding = 20
-    const targetTop = Math.max(padding, window.innerHeight - outerRect.height - padding)
-    const dy = targetTop - outerRect.top
-    doujinWindowRef.value?.moveBy(0, dy)
-    dlg.start('dropped')
-  }
+  const lift =
+    headerRect.bottom + expandHeight.value > window.innerHeight ? expandHeight.value : 0
+  const expandedBottom = headerRect.bottom - lift
+
+  const below = headerRect.top > window.innerHeight - 40
+  const above = expandedBottom < 40
+  if (!below && !above) return
+
+  const padding = 20
+  const bottomTop = Math.max(padding, window.innerHeight - outerRect.height - padding)
+  const targetTop = above ? Math.min(padding + lift, bottomTop) : bottomTop
+  const dy = targetTop - outerRect.top
+  doujinWindowRef.value?.moveBy(0, dy)
+  dlg.start('dropped')
 }
 
 const detailVisible = ref(false)

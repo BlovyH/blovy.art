@@ -61,6 +61,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Z, claimMaximized, nextZ, releaseMaximized } from '@/stores/windowZ.js'
+import { keepInView } from '@/keepInView.js'
 
 const props = defineProps({
   title: {
@@ -82,6 +83,11 @@ const props = defineProps({
   },
   // 禁用移动窗口的情况
   noDrag: {
+    type: Boolean,
+    default: false,
+  },
+  // 松手时不参与拉回视口判断的特判
+  noKeepInView: {
     type: Boolean,
     default: false,
   },
@@ -549,7 +555,25 @@ function stopManualDrag() {
   document.removeEventListener('mousemove', onManualDrag)
   document.removeEventListener('mouseup', stopManualDrag)
   if (wasDragging) {
+    keepWindowGrabbable()
     emit('dragend')
+  }
+}
+
+// 松手时窗口可能整条标题栏/可拖拽区域都在视口外，要移回来
+function keepWindowGrabbable() {
+  if (props.noKeepInView) return
+  const root = windowRef.value
+  if (!root) return
+  const bar = root.querySelector('.pixel-titlebar') || root
+  const { dx, dy } = keepInView(bar.getBoundingClientRect())
+  if (!dx && !dy) return
+  if (props.resizable || manual.active) {
+    manual.x += dx
+    manual.y += dy
+  } else {
+    drag.x += dx
+    drag.y += dy
   }
 }
 
@@ -590,6 +614,7 @@ function stopDrag() {
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
   if (wasDragging) {
+    keepWindowGrabbable()
     emit('dragend')
   }
 }

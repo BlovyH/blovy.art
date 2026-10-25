@@ -15,6 +15,8 @@
 //     move past the 3px threshold — i.e. treat as a click. A real drag swallows
 //     the native click so `@click` handlers don't fire after repositioning.
 
+import { keepInView } from '@/keepInView.js'
+
 const THRESHOLD = 3
 const base = new WeakMap()
 
@@ -53,10 +55,16 @@ export default {
           Math.abs(ev.clientX - startX) > THRESHOLD ||
           Math.abs(ev.clientY - startY) > THRESHOLD
         if (moved) {
-          base.set(el, {
-            x: b.x + (ev.clientX - startX),
-            y: b.y + (ev.clientY - startY),
-          })
+          const next = { x: b.x + (ev.clientX - startX), y: b.y + (ev.clientY - startY) }
+          // 先把松手时的真实位置写上，再量rect
+          el.style.setProperty('--ddx', next.x + 'px')
+          el.style.setProperty('--ddy', next.y + 'px')
+          const { dx, dy } = keepInView(el.getBoundingClientRect())
+          base.set(el, { x: next.x + dx, y: next.y + dy })
+          if (dx || dy) {
+            el.style.setProperty('--ddx', next.x + dx + 'px')
+            el.style.setProperty('--ddy', next.y + dy + 'px')
+          }
           // Swallow the native click that follows a real drag so @click
           // handlers don't fire after repositioning.
           el.addEventListener(
