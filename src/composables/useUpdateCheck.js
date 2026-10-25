@@ -2,6 +2,7 @@
 // 只提示不自动刷新
 
 import { onBeforeUnmount, ref } from 'vue'
+import { MESBIN_ART } from '@/components/MesBin.vue'
 
 const FIRST_CHECK_MS = 30_000 // 别一进来就发请求，先把首屏让过去
 const INTERVAL_MS = 60_000
@@ -16,13 +17,12 @@ function silenced() {
 }
 
 // 通知弹出前先预加载 mesbin 贴图
-const BIN_ART = ['/assets/mesbin.png', '/assets/mesbin_open.png']
 const ART_TIMEOUT_MS = 1500 // 图拉不下来就算了
 
 function preloadBinArt() {
   return Promise.race([
     Promise.all(
-      BIN_ART.map(
+      MESBIN_ART.map(
         (src) =>
           new Promise((done) => {
             const img = new Image()

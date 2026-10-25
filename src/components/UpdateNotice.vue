@@ -7,7 +7,6 @@
         '--un-x': offset.x + 'px',
         '--un-y': offset.y + 'px',
         '--un-leave-ms': LEAVE_MS + 'ms',
-        '--un-swallow-ms': SWALLOW_MS + 'ms',
       }"
       @pointerdown="onDown"
       @click.capture="onClickCapture"
@@ -19,30 +18,19 @@
       </div>
     </div>
 
-    <div
+    <MesBin
       ref="bin"
-      class="update-bin"
-      :class="{
-        'is-visible': dragging || swallowed,
-        'is-hot': hot,
-        'is-swallowed': swallowed,
-      }"
-      :style="{ '--un-swallow-ms': SWALLOW_MS + 'ms' }"
-    >
-      <img class="update-bin__img" src="/assets/mesbin.png" alt="" draggable="false" />
-      <img
-        class="update-bin__img update-bin__img--open"
-        src="/assets/mesbin_open.png"
-        alt=""
-        draggable="false"
-      />
-      <span class="update-bin__label">DISMISS</span>
-    </div>
+      :visible="dragging || swallowed"
+      :hot="hot"
+      :swallowed="swallowed"
+      :swallow-ms="SWALLOW_MS"
+    />
   </Teleport>
 </template>
 
 <script setup>
 import { onBeforeUnmount, ref } from 'vue'
+import MesBin from '@/components/MesBin.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow'
 
 const emit = defineEmits(['later'])
@@ -60,21 +48,12 @@ const LEAVE_MS = 200
 const SWALLOW_MS = 460
 const DIALOG_DELAY_MS = 620
 const DRAG_THRESHOLD = 4
-const DROP_PAD = 12
 
 let start = null
 let moved = false
 
 function overBin(x, y) {
-  const el = bin.value
-  if (!el) return false
-  const r = el.getBoundingClientRect()
-  return (
-    x >= r.left - DROP_PAD &&
-    x <= r.right + DROP_PAD &&
-    y >= r.top - DROP_PAD &&
-    y <= r.bottom + DROP_PAD
-  )
+  return bin.value?.over(x, y) ?? false
 }
 
 function onDown(e) {
@@ -190,84 +169,10 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.update-bin {
-  --update-bin-red: #e24b4a;
-  position: fixed;
-  left: 50%;
-  bottom: 40px;
-  z-index: var(--z-update);
-  width: 88px;
-  height: 88px;
-  display: grid;
-  translate: -50% 0;
-  transform: translateY(12px);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 160ms ease, transform 160ms ease, scale 160ms ease;
-  image-rendering: pixelated;
-}
-
-.update-bin.is-visible {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
-
-.update-bin.is-hot {
-  scale: 1.15;
-}
-
-.update-bin__img {
-  grid-area: 1 / 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-/* 两张叠着放，避免拖到上面时才开始下载 open 图闪一下 */
-.update-bin__img--open {
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.update-bin.is-hot .update-bin__img--open {
-  opacity: 1;
-}
-
-.update-bin__label {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  translate: -50% 0;
-  margin-top: 6px;
-  font-size: clamp(12px, 1vw, 14px);
-  color: var(--update-bin-red);
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.update-bin.is-hot .update-bin__label {
-  opacity: 1;
-}
-
 @keyframes update-notice-in {
   from {
     opacity: 0;
     transform: translateY(-6px);
-  }
-}
-
-.update-bin.is-swallowed {
-  animation: update-bin-swallow var(--un-swallow-ms) ease-out forwards;
-}
-
-@keyframes update-bin-swallow {
-  to {
-    scale: 0.3;
-    opacity: 0;
   }
 }
 

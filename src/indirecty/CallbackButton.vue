@@ -30,36 +30,20 @@
     </div>
   </Teleport>
 
-  <Teleport to="body">
-    <div
-      ref="binEl"
-      class="callback-bin"
-      :class="{
-        'is-visible': dragging || swallowed,
-        'is-hot': hot,
-        'is-swallowed': swallowed,
-      }"
-      :style="{ '--cb-swallow-ms': SWALLOW_MS + 'ms' }"
-    >
-      <img
-        class="callback-bin__img"
-        src="/assets/mesbin.png"
-        alt=""
-        draggable="false"
-      />
-      <img
-        class="callback-bin__img callback-bin__img--open"
-        src="/assets/mesbin_open.png"
-        alt=""
-        draggable="false"
-      />
-      <span class="callback-bin__label">DISMISS</span>
-    </div>
-  </Teleport>
+  <MesBin
+    ref="binEl"
+    :visible="dragging || swallowed"
+    :hot="hot"
+    :swallowed="swallowed"
+    :swallow-ms="SWALLOW_MS"
+    :z="Z.CALLBACK_MESBIN"
+  />
 </template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import MesBin from '@/components/MesBin.vue'
+import { Z } from '@/stores/windowZ.js'
 import { createSpinControl } from '@/spinControl.js'
 
 defineProps({
@@ -84,7 +68,6 @@ const pressed = ref(false)
 const CB_DEG_PER_FRAME = 45
 // 三种行为靠位移倾向区分
 const DRAG_THRESHOLD = 4
-const DROP_PAD = 12
 const SWALLOW_MS = 460
 const CB_PRESS_MS = 110 // 一次点击的按下反馈时长
 const CB_NUDGE_MS = 220 // 没达到 qte 门槛的弹动时长
@@ -262,15 +245,7 @@ watch(gone, (v) => {
 })
 
 function overBin(x, y) {
-  const el = binEl.value
-  if (!el) return false
-  const r = el.getBoundingClientRect()
-  return (
-    x >= r.left - DROP_PAD &&
-    x <= r.right + DROP_PAD &&
-    y >= r.top - DROP_PAD &&
-    y <= r.bottom + DROP_PAD
-  )
+  return binEl.value?.over(x, y) ?? false
 }
 
 function onDown(e) {
@@ -462,79 +437,4 @@ function removeListeners() {
   }
 }
 
-.callback-bin {
-  --callback-bin-red: #e24b4a;
-  position: fixed;
-  left: 50%;
-  bottom: 40px;
-  z-index: var(--z-callback);
-  width: 88px;
-  height: 88px;
-  display: grid;
-  translate: -50% 0;
-  transform: translateY(12px);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease,
-    scale 160ms ease;
-  image-rendering: pixelated;
-}
-
-.callback-bin.is-visible {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-}
-
-.callback-bin.is-hot {
-  scale: 1.15;
-}
-
-.callback-bin__img {
-  grid-area: 1 / 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.callback-bin__img--open {
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.callback-bin.is-hot .callback-bin__img--open {
-  opacity: 1;
-}
-
-.callback-bin__label {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  translate: -50% 0;
-  margin-top: 6px;
-  font-size: clamp(12px, 1vw, 14px);
-  color: var(--callback-bin-red);
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-.callback-bin.is-hot .callback-bin__label {
-  opacity: 1;
-}
-
-.callback-bin.is-swallowed {
-  animation: callback-bin-swallow var(--cb-swallow-ms) ease-out forwards;
-}
-
-@keyframes callback-bin-swallow {
-  to {
-    scale: 0.3;
-    opacity: 0;
-  }
-}
 </style>
