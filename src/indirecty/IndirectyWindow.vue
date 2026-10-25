@@ -698,7 +698,7 @@ function endReturn() {
 function onCallbackDismissed() {
   stopRecall()
   callbackHidden.value = true
-  dlg.start('updateDismissed')
+  dlg.start('callbackDismissed')
   // 开启问号拖拽
   const stop = watch(dlg.visible, (v) => {
     if (v) return

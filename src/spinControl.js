@@ -213,12 +213,14 @@ export function createSpinControl({ frames, idleFps = 0, el, varName, onFrame, e
   function setTotal(n) {
     cancelAnimationFrame(raf)
     raf = 0
-    vel = 0
+    // 改完读数延续原本的升 / 降趋势
+    if (!locked.value) vel = 0
     dragging = false
     frameBias += n - Math.round(pos)
     pos = n
     target = n
     onFrame?.(lastIndex, n)
+    if (locked.value) ensureRaf()
   }
 
   return { locked, flying, gone, speedShown, down, move, up, start, reset, setTotal, dispose }

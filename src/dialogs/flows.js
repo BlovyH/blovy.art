@@ -184,11 +184,20 @@ const tilted3TimesFlow = {
   },
 }
 
-// 把新版本提示拖进垃圾桶
+// 把新版本提示喂给 mesbin
 const updateDismissedFlow = {
   start: {
     type: 'dialog',
     content: 'You refuse to choose.<br>Ms. Mesbin thanks you for the feeding.',
+    next: null,
+  },
+}
+
+// 把 callback 按钮喂给 mesbin
+const callbackDismissedFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You set the receiver free.<br>Ms. Mesbin thanks you for the feeding.',
     next: null,
   },
 }
@@ -206,6 +215,7 @@ export const dialogFlows = {
   sunglassesNight: sunglassesNightFlow,
   sunglassesNightOff: sunglassesNightOffFlow,
   updateDismissed: updateDismissedFlow,
+  callbackDismissed: callbackDismissedFlow,
 }
 
 export default dialogFlows
