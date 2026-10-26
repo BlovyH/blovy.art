@@ -28,7 +28,12 @@
           @mousedown.stop
           @click.stop="runBox('minimize')"
         >
-          <img :src="boxState === 'minimized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_min.png'" alt="" />
+          <img
+            :src="boxState === 'minimized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_min.png'"
+            alt=""
+            draggable="false"
+            @dragstart.prevent
+          />
         </button>
         <button
           v-if="controlFlags.maximize"
@@ -39,16 +44,23 @@
           @mousedown.stop
           @click.stop="runBox('maximize')"
         >
-          <img :src="boxState === 'maximized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_max.png'" alt="" />
+          <img
+            :src="boxState === 'maximized' ? '/assets/window_btn_restore.png' : '/assets/window_btn_max.png'"
+            alt=""
+            draggable="false"
+            @dragstart.prevent
+          />
         </button>
         <button
           v-if="controlFlags.close"
           class="pixel-control"
+          :class="{ 'is-disabled': disabledControls.close }"
+          :aria-disabled="disabledControls.close ? 'true' : null"
           aria-label="close"
           @mousedown.stop
           @click.stop="onCloseClick"
         >
-          <img src="/assets/window_btn_c.png" alt="" />
+          <img src="/assets/window_btn_c.png" alt="" draggable="false" @dragstart.prevent />
         </button>
       </div>
     </div>
@@ -496,6 +508,7 @@ function onWindowMouseLeave() {
 }
 
 function onCloseClick() {
+  if (props.disabledControls.close) return
   emit('close')
 }
 

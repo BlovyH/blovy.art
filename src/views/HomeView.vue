@@ -52,6 +52,7 @@
         :min-width="320"
         :min-height="240"
         :initial-z-index="Z.GALLERY"
+        :disabled-controls="{ close: true }"
         @dragmove="onGalleryDragMove"
         @dragend="onGalleryDragEnd"
       >
@@ -267,6 +268,7 @@
         :min-height="200"
         width="33%"
         :initial-z-index="Z.COMMENTS"
+        :disabled-controls="{ close: true }"
       >
         <div class="comments-body">
           <a
