@@ -216,6 +216,27 @@ export const skiImpostorFlow = {
   },
 }
 
+export const backyardDoorFlow = {
+  start: {
+    type: 'dialog',
+    content: "It's a door in a CAD floor plan style.<br>It leads to the Backyard. Enter it?",
+    next: 'choice',
+  },
+  choice: {
+    type: 'option',
+    options: [
+      { label: 'YES', value: 'yes' },
+      { label: 'NO', value: 'no' },
+    ],
+    next: { yes: 'yes', no: null },
+  },
+  yes: {
+    type: 'dialog',
+    content: 'You open the door.',
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -231,6 +252,7 @@ export const dialogFlows = {
   updateDismissed: updateDismissedFlow,
   callbackDismissed: callbackDismissedFlow,
   skiImpostor: skiImpostorFlow,
+  backyardDoor: backyardDoorFlow,
 }
 
 export default dialogFlows

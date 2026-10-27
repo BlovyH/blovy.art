@@ -23,6 +23,8 @@ export const Z = {
   CALLBACK_ITEM: 10016, // iy 的 callback 按钮
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
+  BACKYARD: 10030, // 后院空间
+  BACKYARD_FADE: 10031, // 进出后院的黑场过渡层
   TOAST: 20000,
   SCREENSAVER: 30000, // 屏保：压过所有东西（含 toast），任何操作立刻退出所以不吃事件
 }
