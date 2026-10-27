@@ -1,5 +1,5 @@
 <template>
-  <main class="home">
+  <main class="home" :class="{ 'is-backyard': backyardEntered }">
     <div class="desktop">
       <!-- RUN AWAY -->
       <img
@@ -450,6 +450,30 @@
       v-if="snowActive"
       @end="stopSnow"
     />
+
+    <img
+      class="backyard-door"
+      src="/assets/door.png"
+      alt="door"
+      draggable="false"
+      @dragstart.prevent
+      @click="onDoorClick"
+    />
+
+    <div v-if="backyardEntered" class="backyard-stage">
+      <div class="backyard-frame" />
+
+      <img
+        class="backyard-door backyard-door--exit"
+        src="/assets/door.png"
+        alt="door"
+        draggable="false"
+        @dragstart.prevent
+        @click="leaveBackyard"
+      />
+    </div>
+
+    <div class="backyard-fade" :class="{ 'is-on': backyardFading }" aria-hidden="true"></div>
   </main>
 </template>
 
@@ -661,6 +685,49 @@ function stopSkiFlee() {
   skiFleeing.value = false
 }
 
+const BACKYARD_FADE_MS = 600 // 每段时长，CSS 里 .backyard-fade 的 transition 要跟它一致
+const backyardFading = ref(false)
+const backyardEntered = ref(false)
+let backyardTimers = []
+
+function onDoorClick() {
+  dlg.start('backyardDoor')
+}
+
+function enterBackyard() {
+  backyardTimers.forEach(clearTimeout)
+  backyardTimers = []
+  backyardFading.value = true
+  backyardTimers.push(
+    setTimeout(() => {
+      backyardEntered.value = true
+      // 趁全黑把对话流收掉
+      dlg.reset()
+      backyardTimers.push(
+        setTimeout(() => {
+          backyardFading.value = false
+        }, BACKYARD_FADE_MS)
+      )
+    }, BACKYARD_FADE_MS)
+  )
+}
+
+function leaveBackyard() {
+  backyardTimers.forEach(clearTimeout)
+  backyardTimers = []
+  backyardFading.value = true
+  backyardTimers.push(
+    setTimeout(() => {
+      backyardEntered.value = false
+      backyardTimers.push(
+        setTimeout(() => {
+          backyardFading.value = false
+        }, BACKYARD_FADE_MS)
+      )
+    }, BACKYARD_FADE_MS)
+  )
+}
+
 // 整段animation 跑到 100% 时触发（此时横幅已经滑回视口外）：移除 DOM，等待下次切换。
 function endToggleBanner() {
   toggleBanner.value = ''
@@ -707,6 +774,8 @@ watch(
       skiFleePending = false
       startSkiFlee()
     }
+    // 后院那扇门选了 YES → 黑场切进后院。
+    if (step === 'yes' && key === 'backyardDoor') enterBackyard()
   }
 )
 
@@ -1045,6 +1114,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   stopTorchLeaving()
   stopSkiFlee()
+  backyardTimers.forEach(clearTimeout)
   if (socialResizeObserver) {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
@@ -1912,6 +1982,65 @@ function onTorchClick(axis) {
     calc(var(--ddy, 0px) + var(--ski-flee-y, 0px))
   );
   pointer-events: none;
+}
+
+/* ── 后院 ── */
+/* 两扇门共用 left，永远在同一条垂直线上 */
+.backyard-door {
+  position: fixed;
+  bottom: 0;
+  left: 30%;
+  transform: translateX(-50%);
+  cursor: pointer;
+  image-rendering: pixelated;
+  z-index: 0;
+}
+
+.home.is-backyard > *:not(.backyard-stage):not(.backyard-fade) {
+  display: none;
+}
+
+.backyard-stage {
+  --backyard-w: min(1000px, 88vw);
+  --backyard-h: min(520px, 62vh);
+  --backyard-wall: 4px;
+  --backyard-cx: 40%;
+  --backyard-top: max(84px, 10vh);
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: var(--z-backyard);
+}
+
+.backyard-frame {
+  box-sizing: border-box;
+  position: fixed;
+  top: var(--backyard-top);
+  left: var(--backyard-cx);
+  transform: translateX(-50%);
+  width: var(--backyard-w);
+  height: var(--backyard-h);
+  border: var(--backyard-wall) solid #fff;
+}
+
+.backyard-door--exit {
+  top: auto;
+  bottom: calc(100vh - var(--backyard-top));
+}
+
+/* 黑场过渡：淡入淡出共用同一条 transition，时长要跟 BACKYARD_FADE_MS 一致 */
+.backyard-fade {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 600ms linear;
+  z-index: var(--z-backyard-fade);
+}
+
+.backyard-fade.is-on {
+  opacity: 1;
 }
 
 /* 全局太阳镜滤镜：固定覆盖全屏、不接指针事件，所以只是「看」起来像戴了墨镜。
