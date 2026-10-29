@@ -1787,12 +1787,34 @@ function onTorchClick(axis) {
   background: #000000;
   padding: 16px;
   overflow: hidden;
+
+  /* 桌面下面那一条的尺寸（只有「视口矮到放不下」时才会用到，见 .desktop 下面的 media query）：
+     --dp-gap    桌面下沿到 DP 条顶边的间距
+     --dp-h      DP 折叠态整条高度 = 6px 边框×2 + 18px 内边距×2 + 标题行 51px
+                 （标题字号 clamp 到 34px，全局 line-height 1.5；窄屏会更矮，取上限最安全）
+     --dp-bottom 条底离视口底的余量，跟 footer 的 bottom:16px 对齐 */
+  --dp-gap: 40px;
+  --dp-h: 120px;
+  --dp-bottom: 16px;
+
+  --canvas-h: max(320px, calc(100vh - 16px - var(--dp-gap) - var(--dp-h) - var(--dp-bottom)));
+  /* gallery 窗的设计稿高度：写死，不跟着画布缩（跟着 % 缩 = 「缩上去」）。 */
+  --gallery-h: 544px;
+  /* 缩略图的分档上限：大视口等于设计稿尺寸（min() 不生效），窄视口才被压小。
+     档位在文件末尾的 @media 里。⚠️ 这个变量必须在这里有默认值，否则 min() 整条失效。 */
+  --gallery-thumb-cap: 180px;
 }
 
+/* 桌面画布按视口高度撑满（不然高屏上被压成上方一小块、下面一大片黑）。
+   ⚠️ 画布一变高，窗口 / 图标的百分比就重新算 —— 位置会跟着拉开（这是要的），
+   但**窗口自己的高度不能跟着 %**，否则会被竖着拉长、走形。所以窗口高度写成
+   min(设计稿百分比, 设计稿像素) —— 在 680 的基准画布上正好等于设计稿，画布再高就被像素上限卡住。
+   gallery 是例外：底边贴画布下沿（top 30% + 70%），不设像素上限 —— 一加上限，画布越高，
+   窗底离 DOUJIN 窗越远，中间就留一条越来越宽的黑缝。 */
 .desktop {
   position: relative;
   width: 100%;
-  height: 680px;
+  height: var(--canvas-h);
   margin: 0 auto;
 }
 
@@ -1878,7 +1900,12 @@ function onTorchClick(axis) {
   position: absolute;
   top: 30%;
   left: 2%;
-  height: 80%;
+  /* 两个下界一起兜：
+     · 不低于 --gallery-h（设计稿高度）→ 画布矮下来窗口不会「缩上去」；
+     · 不低于 70%（= 100% − top 30%）→ 画布高起来窗口跟着长，底边始终贴住画布下沿，
+       不会在窗底和 DOUJIN 窗之间留一条越来越宽的黑缝。
+     写成 min(…, 544px) 只会缩不会涨（高画布下留黑缝），写成 70% 又会在矮画布下缩水。 */
+  height: max(var(--gallery-h), 70%);
 }
 
 .gallery-window :deep(.pixel-window__content) {
@@ -1932,7 +1959,9 @@ function onTorchClick(axis) {
 .gallery-thumb {
   box-sizing: border-box;
   width: auto;
-  height: clamp(100px, 16vh, 180px);
+  /* 设计稿尺寸就是这个 clamp，大视口下 --gallery-thumb-cap 不生效、结果完全等于原式；
+     窄视口才由档位压小一档（只压小不放大）。别拿窗口高度去反推这个数。 */
+  height: min(clamp(100px, 16vh, 180px), var(--gallery-thumb-cap));
   object-fit: contain;
   border: 2px solid transparent;   /* 占位留白，图未加载时不显白线 */
   image-rendering: pixelated;
@@ -1941,6 +1970,20 @@ function onTorchClick(axis) {
   -webkit-user-drag: none;
   user-drag: none;
   transition: border-color 0.15s ease;
+}
+
+/* 缩略图分档：只在大视口之外生效，档位从小到大覆盖（同特异性，后写的赢）。
+   要调密度就改这几个像素值，别去动 .gallery-thumb 的 clamp。 */
+@media (max-width: 1400px) {
+  .home { --gallery-thumb-cap: 158px; }
+}
+
+@media (max-width: 1100px) {
+  .home { --gallery-thumb-cap: 134px; }
+}
+
+@media (max-width: 860px) {
+  .home { --gallery-thumb-cap: 112px; }
 }
 
 .gallery-thumb.is-tilted {
@@ -2372,9 +2415,10 @@ function onTorchClick(axis) {
 /* Comments Window */
 .comments-window {
   position: absolute;
+  /* 70% 是 680 基准上的设计稿高度（= 476px），同样加像素上限防拉长 */
   top: 50%;
   right: 2%;
-  height: 70%;
+  height: min(70%, 476px);
 }
 
 .comments-body {
@@ -2441,7 +2485,9 @@ a.note-item[href]:hover {
 /* Doujin Projects Window */
 .doujin-outer {
   position: absolute;
-  top: 106%;
+  /* 桌面下沿再往下固定一段，不用百分比：桌面高度现在跟着视口走，
+     按 % 算的话高屏上这段间距会被放大，挤压到最底下那行 */
+  top: calc(100% + var(--dp-gap));
   left: 34%;
   width: 38%;
   z-index: 100;
