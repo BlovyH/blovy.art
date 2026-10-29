@@ -1,11 +1,26 @@
+import { skiSlip } from '@/skiMode.js'
+
 /* 溜冰场模式的滑行：松手后按松手那一刻的速度继续走，撞到视口边反弹而不是滑出去。
 
    速度一律 px/s、衰减按「每秒剩多少」给 —— 按帧乘一个系数的话，高刷屏上滑行距离会短一半。
    两个调用方（PixelWindow 的两条拖动路径、v-draggable 指令）都只给「量矩形」和「挪多少」，
    位置怎么存由它们自己决定。 */
 
-// 每秒剩下的速度比例：越小停得越快（0.3 ≈ 松手后还能滑出初速的 0.8 倍距离）
-export const SKI_FRICTION = 0.3
+// 每秒剩下的速度比例：越大越滑（越小停得越快）。三个锚点对应滑条拉到最左 / 正中间 / 最右，
+// 中间那档就是原来的出厂值。两端之间分段线性插值，所以「滑条中间 = 出厂手感」这条成立。
+// 体感换算是「松手后能滑多远 ≈ 松手速度 / ln(1/该比值)」：最左 ≈ 初速/5（一松手就停），
+// 最右 ≈ 初速×50（撞墙反弹个没完）—— 想让滑条两端更极端就继续把这两头往外推。
+// 注意比值越靠近 1 收益越小（是对数关系）：0.9 → 初速×9.5，0.98 → ×50，0.998 才 → ×500。
+export const SKI_FRICTION_MIN = 0.005
+export const SKI_FRICTION_DEFAULT = 0.3
+export const SKI_FRICTION_MAX = 0.98
+
+export function skiFriction() {
+  const t = skiSlip.value
+  return t < 0.5
+    ? SKI_FRICTION_MIN + (SKI_FRICTION_DEFAULT - SKI_FRICTION_MIN) * (t / 0.5)
+    : SKI_FRICTION_DEFAULT + (SKI_FRICTION_MAX - SKI_FRICTION_DEFAULT) * ((t - 0.5) / 0.5)
+}
 // 慢到这个速度就停（px/s）
 export const SKI_MIN_SPEED = 14
 // 撞边后保留的速度比例
@@ -48,7 +63,7 @@ export function startGlide({ getRect, move, vx, vy }) {
       if (y > 0) y = -y * SKI_BOUNCE
       move(0, vh - r.bottom)
     }
-    const k = Math.pow(SKI_FRICTION, dt)
+    const k = Math.pow(skiFriction(), dt)
     x *= k
     y *= k
     if (Math.hypot(x, y) < SKI_MIN_SPEED) {

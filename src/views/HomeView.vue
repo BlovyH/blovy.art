@@ -161,6 +161,7 @@
         }"
         initial-left="70%"
         initial-top="32%"
+        @pointerdown="onSkiPointerDown"
         @click="onSkiIconClick"
       >
         <template #icon>
@@ -451,6 +452,14 @@
       @end="stopSnow"
     />
 
+    <!-- 长按 SKI MODE 图标弹出的「有多滑」滑条：固定定位，挂在图标正上方 -->
+    <SkiSlider
+      v-if="skiSliderOpen"
+      :x="skiSliderAt.x"
+      :y="skiSliderAt.y"
+      @close="skiSliderOpen = false"
+    />
+
     <img
       class="backyard-door"
       src="/assets/door.png"
@@ -495,6 +504,7 @@ import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
 import Screensaver from '@/components/Screensaver.vue'
 import SnowLayer from '@/components/SnowLayer.vue'
+import SkiSlider from '@/components/SkiSlider.vue'
 import IndirectyStage from '@/indirecty/IndirectyStage.vue'
 import { snowActive, stopSnow } from '@/snowTrigger.js'
 import { Z, nextZ } from '@/stores/windowZ.js'
@@ -573,7 +583,63 @@ function toggleSunglasses() {
   }
 }
 
+// 长按 SKI MODE 图标呼出「有多滑」的滑条：按住不动才算，中途挪动就取消 ——
+// 否则每次拖图标都会弹出来。松开那下的 click 由 skiLongPressed 拦掉，免得顺手把开关也切了。
+const SKI_LONG_PRESS_MS = 500
+const SKI_PRESS_SLOP = 4 // 按下后挪动超过这个像素就算拖动，不算长按
+
+const skiSliderOpen = ref(false)
+const skiSliderAt = ref({ x: 0, y: 0 })
+let skiPressTimer = 0
+let skiPressX = 0
+let skiPressY = 0
+let skiLongPressed = false
+
+function openSkiSlider() {
+  const el = skiIconRef.value?.$el
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  skiSliderAt.value = { x: r.left + r.width / 2, y: r.top }
+  skiSliderOpen.value = true
+}
+
+function cancelSkiPress() {
+  clearTimeout(skiPressTimer)
+  window.removeEventListener('pointermove', onSkiPressMove)
+  window.removeEventListener('pointerup', onSkiPressUp)
+}
+
+function onSkiPressMove(e) {
+  if (skiLongPressed) return
+  if (Math.hypot(e.clientX - skiPressX, e.clientY - skiPressY) > SKI_PRESS_SLOP) cancelSkiPress()
+}
+
+function onSkiPressUp() {
+  cancelSkiPress()
+}
+
+function onSkiPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) return
+  // 冒牌货不给真功能：它没有溜冰场可调
+  if (skiImpostor) return
+  skiLongPressed = false
+  skiPressX = e.clientX
+  skiPressY = e.clientY
+  clearTimeout(skiPressTimer)
+  skiPressTimer = setTimeout(() => {
+    skiLongPressed = true
+    openSkiSlider()
+  }, SKI_LONG_PRESS_MS)
+  window.addEventListener('pointermove', onSkiPressMove)
+  window.addEventListener('pointerup', onSkiPressUp)
+}
+
 function onSkiIconClick() {
+  // 刚才是长按（滑条已经弹出）：这一次 click 不算切换
+  if (skiLongPressed) {
+    skiLongPressed = false
+    return
+  }
   if (!skiImpostor) {
     toggleSkiMode()
     return
@@ -586,7 +652,7 @@ function onSkiIconClick() {
 
 // 冒牌货的逃跑：先像溜冰场里的窗口那样滑行 → 撞视口边反弹，弹够回合数就加速飞出视口消失。
 const SKI_FLEE_SPEED = 6666 // 起飞速度（px/s），斜着甩出去
-const SKI_FLEE_FRICTION = 0.9 // 每秒剩下的速度比例。正牌那档（skiGlide 的 SKI_FRICTION）太黏
+const SKI_FLEE_FRICTION = 0.9 // 每秒剩下的速度比例。正牌那档（skiGlide 的 SKI_FRICTION_DEFAULT）太黏
 const SKI_FLEE_BOUNCES = 6 // 弹够几个回合就飞走
 const SKI_FLEE_OUT_SPEED = 2600 // 飞走段的初速（px/s）
 const SKI_FLEE_OUT_ACCEL = 4200 // 飞走段的加速度（px/s²）——越飞越快，不是匀速飘走
@@ -1114,6 +1180,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   stopTorchLeaving()
   stopSkiFlee()
+  cancelSkiPress()
   backyardTimers.forEach(clearTimeout)
   if (socialResizeObserver) {
     socialResizeObserver.disconnect()
