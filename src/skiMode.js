@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 // 溜冰场模式的开关：桌面那个 SKI MODE 图标翻它，窗口 / 图标 / power-btn 的拖动都看它。
 // 存 localStorage 是为了刷新之后还是开着 —— 它是个「模式」，不是一次性彩蛋。
 const KEY = 'blovy.ski-mode'
+const SLIP_KEY = 'blovy.ski-slip'
 
 // 开关的两张贴图：路径只留这一处（模板换图与预载都用它）
 export const SKI_MODE_ICON = ['/assets/ski.png', '/assets/ski_on.png']
@@ -13,6 +14,25 @@ export const skiMode = ref(localStorage.getItem(KEY) === '1')
 // 掷一次定生死（模块级只算一遍），刷新才重掷；所以它是个偶发事件，不是一个开关。
 export const SKI_IMPOSTOR_CHANCE = 0.11
 export const skiImpostor = Math.random() < SKI_IMPOSTOR_CHANCE
+
+// 「有多滑」：0 = 一松手就停，1 = 几乎不减速。中间那一档是出厂值 ——
+// 长按 SKI MODE 图标呼出的滑条调的就是它，滑块停在正中间 = 这个值。
+export const SKI_SLIP_DEFAULT = 0.5
+
+function readSlip() {
+  const raw = localStorage.getItem(SLIP_KEY)
+  const v = Number(raw)
+  return raw !== null && Number.isFinite(v) && v >= 0 && v <= 1 ? v : SKI_SLIP_DEFAULT
+}
+
+export const skiSlip = ref(readSlip())
+
+let slipSaveTimer = 0
+watch(skiSlip, (v) => {
+  // 滑条是逐帧改它的，落盘去抖，否则一秒要写几十次
+  clearTimeout(slipSaveTimer)
+  slipSaveTimer = setTimeout(() => localStorage.setItem(SLIP_KEY, String(v)), 300)
+})
 
 watch(skiMode, (on) => {
   localStorage.setItem(KEY, on ? '1' : '0')
