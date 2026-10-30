@@ -286,6 +286,7 @@ function ensureManual() {
 // 默认矩形（位置 + 大小）在挂载后量一次，最小化、最大化之后都还原回它。
 const MAXIMIZE_MARGIN = 24 // 最大化时四周留出的边距
 const MAXIMIZE_MARGIN_TOP = 88 // 顶部单独留得更多
+const TITLE_SLACK = 4 // 最小化条多留这点余量，标题末字才不会被 ellipsis 吃掉
 const boxState = ref('normal') // 'normal' | 'minimized' | 'maximized'
 const defaultBox = reactive({ x: 0, y: 0, w: 0, h: 0 })
 let defaultBoxReady = false
@@ -339,11 +340,39 @@ function restore() {
   boxState.value = 'normal'
 }
 
+// 最小化条宽度：刚好容下标题（全文宽 + 图标 / 按钮 / 内边距），不多留。
+// 视口放不下、或窗口贴到右边时，才退回 minWidth 并让标题走 ellipsis。
+function minimizedTitleWidth() {
+  const el = windowRef.value
+  const bar = el?.querySelector('.pixel-titlebar')
+  const left = el?.querySelector('.pixel-titlebar__left')
+  const title = el?.querySelector('.pixel-titlebar__title')
+  const controls = el?.querySelector('.pixel-titlebar__controls')
+  if (!bar || !left || !title) return props.minWidth
+  const cs = getComputedStyle(bar)
+  const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+  const gap = parseFloat(cs.columnGap) || 0
+  // ⚠️ 不能用 bar.offsetWidth 反推：它含 justify-content: space-between 撑开的自由空间，
+  // 窗口越宽，「自然宽」算出来越大 → 最小化条被拉满一整行（标题旁一大片空）。
+  // 只累加真正占位的部件：标题全文 + 图标与间距 + 按钮 + 内边距。
+  const barNatural =
+    title.scrollWidth +
+    (left.offsetWidth - title.offsetWidth) +
+    (controls?.offsetWidth || 0) +
+    pad +
+    gap +
+    TITLE_SLACK
+  // 标题栏宽 ≠ 窗口宽（还有边框），差值法把这点差补齐
+  const natural = manual.w - bar.offsetWidth + barNatural
+  const room = Math.max(props.minWidth, window.innerWidth - manual.x)
+  return Math.max(props.minWidth, Math.min(natural, room, props.maxWidth))
+}
+
 function minimize() {
   if (boxState.value === 'minimized') return restore()
   if (!defaultBoxReady) captureDefaultBox()
   ensureManual()
-  manual.w = props.minWidth
+  manual.w = minimizedTitleWidth()
   manual.h = props.minHeight
   if (boxState.value === 'maximized') {
     releaseMaximized(releaseSelf)
