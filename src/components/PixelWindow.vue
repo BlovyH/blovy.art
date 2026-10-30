@@ -558,6 +558,9 @@ onMounted(() => {
 })
 
 function startDrag(e) {
+  // 掐掉浏览器默认行为（文本选择 / 原生拖拽 / 滚动链）：拖动过程中任何一次原生滚动
+  // 都会让「视觉位置」和「布局位置」错开，松手后就点不中窗口了。
+  e.preventDefault()
   // 如果上一次滑行还没停就又被抓住，先掐掉
   stopGlide()
   velSampler.reset()

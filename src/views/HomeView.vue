@@ -1786,7 +1786,12 @@ function onTorchClick(axis) {
   min-height: 100vh;
   background: #000000;
   padding: 16px;
+  /* clip 而不是 hidden：窗口被拖到画布下方时会溢出，hidden 会让这里变成「可滚动容器」
+     （实测 scrollHeight 870 → 1264）—— 一旦被滚动，整块桌面相对视口错位，
+     点窗口标题栏就落空，表现为「拖到最下面后拖不动」。clip 不建立滚动容器。
+     前一行是给不支持 clip 的浏览器的回退。 */
   overflow: hidden;
+  overflow: clip;
 
   /* 桌面下面那一条的尺寸（只有「视口矮到放不下」时才会用到，见 .desktop 下面的 media query）：
      --dp-gap    桌面下沿到 DP 条顶边的间距
