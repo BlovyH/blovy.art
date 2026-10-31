@@ -27,6 +27,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
 import { playSnow } from '@/snowTrigger.js'
 import { skiImpostor } from '@/skiMode.js'
+import { backyardEntered } from '@/backyard.js'
 
 // 每次出现一个对话框就抽一次：三成概率把提示符换成 *，点它放一次飘雪
 const STAR_CHANCE = 0.3
@@ -53,8 +54,9 @@ const launched = ref(false)
 watch(
   () => [props.visible, props.content],
   ([visible]) => {
-    // 冒牌 SKI MODE 在场时永远不会出现
-    isStar.value = visible && !skiImpostor ? Math.random() < STAR_CHANCE : false
+    // 冒牌 SKI MODE 在场时永远不会出现；后院里也不抽（飘雪层挂不到后院舞台上，点了没反应）
+    isStar.value =
+      visible && !skiImpostor && !backyardEntered.value ? Math.random() < STAR_CHANCE : false
     launched.value = false
   },
   { immediate: true },

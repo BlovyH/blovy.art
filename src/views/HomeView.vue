@@ -507,6 +507,7 @@ import SnowLayer from '@/components/SnowLayer.vue'
 import SkiSlider from '@/components/SkiSlider.vue'
 import IndirectyStage from '@/indirecty/IndirectyStage.vue'
 import { snowActive, stopSnow } from '@/snowTrigger.js'
+import { backyardEntered } from '@/backyard.js'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
@@ -753,7 +754,6 @@ function stopSkiFlee() {
 
 const BACKYARD_FADE_MS = 600 // 每段时长，CSS 里 .backyard-fade 的 transition 要跟它一致
 const backyardFading = ref(false)
-const backyardEntered = ref(false)
 let backyardTimers = []
 
 function onDoorClick() {
