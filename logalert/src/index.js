@@ -36,14 +36,14 @@ const clockFmt = new Intl.DateTimeFormat('en-GB', {
   second: '2-digit',
 })
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': '*',
-    },
-  })
+function json(data, status = 200, timing) {
+  const headers = {
+    'content-type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*',
+  }
+  // 慢在哪只能靠猜 → 各阶段耗时回给浏览器，DevTools 的响应头里直接读得到
+  if (timing) headers['server-timing'] = timing
+  return new Response(JSON.stringify(data), { status, headers })
 }
 
 function cors() {
@@ -156,8 +156,11 @@ function shiftDay(day, delta) {
 }
 
 // R2 没有「按前缀批量取内容」，只能列出 key 再逐个取，所以往返次数是主要成本：
-// 一次查询 = 每个日期一次 list + 每个对象一次 get。并发度是延迟和 R2 限速之间的折中。
-const FETCH_CONCURRENCY = 40
+// 一次查询 = 每个日期一次 list（并发）+ 每个对象一次 get（并发 FETCH_CONCURRENCY 个一批）。
+// 一批只算一次往返，所以批数 = ceil(条数 / 并发度) —— 跟天数无关，见 collect()。
+// ⚠️ 实测（10-31）：116 个对象在并发 16 与并发 100 下 objects 耗时几乎一样（都是 ~1.7s 本地 /
+// 4.1s 生产）→ R2 的 get 吞吐被限死在几十条/秒，加大并发没用，想快只能少读对象。
+const FETCH_CONCURRENCY = 100
 
 async function fetchAll(keys, fn) {
   const out = []
@@ -168,37 +171,69 @@ async function fetchAll(keys, fn) {
   return out
 }
 
-async function collect(env, days, cap) {
-  // 各日期的 list 之间没有依赖，先并发跑完（一次往返），再从最近的一天往回取内容：
-  // 凑够 cap 就停，没数据的旧日期连 get 都不用发
-  const listed = await Promise.all(
-    days.map((day) =>
-      env.BUCKET.list({ prefix: `${CONFIG.PREFIX}${day}/`, limit: Math.min(cap, 1000) })
-    )
-  )
-  const byDay = listed.map((res, i) => ({
-    truncated: res.truncated,
-    keys: res.objects.map((o) => o.key).sort().reverse(),
-  }))
+// 默认「近 30 天」= 30 次 list。桶里总共就几百个对象时，一趟全量 list 就能全拿到，
+// 于是天数不再等于往返次数。⚠️ key 是 logs/YYYY-MM-DD/… 字典序 = 日期升序，
+// 一旦 truncated（>1000 个）返回的正好是最早那批、拿不到最新的 —— 只能回退按天 list。
+async function listAllDays(env, days) {
+  const all = await env.BUCKET.list({ prefix: CONFIG.PREFIX, limit: 1000 })
+  if (all.truncated) return null
+  const idx = new Map(days.map((d, i) => [d, i]))
+  const buckets = days.map(() => [])
+  for (const o of all.objects) {
+    const i = idx.get(o.key.slice(CONFIG.PREFIX.length, CONFIG.PREFIX.length + 10))
+    if (i !== undefined) buckets[i].push(o.key)
+  }
+  return buckets
+}
 
-  const items = []
+async function collect(env, days, cap) {
+  const t0 = Date.now()
+  const keysByDay = await listAllDays(env, days)
+  const byDay = keysByDay
+    ? keysByDay.map((keys) => ({ truncated: false, keys: keys.sort().reverse() }))
+    : (
+        await Promise.all(
+          days.map((day) =>
+            env.BUCKET.list({ prefix: `${CONFIG.PREFIX}${day}/`, limit: Math.min(cap, 1000) })
+          )
+        )
+      ).map((res) => ({
+        truncated: res.truncated,
+        keys: res.objects.map((o) => o.key).sort().reverse(),
+      }))
+  const t1 = Date.now()
+
+  // ⚠️ 这里只攒 key、不发 get。以前是「每天一批、批内 await」：默认「近 30 天」就是
+  // 30 次串行往返，而每批只有几条、并发度根本用不上 —— 一次 R2 冷读几百毫秒 × 30 天
+  // 就是半分钟，正是页面卡在「载入中」那么久的来源。攒够 cap 后一次性并发取，
+  // 往返次数只跟总条数有关，跟查了多少天无关。
+  const picked = []
   let truncated = byDay.some((d) => d.truncated)
   for (let i = byDay.length - 1; i >= 0; i--) {
-    const room = cap - items.length
+    const room = cap - picked.length
     if (room <= 0) {
       truncated = true
       break
     }
-    const take = byDay[i].keys.slice(0, room)
-    if (take.length < byDay[i].keys.length) truncated = true
-    const got = await fetchAll(take, async (k) => {
-      const obj = await env.BUCKET.get(k)
-      return obj ? obj.json() : null
-    })
-    items.push(...got.filter(Boolean))
+    const take = byDay[i].keys
+    if (take.length > room) {
+      picked.push(...take.slice(0, room))
+      truncated = true
+      break
+    }
+    picked.push(...take)
   }
+  const got = await fetchAll(picked, async (k) => {
+    const obj = await env.BUCKET.get(k)
+    return obj ? obj.json() : null
+  })
+  const items = got.filter(Boolean)
   items.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))
-  return { from: days[0], to: days[days.length - 1], count: items.length, truncated, items }
+  const t2 = Date.now()
+  return {
+    data: { from: days[0], to: days[days.length - 1], count: items.length, truncated, items },
+    timing: `list;dur=${t1 - t0}, objects;dur=${t2 - t1}, keys;desc="${picked.length}"`,
+  }
 }
 
 async function list(env, url) {
@@ -211,7 +246,8 @@ async function list(env, url) {
 
   if (date) {
     if (!isDay(date)) return json({ error: 'bad date' }, 400)
-    return json(await collect(env, [date], CONFIG.LIST_MAX))
+    const r = await collect(env, [date], CONFIG.LIST_MAX)
+    return json(r.data, 200, r.timing)
   }
 
   if (!isDay(from) || !isDay(to)) return json({ error: 'bad date' }, 400)
@@ -220,7 +256,8 @@ async function list(env, url) {
   // 字符串比较对 ISO 日期有效；MAX_SPAN 同时也是循环上界
   for (let d = from; d <= to && days.length <= CONFIG.MAX_SPAN; d = shiftDay(d, 1)) days.push(d)
   if (days.length > CONFIG.MAX_SPAN) return json({ error: 'range too long' }, 400)
-  return json(await collect(env, days, CONFIG.EXPORT_MAX))
+  const r = await collect(env, days, CONFIG.EXPORT_MAX)
+  return json(r.data, 200, r.timing)
 }
 
 export default {
