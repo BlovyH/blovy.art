@@ -27,7 +27,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
 import { playSnow } from '@/snowTrigger.js'
 import { skiImpostor } from '@/skiMode.js'
-import { backyardEntered } from '@/backyard.js'
+import { backyardEntered } from '@/backyard/backyard.js'
 
 // 每次出现一个对话框就抽一次：三成概率把提示符换成 *，点它放一次飘雪
 const STAR_CHANCE = 0.3

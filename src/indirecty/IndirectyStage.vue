@@ -12,16 +12,14 @@
     :settling="settling"
     @close="onWinClose(w.key)"
   />
-  <template v-if="burstOn">
-    <div class="iy-duel-burst" :style="burstStyle" aria-hidden="true">
-      <span v-for="p in particles" :key="p.id" class="iy-duel-particle" :style="p.style">+</span>
-    </div>
-  </template>
+  <ImpactBurst :on="burstOn" :x="impactAt.x" :y="impactAt.y" :particles="particles" />
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref } from 'vue'
 import IndirectyWindow from './IndirectyWindow.vue'
+import ImpactBurst from '@/fx/ImpactBurst.vue'
+import { BURST_MS, makeImpactParticles } from '@/fx/impactFx.js'
 
 const emit = defineEmits(['close'])
 
@@ -98,23 +96,6 @@ const BUBBLE_SPACE_X = 100
 const SHAKE_MS = 300 // 对撞后的抖动
 const SHAKE_AMP = 16
 const SLAM_MS = 280 // 对撞
-/* 撞击粒子用多个+号文本生成，数量、飞散范围、落点、大小随机取，在窗口外围一定范围内做抛洒效果 */
-const PARTICLE_COUNT = 90
-const PARTICLE_GAP = 28 // 生成起点距离窗口边缘的距离
-const PARTICLE_BAND = 170
-const PARTICLE_DROP = 16
-const PARTICLE_DROP_VAR = 20
-const PARTICLE_SWAY = 46
-const PARTICLE_OP_MIN = 0.35
-const PARTICLE_SIZE_MIN = 12
-const PARTICLE_SIZE_STEP = 4
-const PARTICLE_SIZE_STEPS = 7
-const PARTICLE_DUR = 800
-const PARTICLE_DUR_VAR = 1400
-const PARTICLE_DUR_JITTER = 300 // 距离再做一次二次随机处理
-const PARTICLE_DELAY_VAR = 220 // 启动时间错开
-const BURST_MS = PARTICLE_DELAY_VAR + PARTICLE_DUR + PARTICLE_DUR_VAR + PARTICLE_DUR_JITTER
-
 const windows = ref([{ key: 0, anchor: null, side: 'left', below: false }])
 const duelling = ref(false)
 const settling = ref(false)
@@ -123,49 +104,10 @@ const bubbleLeaving = ref(false)
 const burstOn = ref(false)
 const particles = ref([])
 const impactAt = ref({ x: 0, y: 0 })
-const burstStyle = computed(() => ({ left: impactAt.value.x + 'px', top: impactAt.value.y + 'px' }))
 
+// src/fx/impactFx.js
 function spawnBurst(winRect) {
-  const cx = winRect ? winRect.left + winRect.width / 2 : window.innerWidth / 2
-  const cy = winRect ? winRect.top + winRect.height / 2 : window.innerHeight / 2
-  const bx = (winRect ? winRect.width : 0) / 2 + PARTICLE_GAP
-  const by = (winRect ? winRect.height : 0) / 2 + PARTICLE_GAP
-  const ox = impactAt.value.x
-  const oy = impactAt.value.y
-  const list = []
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    const a = Math.random() * Math.PI * 2
-    const ux = Math.cos(a)
-    const uy = Math.sin(a)
-    // 从框心沿这个方向走到框边（含 gap）的距离
-    const edge = Math.min(bx / (Math.abs(ux) || 1e-3), by / (Math.abs(uy) || 1e-3))
-    // 靠近框的地方密一点，远离框的地方疏一点
-    const out = Math.random() ** 1.6 * PARTICLE_BAND
-    const sx = cx + ux * edge * 0.99
-    const sy = cy + uy * edge * 0.99
-    const ex = cx + ux * (edge + out)
-    const ey = cy + uy * (edge + out)
-    const far = Math.min(1, out / PARTICLE_BAND)
-    // 不搞往下落了，观感好奇怪，不会调不搞了
-    list.push({
-      id: i,
-      style: {
-        '--p-x0': (sx - ox).toFixed(1) + 'px',
-        '--p-y0': (sy - oy).toFixed(1) + 'px',
-        '--p-x': (ex - ox).toFixed(1) + 'px',
-        '--p-y': (ey - oy).toFixed(1) + 'px',
-        '--p-drop': (PARTICLE_DROP + Math.random() * PARTICLE_DROP_VAR).toFixed(1) + 'px',
-        '--p-sway': ((Math.random() * 2 - 1) * PARTICLE_SWAY).toFixed(1) + 'px',
-        '--p-op': (PARTICLE_OP_MIN + Math.random() * (1 - PARTICLE_OP_MIN)).toFixed(2),
-        fontSize:
-          PARTICLE_SIZE_MIN + Math.floor(Math.random() * PARTICLE_SIZE_STEPS) * PARTICLE_SIZE_STEP + 'px',
-        animationDuration:
-          Math.round(PARTICLE_DUR + far * PARTICLE_DUR_VAR + Math.random() * PARTICLE_DUR_JITTER) + 'ms',
-        animationDelay: Math.round(Math.random() * PARTICLE_DELAY_VAR) + 'ms',
-      },
-    })
-  }
-  particles.value = list
+  particles.value = makeImpactParticles(winRect, impactAt.value)
   burstOn.value = true
   clearTimeout(burstTimer)
   burstTimer = setTimeout(clearBurst, BURST_MS)
@@ -540,39 +482,3 @@ onBeforeUnmount(() => {
 
 defineExpose({ spawnSecond })
 </script>
-
-<style scoped>
-.iy-duel-burst {
-  position: fixed;
-  z-index: var(--z-overlay);
-  pointer-events: none;
-}
-
-.iy-duel-burst > * {
-  position: absolute;
-  left: 0;
-  top: 0;
-  translate: -50% -50%;
-}
-
-.iy-duel-particle {
-  color: #ffffff;
-  line-height: 1;
-  animation: iy-duel-particle linear both;
-}
-
-@keyframes iy-duel-particle {
-  0% {
-    transform: translate(var(--p-x0), var(--p-y0)) scale(0.5);
-    opacity: var(--p-op, 1);
-    animation-timing-function: cubic-bezier(0.08, 0.82, 0.24, 1);
-  }
-  62% {
-    opacity: var(--p-op, 1);
-  }
-  100% {
-    transform: translate(calc(var(--p-x) + var(--p-sway)), calc(var(--p-y) + var(--p-drop)));
-    opacity: 0;
-  }
-}
-</style>

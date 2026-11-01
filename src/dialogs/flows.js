@@ -237,6 +237,94 @@ export const backyardDoorFlow = {
   },
 }
 
+// 后院 棋盘花圃
+export const backyardBoardFlow = {
+  start: {
+    type: 'dialog',
+    content: 'What is it?',
+    next: 'choice',
+  },
+  choice: {
+    type: 'option',
+    options: [
+      { label: 'Flowerbed', value: 'flowerbed' },
+      { label: 'Plants vs. ■■', value: 'pvx' },
+      { label: "International \"Flower\" Chess", value: 'chess' },
+    ],
+    next: { flowerbed: 'flowerbed', pvx: 'pvx', chess: 'chess' },
+  },
+  flowerbed: {
+    type: 'dialog',
+    content: 'Yeah I know it.',
+    next: null,
+  },
+  pvx: {
+    type: 'dialog',
+    content: 'I want to play too!',
+    next: null,
+  },
+  chess: {
+    type: 'dialog',
+    content: "Sorry! I'm black-and-white colorblind,<br>so I can't tell the squares apart.",
+    next: null,
+  },
+}
+
+// 刷新后提示一下以免被误以为这就是桌面页...
+export const backyardReturnFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      "Welcome back! We've teleported you here because it's where you stayed last time.<br>" +
+      'You can go back by the CAD floor plan style door at the top.',
+    // 外飘箭头的目标填的是 DOM 上的 data-pointer 值，跟 aside 一样是纯数据
+    point: 'backyard-exit-door',
+    next: null,
+  },
+}
+
+// 花圃的花全放完了
+export const flowerbedDoneFlow = {
+  start: {
+    type: 'dialog',
+    content: 'OMEDETOU!! Now every last flower has been wasted.',
+    next: null,
+  },
+}
+
+// 通关 摆到最大放置
+export const flowerbedMaxFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      'Congrats! You\'ve found a maximum placement!<br> The flowerbed seems very happy and makes a flower cake.',
+    next: null,
+  },
+}
+
+// 获得蛋糕
+export const flowerbedCakeFlow = {
+  start: {
+    type: 'dialog',
+    content: 'You got <span style="color: #00ffff">FLOWER CAKE</span>.',
+    next: null,
+  },
+}
+
+// 花全浪费完之后再次点击
+export const flowerbedAngelFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Angel... ANGEL!! I think I was FEELING angels flying up in front of me...!',
+    next: 'panic',
+  },
+  panic: {
+    type: 'dialog',
+    content: "Sxxt I haven't got my wishes prepared!!",
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   noticeSign: noticeSignFlow,
@@ -253,6 +341,12 @@ export const dialogFlows = {
   callbackDismissed: callbackDismissedFlow,
   skiImpostor: skiImpostorFlow,
   backyardDoor: backyardDoorFlow,
+  backyardBoard: backyardBoardFlow,
+  backyardReturn: backyardReturnFlow,
+  flowerbedDone: flowerbedDoneFlow,
+  flowerbedMax: flowerbedMaxFlow,
+  flowerbedAngel: flowerbedAngelFlow,
+  flowerbedCake: flowerbedCakeFlow,
 }
 
 export default dialogFlows

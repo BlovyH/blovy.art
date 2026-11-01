@@ -460,27 +460,9 @@
       @close="skiSliderOpen = false"
     />
 
-    <img
-      class="backyard-door"
-      src="/assets/door.png"
-      alt="door"
-      draggable="false"
-      @dragstart.prevent
-      @click="onDoorClick"
-    />
+    <BackyardEntrance />
 
-    <div v-if="backyardEntered" class="backyard-stage">
-      <div class="backyard-frame" />
-
-      <img
-        class="backyard-door backyard-door--exit"
-        src="/assets/door.png"
-        alt="door"
-        draggable="false"
-        @dragstart.prevent
-        @click="leaveBackyard"
-      />
-    </div>
+    <BackyardStage />
 
     <div class="backyard-fade" :class="{ 'is-on': backyardFading }" aria-hidden="true"></div>
   </main>
@@ -505,9 +487,15 @@ import TorchLayer from '@/components/TorchLayer.vue'
 import Screensaver from '@/components/Screensaver.vue'
 import SnowLayer from '@/components/SnowLayer.vue'
 import SkiSlider from '@/components/SkiSlider.vue'
+import BackyardEntrance from '@/backyard/BackyardEntrance.vue'
+import BackyardStage from '@/backyard/BackyardStage.vue'
 import IndirectyStage from '@/indirecty/IndirectyStage.vue'
 import { snowActive, stopSnow } from '@/snowTrigger.js'
-import { backyardEntered } from '@/backyard.js'
+import {
+  backyardEntered,
+  backyardFading,
+  clearBackyardTimers,
+} from '@/backyard/backyard.js'
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
@@ -752,48 +740,6 @@ function stopSkiFlee() {
   skiFleeing.value = false
 }
 
-const BACKYARD_FADE_MS = 600 // 每段时长，CSS 里 .backyard-fade 的 transition 要跟它一致
-const backyardFading = ref(false)
-let backyardTimers = []
-
-function onDoorClick() {
-  dlg.start('backyardDoor')
-}
-
-function enterBackyard() {
-  backyardTimers.forEach(clearTimeout)
-  backyardTimers = []
-  backyardFading.value = true
-  backyardTimers.push(
-    setTimeout(() => {
-      backyardEntered.value = true
-      // 趁全黑把对话流收掉
-      dlg.reset()
-      backyardTimers.push(
-        setTimeout(() => {
-          backyardFading.value = false
-        }, BACKYARD_FADE_MS)
-      )
-    }, BACKYARD_FADE_MS)
-  )
-}
-
-function leaveBackyard() {
-  backyardTimers.forEach(clearTimeout)
-  backyardTimers = []
-  backyardFading.value = true
-  backyardTimers.push(
-    setTimeout(() => {
-      backyardEntered.value = false
-      backyardTimers.push(
-        setTimeout(() => {
-          backyardFading.value = false
-        }, BACKYARD_FADE_MS)
-      )
-    }, BACKYARD_FADE_MS)
-  )
-}
-
 // 整段animation 跑到 100% 时触发（此时横幅已经滑回视口外）：移除 DOM，等待下次切换。
 function endToggleBanner() {
   toggleBanner.value = ''
@@ -840,8 +786,6 @@ watch(
       skiFleePending = false
       startSkiFlee()
     }
-    // 后院那扇门选了 YES → 黑场切进后院。
-    if (step === 'yes' && key === 'backyardDoor') enterBackyard()
   }
 )
 
@@ -1181,7 +1125,7 @@ onBeforeUnmount(() => {
   stopTorchLeaving()
   stopSkiFlee()
   cancelSkiPress()
-  backyardTimers.forEach(clearTimeout)
+  clearBackyardTimers()
   if (socialResizeObserver) {
     socialResizeObserver.disconnect()
     socialResizeObserver = null
@@ -2090,51 +2034,12 @@ function onTorchClick(axis) {
   pointer-events: none;
 }
 
-/* ── 后院 ── */
-/* 两扇门共用 left，永远在同一条垂直线上 */
-.backyard-door {
-  position: fixed;
-  bottom: 0;
-  left: 30%;
-  transform: translateX(-50%);
-  cursor: pointer;
-  image-rendering: pixelated;
-  z-index: 0;
-}
-
+/* 后院见 src/backyard/。 */
 .home.is-backyard > *:not(.backyard-stage):not(.backyard-fade) {
   display: none;
 }
 
-.backyard-stage {
-  --backyard-w: min(1000px, 88vw);
-  --backyard-h: min(520px, 62vh);
-  --backyard-wall: 4px;
-  --backyard-cx: 40%;
-  --backyard-top: max(84px, 10vh);
-  position: fixed;
-  inset: 0;
-  background: #000;
-  z-index: var(--z-backyard);
-}
-
-.backyard-frame {
-  box-sizing: border-box;
-  position: fixed;
-  top: var(--backyard-top);
-  left: var(--backyard-cx);
-  transform: translateX(-50%);
-  width: var(--backyard-w);
-  height: var(--backyard-h);
-  border: var(--backyard-wall) solid #fff;
-}
-
-.backyard-door--exit {
-  top: auto;
-  bottom: calc(100vh - var(--backyard-top));
-}
-
-/* 黑场过渡：淡入淡出共用同一条 transition，时长要跟 BACKYARD_FADE_MS 一致 */
+/* 黑场过渡：淡入淡出共用同一条 transition，时长要跟 backyard.js 的 FADE_MS 一致 */
 .backyard-fade {
   position: fixed;
   inset: 0;

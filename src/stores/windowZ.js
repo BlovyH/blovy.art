@@ -23,8 +23,10 @@ export const Z = {
   CALLBACK_ITEM: 10016, // iy 的 callback 按钮
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
-  BACKYARD: 10030, // 后院空间
-  BACKYARD_FADE: 10031, // 进出后院的黑场过渡层
+  // ⚠️ 后院必须低于 OVERLAY / BANNER：后院里的棋盘要点开对话框，而 DialogBox / OptionBox
+  // 是 Teleport 到 body 的，不受 .home.is-backyard 的隐藏规则管，只能靠层级压过后院舞台。
+  BACKYARD: 10008, // 后院空间
+  BACKYARD_FADE: 10031, // 进出后院的黑场过渡层：要连对话框一起盖住，所以远高于后院
   TOAST: 20000,
   SCREENSAVER: 30000, // 屏保：压过所有东西（含 toast），任何操作立刻退出所以不吃事件
 }
