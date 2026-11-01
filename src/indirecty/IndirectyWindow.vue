@@ -725,6 +725,8 @@ function onCallbackGone() {
   rotate: y var(--iy-win-turn, 0deg);
   animation: indirecty-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
   width: var(--iy-lift-w, 30%) !important;
+  /* TODO: 竖屏另有版式 */
+  min-width: min-content;
 }
 
 .indirecty-window.is-frozen {
