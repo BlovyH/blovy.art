@@ -6,7 +6,7 @@
       :style="{ zIndex }"
     >
       <p v-if="content" class="option-box__content" v-html="content"></p>
-      <div class="option-box__row" :class="{ 'option-box__row--split': isPair }">
+      <div class="option-box__row">
         <button
           v-for="(option, index) in options"
           :key="option.value"
@@ -56,8 +56,6 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select'])
 
 const zIndex = Z.BANNER
-// 均分只对两项成立；三项以上的排法另定
-const isPair = computed(() => props.options.length === 2)
 const selectedIndex = ref(props.modelValue)
 
 watch(() => props.modelValue, (val) => {
@@ -149,6 +147,9 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 14px;
+  /* 选项一律等宽 */
+  flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -158,11 +159,6 @@ onUnmounted(() => {
   font-size: clamp(22px, 2.2vw, 38px);
   cursor: pointer;
   transition: color 0.15s;
-}
-
-/* refactor: 宽度受内容影响，2 个选项的布局为五五开 */
-.option-box__row--split .option-box__item {
-  flex: 1;
 }
 
 .option-box__item.active {

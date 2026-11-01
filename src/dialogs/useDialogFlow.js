@@ -29,6 +29,8 @@ const isOption = computed(() => step.value?.type === 'option')
 const content = computed(() => step.value?.content ?? '')
 const options = computed(() => step.value?.options ?? [])
 const aside = computed(() => step.value?.aside ?? null)
+// 可选：外飘箭头
+const point = computed(() => step.value?.point ?? null)
 
 // 启动一串对话。
 // 默认非抢占（已有流在跑则忽略、不排队），适用于「两件不相干的事」；
@@ -81,6 +83,7 @@ export function useDialogFlow() {
     content,
     options,
     aside,
+    point,
     start,
     advance,
     select,

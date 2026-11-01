@@ -754,17 +754,8 @@ function onCallbackGone() {
   z-index: 30;
   background: #ffffff;
   pointer-events: none;
-  animation: indirecty-hit-flash 160ms steps(4, end) both;
-}
-
-@keyframes indirecty-hit-flash {
-  0%,
-  60% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+  /* shared.css fx-flash */
+  animation: fx-flash 160ms steps(4, end) both;
 }
 
 .indirecty-window.is-edge,
