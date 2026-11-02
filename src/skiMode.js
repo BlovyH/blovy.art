@@ -8,12 +8,12 @@ const SLIP_KEY = 'blovy.ski-slip'
 // 开关的两张贴图：路径只留这一处（模板换图与预载都用它）
 export const SKI_MODE_ICON = ['/assets/ski.png', '/assets/ski_on.png']
 
-export const skiMode = ref(localStorage.getItem(KEY) === '1')
-
 // 「绑架」彩蛋：桌面那个 SKI MODE 有 chance 是个冒牌货 —— 它不开溜冰场，只把正牌关掉再嘲笑你。
 // 掷一次定生死（模块级只算一遍），刷新才重掷；所以它是个偶发事件，不是一个开关。
 export const SKI_IMPOSTOR_CHANCE = 0.11
 export const skiImpostor = Math.random() < SKI_IMPOSTOR_CHANCE
+
+export const skiMode = ref(!skiImpostor && localStorage.getItem(KEY) === '1')
 
 // 「有多滑」：0 = 一松手就停，1 = 几乎不减速。中间那一档是出厂值 ——
 // 长按 SKI MODE 图标呼出的滑条调的就是它，滑块停在正中间 = 这个值。
