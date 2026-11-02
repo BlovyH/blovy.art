@@ -14,13 +14,14 @@ export const Z = {
   MAXIMIZED: 10000, // 最大化窗口独占一层：高于图标和 top-most 窗，低于全屏效果层
   DETAIL: 10001, // 点开图/项目后的详情面板：必须从最大化出来的父窗口上面浮起来
   DUEL: 10009, // iy 转转转动画期间强制置顶不然其他窗口点一下就遮住了，直到结束新窗口也会被遮住（新窗口额外加了手动置 focus 状态逻辑）
-  OVERLAY: 10010, // 太阳镜滤镜 / 火把暗幕 / DialogBox
+  OVERLAY: 10010, // 太阳镜滤镜 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
-  MENU: 10012, // 跟随点击位置的小浮层菜单
-  UPDATE: 10013, // 右上角「有新版本」提示
-  SNOW: 10014, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
-  CALLBACK_MESBIN: 10015, // mesbin，要低于拎起来的按钮
-  CALLBACK_ITEM: 10016, // iy 的 callback 按钮
+  TORCH: 10012,
+  MENU: 10013, // 跟随点击位置的小浮层菜单
+  UPDATE: 10014, // 右上角「有新版本」提示
+  SNOW: 10015, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
+  CALLBACK_MESBIN: 10016, // mesbin，要低于拎起来的按钮
+  CALLBACK_ITEM: 10017, // iy 的 callback 按钮
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
   // ⚠️ 后院必须低于 OVERLAY / BANNER：后院里的棋盘要点开对话框，而 DialogBox / OptionBox
