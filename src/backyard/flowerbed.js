@@ -6,6 +6,7 @@ import { BACKYARD_BOARD_SIZE, BACKYARD_MAX_FLOWERS, findFlowerMatch } from './bo
 const dlg = useDialogFlow()
 
 export const FLOWER_SRC = '/assets/flower_piece.png'
+new Image().src = FLOWER_SRC
 
 // 一局给几朵花
 const FLOWER_START = 24
