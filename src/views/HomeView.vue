@@ -34,13 +34,33 @@
       >
         <div class="printf-content">
           <p class="printf-line">
-            <span class="prompt">&gt;</span> printf <span class="string">"${CYAN}%s${NC}\n"</span> <span class="string">"$WELCOME"</span>
+            <span class="prompt">&gt;</span> printf <span class="string">"${CYAN}%s${NC}\n"</span>             <span class="string">"$WELCOME_<button
+              ref="langBtnRef"
+              class="lang-btn"
+              :class="{ 'is-open': langMenuOpen || langBtnHeld }"
+              type="button"
+              @click.stop="toggleLangMenu"
+            >{{ lang }}</button>"</span>
           </p>
-          <p class="welcome-text">
-            Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!
-          </p>
+          <p class="welcome-text">{{ welcomeText }}</p>
         </div>
       </PixelWindow>
+
+      <!-- 语言下拉 -->
+      <Teleport to="body">
+        <div class="lang-menu" :class="{ 'is-open': langMenuOpen }" :style="langMenuStyle">
+          <div class="lang-menu__slide">
+            <button
+              v-for="code in LANGS"
+              :key="code"
+              class="lang-menu__item"
+              type="button"
+              :disabled="!WELCOME_TEXT[code]"
+              @click="pickLang(code)"
+            >{{ code }}</button>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- Gallery Window -->
       <PixelWindow
@@ -504,6 +524,65 @@ import * as dpActions from '@/dpActions.js'
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
 // 全局单串、非抢占、无队列——当前有流在跑时再 start 会被忽略。
 const dlg = useDialogFlow()
+
+// i18n
+const LANGS = ['ZH', 'EN', 'JP']
+const WELCOME_TEXT = {
+  EN: `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`,
+}
+const lang = ref('EN')
+const welcomeText = computed(() => WELCOME_TEXT[lang.value])
+const langMenuOpen = ref(false)
+const langMenuAt = ref({ x: 0, y: 0, h: 0 })
+const langBtnRef = ref(null)
+// 收起期间按钮被不透明菜单盖住，撑到菜单隐藏后再缩回，宽度恢复才是可见的动画
+const LANG_HOLD_MS = 180
+const langBtnHeld = ref(false)
+let langHoldTimer = 0
+
+function closeLangMenu() {
+  langMenuOpen.value = false
+  langBtnHeld.value = true
+  clearTimeout(langHoldTimer)
+  langHoldTimer = setTimeout(() => {
+    langBtnHeld.value = false
+  }, LANG_HOLD_MS)
+}
+
+// 收起时列表上移，把当前语言归位到最顶部，行号和行高走 CSS 变量
+const langMenuStyle = computed(() => {
+  const shift = Math.max(0, LANGS.indexOf(lang.value))
+  return {
+    left: langMenuAt.value.x + 'px',
+    top: langMenuAt.value.y + 'px',
+    '--lang-row': langMenuAt.value.h + 'px',
+    '--lang-shift': String(shift),
+    '--lang-count': String(LANGS.length),
+    zIndex: Z.MENU,
+  }
+})
+
+function toggleLangMenu() {
+  if (langMenuOpen.value) {
+    closeLangMenu()
+    return
+  }
+  const rect = langBtnRef.value?.getBoundingClientRect()
+  if (!rect) return
+  langMenuAt.value = { x: rect.left, y: rect.top, h: rect.height }
+  langMenuOpen.value = true
+}
+
+function pickLang(code) {
+  if (WELCOME_TEXT[code]) lang.value = code
+  closeLangMenu()
+}
+
+function onLangOutside(e) {
+  if (!langMenuOpen.value) return
+  if (e.target.closest('.lang-btn') || e.target.closest('.lang-menu')) return
+  closeLangMenu()
+}
 
 const sunglassesOn = ref(false)
 
@@ -1088,6 +1167,7 @@ function onContentVisibility() {
 }
 
 onMounted(async () => {
+  window.addEventListener('pointerdown', onLangOutside)
   preloadToggleBanners()
 
   // SOMETHING 图标预载
@@ -1121,6 +1201,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onLangOutside)
   window.removeEventListener('resize', onWindowResize)
   stopTorchLeaving()
   stopSkiFlee()
@@ -1838,6 +1919,110 @@ function onTorchClick(axis) {
   color: #00ffff;
   font-size: clamp(12px, 1.1vw, 17px);
   line-height: 1.6;
+}
+
+@property --lang-breathe {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #ffffff;
+}
+
+.lang-btn {
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  line-height: 1.5;
+  color: var(--lang-breathe, #ffffff);
+  vertical-align: baseline;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px transparent;
+  animation: lang-btn-breathe 3.2s ease-in-out 5;
+  transition: padding 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+    box-shadow 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+    color 0.18s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes lang-btn-breathe {
+  0%, 100% {
+    --lang-breathe: #ffffff;
+  }
+
+  50% {
+    --lang-breathe: #00ffff;
+  }
+}
+
+/* hover 暂停呼吸，进度和回合计数一起冻结 */
+.lang-btn:hover,
+.lang-btn.is-open {
+  padding: 0 6px;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: #ffffff;
+  animation-play-state: paused;
+}
+
+.lang-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  height: var(--lang-row, 0px);
+  overflow: hidden;
+  background: var(--color-bg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  border-radius: 6px;
+  user-select: none;
+  visibility: hidden;
+  pointer-events: none;
+  /* 收起时等收缩动画播完再隐藏，打开时不等待 */
+  transition: height 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s linear 0.18s;
+}
+
+.lang-menu.is-open {
+  height: calc(var(--lang-row, 0px) * var(--lang-count, 3));
+  visibility: visible;
+  pointer-events: auto;
+  transition: height 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+    visibility 0s;
+}
+
+.lang-menu__slide {
+  display: flex;
+  flex-direction: column;
+  /* 收起时上移当前语言所在的行数，当前行落到框顶 */
+  translate: 0 calc(var(--lang-row, 0px) * var(--lang-shift, 1) * -1);
+  transition: translate 0.18s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.lang-menu.is-open .lang-menu__slide {
+  translate: 0 0;
+}
+
+.lang-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: clamp(14px, 1.3vw, 20px);
+  line-height: 1.5;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lang-menu__item:hover:not(:disabled) {
+  background: var(--color-border);
+  color: var(--color-bg);
+}
+
+.lang-menu__item:disabled {
+  color: var(--color-text-dim);
+  cursor: default;
 }
 
 /* Gallery Window */
