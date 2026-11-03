@@ -1,7 +1,7 @@
 // 花圃编辑模式 状态放模块单例，花槽、棋盘、舞台三处都要用
 import { computed, ref } from 'vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
-import { BACKYARD_BOARD_SIZE, BACKYARD_MAX_FLOWERS, findFlowerMatch } from './boardGrid.js'
+import { BACKYARD_BOARD_SIZE, BACKYARD_MAX_FLOWERS, findFlowerMatch, isFlowerbedSaturated } from './boardGrid.js'
 
 const dlg = useDialogFlow()
 
@@ -42,7 +42,7 @@ function tagLastUndo(mergeId) {
 }
 
 export function undoFlower() {
-  if (flowerbedWon.value) return // 通关之后棋盘冻结，撤回也跟着锁
+  if (flowerbedWon.value || flowerbedLocked.value) return // 结局之后棋盘冻结，撤回跟着锁
   const snap = undoStack.value.at(-1)
   if (!snap) return
   undoStack.value = undoStack.value.slice(0, -1)
@@ -80,6 +80,13 @@ function outOfFlowers() {
 export const flowerbedSpent = ref(false)
 
 export const flowerbedWon = ref(false)
+
+// 次级彩蛋与吞花演出的状态
+export const puddingConfirmed = ref(false)
+export const flowerbedLocked = ref(false)
+export const swallowing = ref(false)
+export const PUDDING_SWALLOW_MS = 1000
+let puddingTimer = 0
 
 function announceMax() {
   if (flowerbedWon.value || flowers.value.length < BACKYARD_MAX_FLOWERS) return
@@ -176,6 +183,33 @@ export function takeCake() {
   dlg.start('flowerbedCake', { preempt: true })
 }
 
+// 放到 19 朵且棋盘饱和时触发
+function announcePudding() {
+  if (flowerbedWon.value || flowerbedLocked.value) return
+  if (flowers.value.length !== BACKYARD_MAX_FLOWERS - 1) return
+  if (!isFlowerbedSaturated(new Set(flowers.value))) return
+  dlg.start('flowerbedPudding', { preempt: true })
+}
+
+// 选 YES 进入布丁结局，当场锁交互并退出编辑模式
+export function confirmPudding() {
+  if (flowerbedLocked.value) return
+  puddingConfirmed.value = true
+  flowerbedLocked.value = true
+  endFlowerEdit()
+}
+
+// 吞花演出结束后清空棋盘并收尾
+export function startPuddingSequence() {
+  if (!puddingConfirmed.value || swallowing.value) return
+  swallowing.value = true
+  puddingTimer = setTimeout(() => {
+    swallowing.value = false
+    flowers.value = []
+    dlg.start('flowerbedSwallowed', { preempt: true })
+  }, PUDDING_SWALLOW_MS)
+}
+
 const BOARD_FLOW_KEY = 'blovy.backyardBoardFlow'
 
 function readBoardFlowSeen() {
@@ -210,12 +244,17 @@ export function resetFlowerbed() {
   mergeTimers.clear()
   clearTimeout(cakeTimer)
   cakeTimer = 0
+  clearTimeout(puddingTimer)
+  puddingTimer = 0
   cakePhase.value = 'idle'
   cakeBloom.value = []
   cakeAt.value = null
   flowerbedSpent.value = false
   flowerbedWon.value = false
   cakeTaken.value = false
+  puddingConfirmed.value = false
+  flowerbedLocked.value = false
+  swallowing.value = false
   undoStack.value = []
   flowerbedEditing.value = false
   flowersLeft.value = FLOWER_START
@@ -235,6 +274,7 @@ function settle(index, from) {
   const trio = findFlowerMatch(new Set(flowers.value), index)
   if (!trio) {
     announceMax()
+    announcePudding()
     return false
   }
 
@@ -249,7 +289,7 @@ function settle(index, from) {
 export function startFlowerDrag(x, y, from = null) {
   // 演出期间不锁放置
   if (!flowerbedEditing.value) return
-  if (flowerbedWon.value) return
+  if (flowerbedWon.value || flowerbedLocked.value) return
   if (from === null) {
     if (flowersLeft.value <= 0) return
   } else {

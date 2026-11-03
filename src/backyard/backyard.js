@@ -49,6 +49,8 @@ const BACKYARD_FLOWS = new Set([
   'flowerbedMax',
   'flowerbedAngel',
   'flowerbedCake',
+  'flowerbedPudding',
+  'flowerbedSwallowed',
 ])
 
 let timers = []
