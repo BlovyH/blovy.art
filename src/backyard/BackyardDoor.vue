@@ -36,9 +36,8 @@ const isExit = computed(() => props.variant === 'exit')
   z-index: 0;
 }
 
-/* 出口开在上墙外缘：从上面进来就该从上边出去。--backyard-top 由 .backyard-stage 提供 */
 .backyard-door--exit {
   top: auto;
-  bottom: calc(100vh - var(--backyard-top));
+  bottom: calc(100vh - var(--backyard-top) - 4px);
 }
 </style>
