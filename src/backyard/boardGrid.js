@@ -47,6 +47,18 @@ export function findFlowerMatch(filled, index, size = BACKYARD_BOARD_SIZE) {
   return null
 }
 
+// 棋盘是否已经放不下任何一朵
+export function isFlowerbedSaturated(filled) {
+  const total = BACKYARD_BOARD_SIZE * BACKYARD_BOARD_SIZE
+  for (let i = 0; i < total; i++) {
+    if (filled.has(i)) continue
+    const probe = new Set(filled)
+    probe.add(i)
+    if (!findFlowerMatch(probe, i)) return false
+  }
+  return true
+}
+
 export const backyardBoardDots = Array.from(
   { length: (BACKYARD_BOARD_SIZE - 1) * (BACKYARD_BOARD_SIZE - 1) },
   (_, i) => ({

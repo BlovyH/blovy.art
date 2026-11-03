@@ -42,13 +42,16 @@ import {
   draggingFlower,
   flowerbedEditing,
   flowerbedSpent,
+  confirmPudding,
+  flowerbedLocked,
   startCakeSequence,
+  startPuddingSequence,
 } from './flowerbed.js'
 
 const dlg = useDialogFlow()
 
 function onBoardClick() {
-  if (cakeTaken.value) return
+  if (cakeTaken.value || flowerbedLocked.value) return
   if (flowerbedSpent.value) dlg.start('flowerbedAngel')
   else if (boardFlowSeen.value) beginFlowerEdit()
   else dlg.start('backyardBoard')
@@ -91,10 +94,12 @@ onMounted(() => {
 
 let lastFlowKey = dlg.activeKey.value
 watch(
-  () => dlg.activeKey.value,
-  (key) => {
+  () => [dlg.activeKey.value, dlg.currentStep.value],
+  ([key, step]) => {
+    if (key === 'flowerbedPudding' && step === 'pudding') confirmPudding()
     if (lastFlowKey === 'backyardBoard' && key === null) beginFlowerEdit()
     else if (lastFlowKey === 'flowerbedMax' && key === null) startCakeSequence()
+    else if (lastFlowKey === 'flowerbedPudding' && key === null) startPuddingSequence()
     lastFlowKey = key
   }
 )
@@ -142,6 +147,9 @@ watch(
   --cake-pop-ms: 420ms; /* 蛋糕弹出来那一下的时长 */
   --cake-w: 2.2; /* 蛋糕椭圆（单位 = 一格） */
   --cake-h: 1.3;
+  /* --swallow-ms 与逐格错开的总时长要小于 PUDDING_SWALLOW_MS */
+  --swallow-ms: 520ms;
+  --swallow-stagger: 45ms;
   /* 外框与格线同粗。取偶数：格线由两个格子各出一半，奇数会算出半像素 */
   --backyard-board-border: 4px;
   /* --backyard-board-half-line: calc(var(--backyard-board-border) / 2); */

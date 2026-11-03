@@ -16,7 +16,8 @@
       <img
         v-if="flowers.includes(i)"
         class="backyard-board__flower"
-        :class="{ 'is-dark': cell.light }"
+        :class="{ 'is-dark': cell.light, 'is-swallowed': swallowing }"
+        :style="swallowStyle(i)"
         :src="FLOWER_SRC"
         alt=""
         draggable="false"
@@ -91,6 +92,7 @@ import {
   flowerbedEditing,
   merging,
   startFlowerDrag,
+  swallowing,
   takeCake,
 } from './flowerbed.js'
 
@@ -151,6 +153,13 @@ function cakeCenterStyle(lag = 0) {
     '--lag': lag,
     left: `${((at.ac + 0.5) * 100) / BACKYARD_BOARD_SIZE}%`,
     top: `${((at.ar + 0.5) * 100) / BACKYARD_BOARD_SIZE}%`,
+  }
+}
+
+function swallowStyle(i) {
+  if (!swallowing.value) return null
+  return {
+    '--swallow-step': (i % BACKYARD_BOARD_SIZE) + Math.floor(i / BACKYARD_BOARD_SIZE),
   }
 }
 
@@ -228,6 +237,25 @@ function cakeFlowerStyle(f) {
 
 .backyard-stage.is-editing .backyard-board__flower {
   cursor: move;
+}
+
+/* 被花圃吞掉，逐格错开下沉缩小 */
+.backyard-board__flower.is-swallowed {
+  animation: flower-swallowed var(--swallow-ms, 520ms) ease-in both;
+  animation-delay: calc(var(--swallow-step, 0) * var(--swallow-stagger, 45ms));
+}
+
+@keyframes flower-swallowed {
+  from {
+    scale: 1;
+    translate: 0 0;
+    opacity: 1;
+  }
+  to {
+    scale: 0;
+    translate: 0 45%;
+    opacity: 0;
+  }
 }
 
 /* 演出容器 */

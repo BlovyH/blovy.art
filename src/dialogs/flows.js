@@ -311,6 +311,37 @@ export const flowerbedCakeFlow = {
   },
 }
 
+// 19
+export const flowerbedPuddingFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Brilliant! Confirmed with this answer?',
+    next: 'choice',
+  },
+  choice: {
+    type: 'option',
+    options: [
+      { label: 'YES', value: 'yes' },
+      { label: 'NO', value: 'no' },
+    ],
+    next: { yes: 'pudding', no: null },
+  },
+  pudding: {
+    type: 'dialog',
+    content: 'You got <span style="color: #00ffff">FLOWER PUDDING</span>.',
+    next: null,
+  },
+}
+
+// 剩下的花被花圃吞掉
+export const flowerbedSwallowedFlow = {
+  start: {
+    type: 'dialog',
+    content: 'The rest were swallowed.',
+    next: null,
+  },
+}
+
 // 花全浪费完之后再次点击
 export const flowerbedAngelFlow = {
   start: {
@@ -347,6 +378,8 @@ export const dialogFlows = {
   flowerbedMax: flowerbedMaxFlow,
   flowerbedAngel: flowerbedAngelFlow,
   flowerbedCake: flowerbedCakeFlow,
+  flowerbedPudding: flowerbedPuddingFlow,
+  flowerbedSwallowed: flowerbedSwallowedFlow,
 }
 
 export default dialogFlows
