@@ -463,7 +463,7 @@
       />
     </Transition>
 
-    <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :intensity="0.9" />
+    <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :stretch-y="torchVariant === 'tallch' ? TALLCH_STRETCH : 1" :intensity="0.9" />
 
     <Screensaver />
 
@@ -830,6 +830,8 @@ function endToggleBanner() {
 const torchOn = ref(false)
 // 当前点亮的是 torch 还是 tallch —— 决定熄灭对话里的名词。
 const torchVariant = ref('torch')
+// tallch 点亮时光晕纵向拉长的倍率
+const TALLCH_STRETCH = 2.2
 // 离场态：熄灭对话播完后图标缓慢左移，直到完全移出视口。
 const torchLeaving = ref(false)
 const torchGone = ref(false)

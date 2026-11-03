@@ -18,7 +18,8 @@ const props = defineProps({
   // 预备态：挂监听、只记录光标坐标，不重绘、不显示光晕。
   armed:     { type: Boolean, default: false },
   mode:      { type: String,  default: 'spot' },        // glow | spot | dark
-  radius:    { type: Number,  default: 110 },            // 光晕半径(px)
+  radius:    { type: Number,  default: 110 },            // 光晕横向半径(px)
+  stretchY:  { type: Number,  default: 1 },              // 纵向拉伸倍率，1 为正圆，大于 1 变长椭圆
   color:     { type: String,  default: '255,244,214' }, // 暖光 RGB 分量（不含 alpha）
   intensity: { type: Number,  default: 0.8 },           // 圆心不透明度（spot/glow/dark 共用，调强）
   falloff:   { type: Number,  default: 0.4 },           // glow 中段不透明度（仅 glow 模式用）
@@ -34,21 +35,26 @@ let listening = false
 
 const HOT = '255,250,238' // spot 热核近白色，制造“强烈”的中心高光
 
+const shape = computed(() =>
+  props.stretchY === 1
+    ? `circle ${props.radius}px`
+    : `ellipse ${props.radius}px ${Math.round(props.radius * props.stretchY)}px`
+)
+
 // 光晕渐变（glow / spot 共用）
 const glowBg = computed(() => {
-  const r = props.radius
   const c = props.color
   const I = props.intensity
   if (props.mode === 'glow') {
     // 柔光：比 spot 宽、更柔，但收窄长尾避免“朦胧”
-    return `radial-gradient(circle ${r}px at var(--mx) var(--my), ` +
+    return `radial-gradient(${shape.value} at var(--mx) var(--my), ` +
       `rgba(${HOT}, ${I}) 0%, ` +
       `rgba(${c}, ${(I * 0.5).toFixed(3)}) 30%, ` +
       `rgba(${c}, ${(I * 0.16).toFixed(3)}) 52%, ` +
       `transparent 66%)`
   }
   // spot（默认折中）：近白热核 + 快速收紧过渡，明显强于柔光、无环、不朦胧
-  return `radial-gradient(circle ${r}px at var(--mx) var(--my), ` +
+  return `radial-gradient(${shape.value} at var(--mx) var(--my), ` +
     `rgba(${HOT}, ${I}) 0%, ` +
     `rgba(${c}, ${(I * 0.72).toFixed(3)}) 18%, ` +
     `rgba(${c}, ${(I * 0.28).toFixed(3)}) 38%, ` +
@@ -63,10 +69,9 @@ const glowBg = computed(() => {
 //               把它往后推 = 亮区更大，往前收 = 亮区更小（配合 radius 一起调）
 //   60%         外圈暗幕：近不透明深暗色，盖住光晕外的页面，只留中心一圈可见
 const darkBg = computed(() => {
-  const r = props.radius
   const c = props.color
   const I = props.intensity
-  return `radial-gradient(circle ${r}px at var(--mx) var(--my), ` +
+  return `radial-gradient(${shape.value} at var(--mx) var(--my), ` +
     `rgba(${HOT}, ${I}) 0%, ` +
     `rgba(${c}, ${(I * 0.65).toFixed(3)}) 35%, ` +
     `rgba(6,6,10,0.86) 60%)`
