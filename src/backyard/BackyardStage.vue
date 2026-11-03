@@ -2,9 +2,12 @@
   <!-- 后院框 -->
   <div v-if="backyardEntered" class="backyard-stage" :class="{ 'is-editing': flowerbedEditing }">
     <div class="backyard-frame">
+      <span v-if="flowerbedEditing" class="backyard-board-hint">Find a maximum placement</span>
       <BackyardBoard @click="onBoardClick" />
       <FlowerTray />
     </div>
+
+    <span class="backyard-wall-notch" aria-hidden="true" />
 
     <BackyardDoor variant="exit" @click="leaveBackyard" />
 
@@ -182,5 +185,30 @@ watch(
   width: var(--backyard-w);
   height: var(--backyard-h);
   border: var(--backyard-wall) solid #fff;
+}
+
+.backyard-board-hint {
+  position: absolute;
+  right: var(--backyard-board-inset);
+  bottom: calc(var(--backyard-board-inset) + var(--backyard-board-size) + 8px);
+  width: var(--backyard-board-size);
+  color: #fff;
+  font-family: var(--font-pixel);
+  font-size: clamp(16px, 1.4vw, 23px);
+  font-style: italic;
+  scale: 1 0.85;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* 把门底下那段墙线变成黑色 */
+.backyard-wall-notch {
+  position: fixed;
+  top: var(--backyard-top);
+  left: calc(30% - 42px);
+  width: 66px;
+  height: var(--backyard-wall);
+  background: #000;
+  pointer-events: none;
 }
 </style>
