@@ -39,7 +39,7 @@
           '--deghost-frame': `url(${BUBBLE_FRAME})`,
           '--deghost-flip-ms': `${DEGHOST_FLIP_MS}ms`,
         }"
-        :key="bubbleText"
+        :key="bubbleText + ':' + bubbleEpoch"
       >
         {{ bubbleText }}
         <img
@@ -113,6 +113,8 @@ const logoEl = ref(null)
 const imgEl = ref(null)
 const bubbleEl = ref(null)
 const bubbleText = ref('')
+// 唤醒自恢复计数，见 healAfterWake
+const bubbleEpoch = ref(0)
 const bubbleBelow = ref(false)
 const bubbleFading = ref(false) // 换边途中：先把气泡收掉，收完才真正换边
 
@@ -384,6 +386,29 @@ function onActivity() {
 
 const EVENTS = ['mousemove', 'mousedown', 'wheel', 'keydown', 'touchstart']
 
+// 唤醒自恢复 睡眠后 GPU 重建合成层，气泡的 mask + border-image 概率性重栅格化失败
+// 页面重新可见时强制整层重画，气泡正在说话就重挂一遍
+function healAfterWake() {
+  if (!active.value) return
+  const el = logoEl.value
+  if (el) {
+    el.style.visibility = 'hidden'
+    requestAnimationFrame(() => {
+      el.style.visibility = ''
+    })
+  }
+  if (!bubbleText.value) return
+  bubbleEpoch.value += 1
+  nextTick(() => {
+    bubbleW = bubbleEl.value?.offsetWidth || bubbleW
+    updateBubble()
+  })
+}
+
+function onVisibility() {
+  if (document.visibilityState === 'visible') healAfterWake()
+}
+
 onMounted(() => {
   // 图挂在 v-if 里，不预载的话它第一次出现才开始下载，量尺寸时还没高度
   new Image().src = LOGO
@@ -391,6 +416,9 @@ onMounted(() => {
     window.addEventListener(type, onActivity, { passive: true })
   }
   window.addEventListener('resize', clampToViewport)
+  document.addEventListener('visibilitychange', onVisibility)
+  document.addEventListener('resume', healAfterWake)
+  window.addEventListener('pageshow', healAfterWake)
   arm()
 })
 
@@ -399,6 +427,9 @@ onBeforeUnmount(() => {
     window.removeEventListener(type, onActivity, { passive: true })
   }
   window.removeEventListener('resize', clampToViewport)
+  document.removeEventListener('visibilitychange', onVisibility)
+  document.removeEventListener('resume', healAfterWake)
+  window.removeEventListener('pageshow', healAfterWake)
   clearTimeout(idleTimer)
   clearTimeout(cornerTimer)
   clearTimeout(spawnTimer)
