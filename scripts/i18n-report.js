@@ -30,7 +30,8 @@ for (const [flowKey, flow] of Object.entries(dialogFlows)) {
   }
 }
 
-// node scripts/i18n-report.js 关键词 - 按台词原文或 key 片段反查 key
+// node scripts/i18n-report.js [关键词]
+// 不带关键词 - 覆盖报告；带关键词 - 按基准文本或 key 片段反查 key
 const query = process.argv[2]
 if (query) {
   const q = query.toLowerCase()
@@ -38,11 +39,12 @@ if (query) {
   if (!hits.length) {
     console.log(`no match: ${query}`)
   } else {
-    for (const k of hits) console.log(`${k}  -  ${EN_TEXT[k].replace(/\s+/g, ' ').slice(0, 60)}`)
+    for (const k of hits) console.log(`${k}  -  ${EN_TEXT[k].replace(/\s+/g, ' ')}`)
   }
   process.exit(0)
 }
 
+console.log('用法 - node scripts/i18n-report.js [关键词]   反查示例 - node scripts/i18n-report.js wish')
 for (const [name, table] of Object.entries(LOCALES)) {
   const done = allKeys.filter((k) => typeof table?.[k] === 'string' && table[k].trim() !== '')
   const dead = Object.keys(table ?? {}).filter((k) => !allKeys.includes(k))

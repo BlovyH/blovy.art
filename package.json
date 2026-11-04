@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "subset-fonts": "node scripts/subset-fonts.js",
     "assets:build": "node scripts/build-gallery-assets.mjs",
-    "tree": "node .workbuddy/dialog-tree.mjs"
+    "tree": "node .workbuddy/dialog-tree.mjs",
+    "i18n": "node scripts/i18n-report.js",
+    "help": "node scripts/help.js"
   },
   "dependencies": {
     "pinia": "^2.3.0",
