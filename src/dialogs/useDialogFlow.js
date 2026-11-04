@@ -11,6 +11,7 @@
 //   dlg.select(value)                // 选项步选择（Runner 在 OptionBox @select 上绑）
 import { ref, computed } from 'vue'
 import { dialogFlows } from './flows.js'
+import { t } from '@/i18n.js'
 
 // ── 模块级单例 state（关键：全局只有一份）──
 const activeKey = ref(null)        // 当前在跑的流 key（null = 空闲）
@@ -26,8 +27,19 @@ const step = computed(() =>
 const visible = computed(() => !!step.value)
 const isDialog = computed(() => step.value?.type === 'dialog')
 const isOption = computed(() => step.value?.type === 'option')
-const content = computed(() => step.value?.content ?? '')
-const options = computed(() => step.value?.options ?? [])
+// 文案出口走 i18n 覆盖表，EN 兜底
+const baseKey = () => (activeKey.value && currentStep.value ? `${activeKey.value}.${currentStep.value}` : null)
+const content = computed(() => {
+  const s = step.value
+  if (!s) return ''
+  return t(`${baseKey()}.content`, s.content ?? '')
+})
+const options = computed(() =>
+  (step.value?.options ?? []).map((o) => ({
+    ...o,
+    label: t(`${baseKey()}.options.${o.value}.label`, o.label),
+  })),
+)
 const aside = computed(() => step.value?.aside ?? null)
 // 可选：外飘箭头
 const point = computed(() => step.value?.point ?? null)

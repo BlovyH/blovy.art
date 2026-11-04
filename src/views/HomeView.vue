@@ -55,7 +55,7 @@
               :key="code"
               class="lang-menu__item"
               type="button"
-              :disabled="!WELCOME_TEXT[code]"
+              :disabled="!isLangEnabled(code)"
               @click="pickLang(code)"
             >{{ code }}</button>
           </div>
@@ -495,6 +495,7 @@ import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
 import ContextMenu from '@/components/ContextMenu.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
+import { lang, ENABLED_LANGS, t } from '@/i18n.js'
 import DPDetailWindow from '@/components/DPDetailWindow.vue'
 import DPPreview from '@/components/DPPreview.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
@@ -527,11 +528,10 @@ const dlg = useDialogFlow()
 
 // i18n
 const LANGS = ['ZH', 'EN', 'JP']
-const WELCOME_TEXT = {
-  EN: `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`,
-}
-const lang = ref('EN')
-const welcomeText = computed(() => WELCOME_TEXT[lang.value])
+const WELCOME_EN = `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`
+// dev 全开方便调翻译，缺词条回退 EN；生产只放开 ENABLED_LANGS
+const isLangEnabled = (code) => import.meta.env.DEV || ENABLED_LANGS.includes(code)
+const welcomeText = computed(() => t('home.welcome', WELCOME_EN))
 const langMenuOpen = ref(false)
 const langMenuAt = ref({ x: 0, y: 0, h: 0 })
 const langBtnRef = ref(null)
@@ -574,7 +574,7 @@ function toggleLangMenu() {
 }
 
 function pickLang(code) {
-  if (WELCOME_TEXT[code]) lang.value = code
+  if (isLangEnabled(code)) lang.value = code
   closeLangMenu()
 }
 
