@@ -98,3 +98,30 @@
     opacity: 0;
   }
 }
+
+/* censorGag quake 挂在 html 上防止露白 */
+.is-quake {
+  animation: quake-shake 0.2s steps(1, end) 2;
+}
+
+@keyframes quake-shake {
+  0% {
+    translate: 0 0;
+  }
+
+  20% {
+    translate: -14px 6px;
+  }
+
+  40% {
+    translate: 14px -6px;
+  }
+
+  60% {
+    translate: -11px -7px;
+  }
+
+  80% {
+    translate: 11px 7px;
+  }
+}

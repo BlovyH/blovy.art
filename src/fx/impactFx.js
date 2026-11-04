@@ -25,11 +25,16 @@ export const BURST_MS =
 
 // rect = 围着它撒粒子的那个矩形（不传就当撞击发生在视口中心、矩形为一个点）
 // origin = 粒子坐标相对哪个点（通常是撞击点，容器就挂在那里）
-export function makeImpactParticles(rect, origin = null, count = PARTICLE_COUNT) {
+// gap = 起点离矩形边缘多远，band = 往外最多飞多远。文字这类没有实心边框的对象要传小 gap + 零尺寸矩形，粒子就从中心往外扩散，不会围出一个方框
+export function makeImpactParticles(
+  rect,
+  origin = null,
+  { count = PARTICLE_COUNT, gap = PARTICLE_GAP, band = PARTICLE_BAND } = {},
+) {
   const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
   const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
-  const bx = (rect ? rect.width : 0) / 2 + PARTICLE_GAP
-  const by = (rect ? rect.height : 0) / 2 + PARTICLE_GAP
+  const bx = (rect ? rect.width : 0) / 2 + gap
+  const by = (rect ? rect.height : 0) / 2 + gap
   const ox = origin ? origin.x : cx
   const oy = origin ? origin.y : cy
   const list = []
@@ -40,12 +45,12 @@ export function makeImpactParticles(rect, origin = null, count = PARTICLE_COUNT)
     // 从框心沿这个方向走到框边（含 gap）的距离
     const edge = Math.min(bx / (Math.abs(ux) || 1e-3), by / (Math.abs(uy) || 1e-3))
     // 靠近框的地方密一点，远离框的地方疏一点
-    const out = Math.random() ** 1.6 * PARTICLE_BAND
+    const out = Math.random() ** 1.6 * band
     const sx = cx + ux * edge * 0.99
     const sy = cy + uy * edge * 0.99
     const ex = cx + ux * (edge + out)
     const ey = cy + uy * (edge + out)
-    const far = Math.min(1, out / PARTICLE_BAND)
+    const far = Math.min(1, out / band)
     list.push({
       id: i,
       style: {

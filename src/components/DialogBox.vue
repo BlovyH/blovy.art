@@ -28,6 +28,7 @@ import { Z } from '@/stores/windowZ.js'
 import { playSnow } from '@/snowTrigger.js'
 import { skiImpostor } from '@/skiMode.js'
 import { backyardEntered } from '@/backyard/backyard.js'
+import { triggerCensorGag, censorShaking } from '@/dialogs/censorGag.js'
 
 // 每次出现一个对话框就抽一次：三成概率把提示符换成 *，点它放一次飘雪
 const STAR_CHANCE = 0.3
@@ -62,7 +63,12 @@ watch(
   { immediate: true },
 )
 
-function onClick() {
+function onClick(e) {
+  const stars = e.target.closest('.censor-stars')
+  if (stars) {
+    triggerCensorGag(stars)
+    return
+  }
   emit('click')
 }
 
@@ -191,5 +197,13 @@ onUnmounted(() => {
 
 .dialog-box__text :deep(a):hover {
   color: #ff69b4;
+}
+
+.dialog-box__text :deep(.censor-stars) {
+  cursor: pointer;
+}
+
+.dialog-box__text :deep(.censor-stars:hover) {
+  color: #00ffff;
 }
 </style>

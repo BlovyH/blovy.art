@@ -351,7 +351,19 @@ export const flowerbedAngelFlow = {
   },
   panic: {
     type: 'dialog',
-    content: "Sxxt I haven't got my wishes prepared!!",
+    content:
+      '<span class="censor-word">S<span class="censor-stars">**</span>t</span> I haven\'t got my wishes prepared!!',
+    next: null,
+  },
+}
+
+// 点了 panic 句里星号后的抗议台词
+export const flowerbedCensorFlow = {
+  // 演出对话，点击和回车推进被锁，由触发方收尾
+  cinematic: true,
+  start: {
+    type: 'dialog',
+    content: "Ahhh don't change my lines!!!! Fxxk!",
     next: null,
   },
 }
@@ -380,6 +392,7 @@ export const dialogFlows = {
   flowerbedCake: flowerbedCakeFlow,
   flowerbedPudding: flowerbedPuddingFlow,
   flowerbedSwallowed: flowerbedSwallowedFlow,
+  flowerbedCensor: flowerbedCensorFlow,
 }
 
 export default dialogFlows
