@@ -36,15 +36,18 @@ const point = computed(() => step.value?.point ?? null)
 // 默认非抢占（已有流在跑则忽略、不排队），适用于「两件不相干的事」；
 // preempt: true 时直接顶掉当前流，适用于「同一件事的后续步骤」——用户没点掉上一句
 // 也要接得上，否则那句后续对话会被静默吞掉。是否属于同一件事由调用方判断。
-function start(key, { preempt = false } = {}) {
+// step 是起始步（默认 'start'）。
+function start(key, { preempt = false, step = 'start' } = {}) {
   if (!dialogFlows[key]) return
   if (activeKey.value && !preempt) return
   activeKey.value = key
-  currentStep.value = 'start'
+  currentStep.value = step
 }
 
 // 对话步推进：有 next 就跳，next 为 null 则结束（自关）
+// cinematic 流是演出对话，时间线由触发方自己收尾，不响应点击/回车
 function advance() {
+  if (flow.value?.cinematic) return
   const s = step.value
   if (!s) return
   if (s.next == null) {
