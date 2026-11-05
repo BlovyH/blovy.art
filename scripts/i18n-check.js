@@ -1,20 +1,16 @@
 // 构建时校验 i18n 覆盖表，空词条和拼错的 key 都让构建失败
 // 空语言表视为该语言未启用，跳过
 import { pathToFileURL } from 'node:url'
-import path from 'node:path'
-import fs from 'node:fs'
 
 export async function i18nCheck(root) {
-  const [{ LOCALES, SHARED }, { dialogFlows }] = await Promise.all([
+  const [{ LOCALES, SHARED, UI_TEXT }, { dialogFlows }] = await Promise.all([
     import(pathToFileURL(`${root}/src/i18n.js`)),
     import(pathToFileURL(`${root}/src/dialogs/flows.js`)),
   ])
 
   // 默认值按基准文本命中，收集真实出现过的基准文本
-  const baseTexts = new Set()
-  const home = fs.readFileSync(path.join(root, 'src/views/HomeView.vue'), 'utf8')
-  const welcome = home.match(/WELCOME_EN\s*=\s*`([^`]+)`/)?.[1]
-  if (welcome) baseTexts.add(welcome)
+  const baseTexts = new Set(Object.values(UI_TEXT))
+  const uiKeys = new Set(Object.keys(UI_TEXT))
   for (const flow of Object.values(dialogFlows)) {
     for (const step of Object.values(flow)) {
       if (!step || typeof step !== 'object') continue
@@ -32,10 +28,13 @@ export async function i18nCheck(root) {
         errors.push(`${langName} "${key}" - 值必须是非空字符串`)
         continue
       }
-      // flow 词条形如 flow.step.content 或 flow.step.options.value.label，
-      // 其余（UI 文案）只查非空
+      // UI 文案按 UI_TEXT 登记，其余按 flow.step.content 或 flow.step.options.value.label 校验
+      if (uiKeys.has(key)) continue
       const [flowKey, stepKey, field, optValue] = key.split('.')
-      if (field !== 'content' && field !== 'options') continue
+      if (field !== 'content' && field !== 'options') {
+        errors.push(`${langName} "${key}" - 未登记的 UI 文案 key`)
+        continue
+      }
       const flow = dialogFlows[flowKey]
       if (!flow) {
         errors.push(`${langName} "${key}" - 流 ${flowKey} 不存在`)

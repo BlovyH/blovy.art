@@ -433,8 +433,9 @@
     <!-- Mobile Notice Toast -->
     <CenterToast
       v-if="mobileNoticeVisible"
-      title="Mobile Device Detected"
-      message="I noticed you're on a phone. I might add support someday, but it's recommended you check it out on a computer for now."
+      :title="tUi('ui.mobile.title')"
+      :message="tUi('ui.mobile.message')"
+      :confirm-text="tUi('ui.mobile.confirm')"
       @close="mobileNoticeVisible = false"
     />
 
@@ -495,7 +496,7 @@ import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
 import ContextMenu from '@/components/ContextMenu.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
-import { lang, ENABLED_LANGS, t } from '@/i18n.js'
+import { lang, ENABLED_LANGS, tUi } from '@/i18n.js'
 import DPDetailWindow from '@/components/DPDetailWindow.vue'
 import DPPreview from '@/components/DPPreview.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
@@ -528,10 +529,9 @@ const dlg = useDialogFlow()
 
 // i18n
 const LANGS = ['ZH', 'EN', 'JP']
-const WELCOME_EN = `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`
 // dev 全开方便调翻译，缺词条回退 EN；生产只放开 ENABLED_LANGS
 const isLangEnabled = (code) => import.meta.env.DEV || ENABLED_LANGS.includes(code)
-const welcomeText = computed(() => t('home.welcome', WELCOME_EN))
+const welcomeText = computed(() => tUi('home.welcome'))
 const langMenuOpen = ref(false)
 const langMenuAt = ref({ x: 0, y: 0, h: 0 })
 const langBtnRef = ref(null)

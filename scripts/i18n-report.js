@@ -2,20 +2,15 @@
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const [{ LOCALES, SHARED }, { dialogFlows }, { default: fs }] = await Promise.all([
+const [{ LOCALES, SHARED, UI_TEXT }, { dialogFlows }] = await Promise.all([
   import(pathToFileURL(`${root}/src/i18n.js`)),
   import(pathToFileURL(`${root}/src/dialogs/flows.js`)),
-  import('node:fs'),
 ])
 // EN 基准文本，供搜索时对照台词
-const EN_TEXT = {
-  'home.welcome': fs.readFileSync(`${root}src/views/HomeView.vue`, 'utf8').match(/WELCOME_EN\s*=\s*`([^`]+)`/)?.[1] ?? '',
-}
+const EN_TEXT = { ...UI_TEXT }
 
-// 不在 flows 里的 UI 词条在这里登记
-const UI_KEYS = ['home.welcome']
-
-const allKeys = [...UI_KEYS]
+// 不在 flows 里的 UI 词条按 UI_TEXT 登记
+const allKeys = Object.keys(UI_TEXT)
 for (const [flowKey, flow] of Object.entries(dialogFlows)) {
   for (const [stepKey, step] of Object.entries(flow)) {
     if (!step || typeof step !== 'object') continue
