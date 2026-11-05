@@ -24,6 +24,7 @@ assets/gallery-originals/
 assets/gallery-dist/
 
 .aseprite
+public/assets/fonts/*.aseprite
 .env.development
 # wrangler 含 account_id 隐私，真文件不进仓库；模板见 wrangler.toml.example
 wrangler.toml

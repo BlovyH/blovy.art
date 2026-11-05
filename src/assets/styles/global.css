@@ -1,3 +1,13 @@
+/* glyph-font:start */
+@font-face {
+  font-family: 'Fusion Pixel Glyphs';
+  src: url('/assets/fonts/glyph-patch.ttf');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+3AE3;
+}
+/* glyph-font:end */
 @font-face {
   font-family: 'Fusion Pixel 12px';
   src: url('../fonts/generated/fusion-pixel-subset.woff2') format('woff2');
@@ -25,7 +35,7 @@
   --color-border: #ffffff;
   --color-accent: #ff69b4;
 
-  --font-pixel: 'Fusion Pixel 12px', monospace;
+  --font-pixel: 'Fusion Pixel Glyphs', 'Fusion Pixel 12px', monospace;
   --font-fangsong: 'Zhuque Fangsong', serif;
   --font-mono: 'Courier New', monospace;
 }
