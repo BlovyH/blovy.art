@@ -7,6 +7,14 @@ export const lang = ref('EN')
 // 生产对访客放开的语言，翻译到位后手动加进来
 export const ENABLED_LANGS = ['EN']
 
+// 非对话 UI 文案的基准文本，按 key 登记
+export const UI_TEXT = {
+  'home.welcome': `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`,
+  'ui.mobile.title': 'Mobile Device Detected',
+  'ui.mobile.message': "I noticed you're on a phone. I might add support someday, but it's recommended you check it out on a computer for now.",
+  'ui.mobile.confirm': 'Got it',
+}
+
 export const LOCALES = {
   ZH: {
     // 'home.welcome': '欢迎语翻译',
@@ -46,4 +54,9 @@ export function t(key, fallback) {
   const shared = SHARED[lang.value]?.[fallback]
   if (typeof shared === 'string' && shared.trim() !== '') return shared
   return fallback
+}
+
+// 按 key 查 UI 文案，查不到时退回 key 本身
+export function tUi(key) {
+  return t(key, UI_TEXT[key] ?? key)
 }
