@@ -12,6 +12,29 @@ export const LOCALES = {
     // 'home.welcome': '欢迎语翻译',
     // 'flowerbedAngel.panic.content': '台词翻译',
     // options 项的 key 走 value（'xxFlow.choice.options.yes.label'）
+    'torchFound.start.content': '你找到了手电。',
+    'torchFound.choice.content': '要开吗？',
+    'torchFound.choice.options.yes.label': '开',
+    'torchFound.choice.options.no.label': '不开',
+    'torchFound.yes.content': '你打开了手电。',
+    'torchDone.start.content': '你冲着手电嚷嚷“我真是受够你了”。它看起来很伤心。',
+    'tallchFound.start.content': '你找到了手㫣。',
+    'tallchFound.choice.content': '要开吗？',
+    'tallchFound.choice.options.yes.label': '开',
+    'tallchFound.choice.options.no.label': '不开',
+    'tallchFound.yes.content': '你打开了手㫣。',
+    'tallchDone.start.content': '你冲着手㫣嚷嚷“我真是受够你了”。它看起来很伤心。',
+    'benchFound.start.content': '你找到了手凳。',
+
+  },
+  JP: {},
+}
+
+// 按基准文本共用的默认译法，具体词条优先
+// 例 - YES 写一次，所有没单独配的 YES 选项都用它
+export const SHARED = {
+  ZH: {
+    // YES: '是',
   },
   JP: {},
 }
