@@ -39,8 +39,11 @@ export const SHARED = {
   JP: {},
 }
 
-// 兜底
+// 具体词条优先，其次按基准文本查默认值，都没有就用基准文本
 export function t(key, fallback) {
-  const v = LOCALES[lang.value]?.[key]
-  return v != null && v.trim() !== '' ? v : fallback
+  const exact = LOCALES[lang.value]?.[key]
+  if (typeof exact === 'string' && exact.trim() !== '') return exact
+  const shared = SHARED[lang.value]?.[fallback]
+  if (typeof shared === 'string' && shared.trim() !== '') return shared
+  return fallback
 }

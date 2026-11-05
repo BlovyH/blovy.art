@@ -13,6 +13,7 @@ blovy.art 命令速查
   npm run i18n -- 关键词    反查 key（按基准文本或 key 片段），例 - npm run i18n -- wish
   npm run assets:build     gallery 贴图构建并上传 R2
   npm run subset-fonts     字体子集化
+  npm run font:glyph       补字，放 12x12 的 public/assets/fonts/glyph-<码位>.png，可多张，注意原图上面 1px 留空给变音符号
   npm run tree             对话树
 
 R2（改 content.json 后先 put 再部署，顺序反了线上渲染残缺）

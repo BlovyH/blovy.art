@@ -2,7 +2,7 @@
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const [{ LOCALES }, { dialogFlows }, { default: fs }] = await Promise.all([
+const [{ LOCALES, SHARED }, { dialogFlows }, { default: fs }] = await Promise.all([
   import(pathToFileURL(`${root}/src/i18n.js`)),
   import(pathToFileURL(`${root}/src/dialogs/flows.js`)),
   import('node:fs'),
@@ -46,10 +46,21 @@ if (query) {
 
 console.log('用法 - node scripts/i18n-report.js [关键词]   反查示例 - node scripts/i18n-report.js wish')
 for (const [name, table] of Object.entries(LOCALES)) {
-  const done = allKeys.filter((k) => typeof table?.[k] === 'string' && table[k].trim() !== '')
+  const shared = SHARED[name] ?? {}
+  const has = (v) => typeof v === 'string' && v.trim() !== ''
+  const isExact = (k) => has(table?.[k])
+  const sharedOf = (k) => (has(shared[EN_TEXT[k]]) ? shared[EN_TEXT[k]] : null)
+  const exact = allKeys.filter(isExact)
+  const viaShared = allKeys.filter((k) => !isExact(k) && sharedOf(k))
   const dead = Object.keys(table ?? {}).filter((k) => !allKeys.includes(k))
-  const missing = allKeys.filter((k) => !done.includes(k))
-  console.log(`${name}  ${done.length}/${allKeys.length}`)
+  const deadShared = Object.keys(shared).filter((b) => !Object.values(EN_TEXT).includes(b))
+  const missing = allKeys.filter((k) => !isExact(k) && !sharedOf(k))
+  console.log(`${name}  ${exact.length + viaShared.length}/${allKeys.length}  -  单独 ${exact.length}，默认 ${viaShared.length}，缺 ${missing.length}`)
+  if (viaShared.length) {
+    console.log('  走默认值 - 检查是否该特化')
+    for (const k of viaShared) console.log(`    ${k}  -  ${EN_TEXT[k].replace(/\s+/g, ' ')} -> ${sharedOf(k)}`)
+  }
   for (const k of missing) console.log(`  缺 ${k}`)
   for (const k of dead) console.log(`  死词条 ${k}`)
+  for (const b of deadShared) console.log(`  死默认值 ${b}`)
 }
