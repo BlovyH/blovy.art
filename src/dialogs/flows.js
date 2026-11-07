@@ -311,6 +311,15 @@ export const flowerbedCakeFlow = {
   },
 }
 
+// 收下蛋糕后再点棋盘
+export const flowerbedEmptyFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Any more flowers?',
+    next: null,
+  },
+}
+
 // 19
 export const flowerbedPuddingFlow = {
   start: {
@@ -390,6 +399,7 @@ export const dialogFlows = {
   flowerbedMax: flowerbedMaxFlow,
   flowerbedAngel: flowerbedAngelFlow,
   flowerbedCake: flowerbedCakeFlow,
+  flowerbedEmpty: flowerbedEmptyFlow,
   flowerbedPudding: flowerbedPuddingFlow,
   flowerbedSwallowed: flowerbedSwallowedFlow,
   flowerbedCensor: flowerbedCensorFlow,

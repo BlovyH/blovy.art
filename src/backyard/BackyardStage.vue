@@ -1,6 +1,6 @@
 <template>
   <!-- 后院框 -->
-  <div v-if="backyardEntered" class="backyard-stage" :class="{ 'is-editing': flowerbedEditing }">
+  <div v-if="backyardEntered" class="backyard-stage" :class="{ 'is-editing': flowerbedEditing || boardHighlight }">
     <div class="backyard-frame">
       <span v-if="flowerbedEditing" class="backyard-board-hint">Find a maximum placement</span>
       <BackyardBoard @click="onBoardClick" />
@@ -50,8 +50,13 @@ import {
 
 const dlg = useDialogFlow()
 
+const boardHighlight = computed(() => dlg.activeKey.value === 'flowerbedEmpty')
+
 function onBoardClick() {
-  if (cakeTaken.value || flowerbedLocked.value) return
+  if (flowerbedLocked.value || cakeTaken.value) {
+    dlg.start('flowerbedEmpty', { preempt: true })
+    return
+  }
   if (flowerbedSpent.value) dlg.start('flowerbedAngel')
   else if (boardFlowSeen.value) beginFlowerEdit()
   else dlg.start('backyardBoard')
@@ -145,8 +150,8 @@ watch(
   --cake-flash-ms: 160ms; /* 变蛋糕前花闪白的时长 */
   --cake-collapse: 0.18; /* 最后一截飞速旋转时，整团收到原来半径的几成 */
   --cake-pop-ms: 420ms; /* 蛋糕弹出来那一下的时长 */
-  --cake-w: 2.2; /* 蛋糕椭圆（单位 = 一格） */
-  --cake-h: 1.3;
+  --cake-w: 3; /* 蛋糕贴图（单位 = 一格） */
+  --cake-h: 2;
   /* --swallow-ms 与逐格错开的总时长要小于 PUDDING_SWALLOW_MS */
   --swallow-ms: 520ms;
   --swallow-stagger: 45ms;

@@ -34,8 +34,11 @@ export const LOCALES = {
     'tallchDone.start.content': '你冲着手㫣嚷嚷“我真是受够你了”。它看起来很伤心。',
     'benchFound.start.content': '你找到了手凳。',
 
+    'flowerbedEmpty.start.content': '还有花朵吗？',
   },
-  JP: {},
+  JP: {
+    'flowerbedEmpty.start.content': 'ハナ、まだある？'
+  },
 }
 
 // 按基准文本共用的默认译法，具体词条优先
