@@ -322,8 +322,6 @@
         class="doujin-outer"
         :class="{ 'expand-up': expandUp && isExpanded, expanded: isExpanded }"
         :style="{ '--dp-height': expandHeight + 'px' }"
-        @mousedown="bringDoujinToFront"
-        @mouseenter="bringDoujinToFront"
       >
         <PixelWindow
           ref="doujinWindowRef"
@@ -1253,6 +1251,7 @@ function restingShiftY(el) {
 }
 
 function onDoujinEnter() {
+  bringDoujinToFront()
   clearTimeout(collapseTimer)
   isDoujinHovered.value = true
   if (isExpanded.value) return
@@ -2579,6 +2578,7 @@ a.note-item[href]:hover {
   left: 34%;
   width: 38%;
   z-index: 100;
+  pointer-events: none;
   transform: translateY(0);
   transition: transform 0.18s ease-out;
 }
@@ -2589,6 +2589,7 @@ a.note-item[href]:hover {
 
 .doujin-window-inner {
   width: 100%;
+  pointer-events: auto;
 }
 
 .doujin-collapsible {
