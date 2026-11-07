@@ -51,12 +51,15 @@
       />
     </div>
 
-    <div
+    <img
       v-if="cakePhase === 'cake' && !cakeTaken"
       class="backyard-cake"
       :style="cakeCenterStyle()"
+      :src="CAKE_SRC"
+      alt=""
+      draggable="false"
       @click.stop="takeCake"
-    />
+    >
 
     <div
       v-for="group in merging"
@@ -83,6 +86,7 @@
 import { computed } from 'vue'
 import { BACKYARD_BOARD_SIZE, backyardBoardCells, backyardBoardDots } from './boardGrid.js'
 import {
+  CAKE_SRC,
   FLOWER_SRC,
   cakeAt,
   cakeBloom,
@@ -442,10 +446,10 @@ function cakeFlowerStyle(f) {
   position: absolute;
   width: calc(var(--cell) * var(--cake-w));
   height: calc(var(--cell) * var(--cake-h));
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.22));
   translate: -50% -50%;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px #000000;
   animation: cake-pop var(--cake-pop-ms, 420ms) both;
   cursor: pointer;
 }

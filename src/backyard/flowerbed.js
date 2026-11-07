@@ -8,6 +8,9 @@ const dlg = useDialogFlow()
 export const FLOWER_SRC = '/assets/flower_piece.png'
 new Image().src = FLOWER_SRC
 
+export const CAKE_SRC = '/assets/flower_cake.png'
+new Image().src = CAKE_SRC
+
 // 一局给几朵花
 const FLOWER_START = 24
 // 三消演出的时长
