@@ -329,6 +329,15 @@ export const flowerbedEmptyFlow = {
   },
 }
 
+// 点地下室入口
+export const basementLockedFlow = {
+  start: {
+    type: 'dialog',
+    content: 'The basement is locked.',
+    next: null,
+  },
+}
+
 // 19
 export const flowerbedPuddingFlow = {
   start: {
@@ -401,6 +410,7 @@ export const dialogFlows = {
   updateDismissed: updateDismissedFlow,
   callbackDismissed: callbackDismissedFlow,
   emotionDropRefused: emotionDropRefusedFlow,
+  basementLocked: basementLockedFlow,
   skiImpostor: skiImpostorFlow,
   backyardDoor: backyardDoorFlow,
   backyardBoard: backyardBoardFlow,

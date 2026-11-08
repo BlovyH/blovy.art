@@ -54,6 +54,7 @@ const BACKYARD_FLOWS = new Set([
   'flowerbedSwallowed',
   'flowerbedCensor',
   'emotionDropRefused',
+  'basementLocked',
 ])
 
 let timers = []

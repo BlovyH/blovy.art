@@ -5,6 +5,13 @@
       <span v-if="flowerbedEditing" class="backyard-board-hint">Find a maximum placement</span>
       <BackyardBoard @click="onBoardClick" />
       <FlowerTray />
+      <img
+        class="backyard-basement"
+        src="/assets/basement_entrance.png"
+        alt=""
+        draggable="false"
+        @click="dlg.start('basementLocked')"
+      />
     </div>
 
     <span class="backyard-wall-notch" aria-hidden="true" />
@@ -193,6 +200,8 @@ watch(
 }
 
 .backyard-frame {
+  --basement-size: 77px;
+  --basement-inset: 24px;
   box-sizing: border-box;
   position: fixed;
   top: var(--backyard-top);
@@ -201,6 +210,16 @@ watch(
   width: var(--backyard-w);
   height: var(--backyard-h);
   border: var(--backyard-wall) solid #fff;
+}
+
+.backyard-basement {
+  position: absolute;
+  left: var(--basement-inset);
+  bottom: var(--basement-inset);
+  width: var(--basement-size);
+  height: auto;
+  image-rendering: pixelated;
+  cursor: pointer;
 }
 
 .backyard-board-hint {
