@@ -220,7 +220,7 @@ export const skiImpostorFlow = {
   },
   taunt: {
     type: 'dialog',
-    content: 'UNLESS YOU FOUND <span style="color:#00ffff">WIKI</span> AND GO JUDGE ME！!！<br>GO KILL ME！!!！!<br>AHAHAHAHAHAHAHAAHAHA！!!!!!！!!!!!！',
+    content: 'UNLESS YOU FIND <span style="color:#00ffff">WIKI</span> AND GO JUDGE ME！!！<br>GO KILL ME！!!！!<br>AHAHAHAHAHAHAHAAHAHA！!!!!!！!!!!!！',
     next: null,
   },
 }
