@@ -202,6 +202,15 @@ const callbackDismissedFlow = {
   },
 }
 
+// 把 emotion 的水滴喂给 mesbin，被拒收
+const emotionDropRefusedFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Don\'t serve me filthy bodily fluids like that...',
+    next: null,
+  },
+}
+
 // 冒牌 SKI MODE
 export const skiImpostorFlow = {
   start: {
@@ -391,6 +400,7 @@ export const dialogFlows = {
   sunglassesNightOff: sunglassesNightOffFlow,
   updateDismissed: updateDismissedFlow,
   callbackDismissed: callbackDismissedFlow,
+  emotionDropRefused: emotionDropRefusedFlow,
   skiImpostor: skiImpostorFlow,
   backyardDoor: backyardDoorFlow,
   backyardBoard: backyardBoardFlow,

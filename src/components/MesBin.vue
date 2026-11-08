@@ -5,7 +5,7 @@
     <div
       ref="binEl"
       class="mes-bin"
-      :class="{ 'is-visible': visible, 'is-hot': hot, 'is-swallowed': swallowed }"
+      :class="{ 'is-visible': visible, 'is-hot': hot, 'is-swallowed': swallowed, 'is-top': placement === 'top' }"
       :style="{ '--mb-swallow-ms': swallowMs + 'ms', zIndex: z }"
     >
       <img class="mes-bin__img" :src="MESBIN_ART[0]" alt="" draggable="false" />
@@ -33,6 +33,7 @@ defineProps({
   swallowMs: { type: Number, default: 460 },
   // 各调用方压在不同的层上，层级表在 windowZ.js
   z: { type: Number, default: Z.MESBIN },
+  placement: { type: String, default: 'bottom' },
 })
 
 const binEl = ref(null)
@@ -76,6 +77,15 @@ defineExpose({ over })
   image-rendering: pixelated;
 }
 
+.mes-bin.is-top {
+  top: 40px;
+  bottom: auto;
+}
+
+.mes-bin.is-top:not(.is-visible) {
+  transform: translateY(-12px);
+}
+
 .mes-bin.is-visible {
   opacity: 1;
   visibility: visible;
@@ -114,6 +124,13 @@ defineExpose({ over })
   color: var(--mes-bin-red);
   opacity: 0;
   transition: opacity 160ms ease;
+}
+
+.mes-bin.is-top .mes-bin__label {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 6px;
 }
 
 .mes-bin.is-hot .mes-bin__label {

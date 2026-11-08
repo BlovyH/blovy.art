@@ -14,6 +14,8 @@
 //   - If `binding.value` is a function, it is invoked on a press that did NOT
 //     move past the 3px threshold — i.e. treat as a click. A real drag swallows
 //     the native click so `@click` handlers don't fire after repositioning.
+//   - 元素落在带 data-drag-bounds 的祖先里时，拖拽实时被该边界挡住；属性值是
+//     边界元素的选择器，留空则用祖先本身。
 
 import { keepInView } from '@/keepInView.js'
 import { skiMode } from '@/skiMode.js'
@@ -33,6 +35,23 @@ function samplerOf(el) {
   return s
 }
 
+// 返回本次拖拽允许的累计位移范围，值相对拖拽起点的元素矩形
+function dragLimits(el, startRect) {
+  const root = el.closest('[data-drag-bounds]')
+  if (!root) return null
+  const box = root.dataset.dragBounds ? root.querySelector(root.dataset.dragBounds) : root
+  if (!box) return null
+  const b = box.getBoundingClientRect()
+  return {
+    minX: b.left - startRect.left,
+    maxX: b.right - startRect.right,
+    minY: b.top - startRect.top,
+    maxY: b.bottom - startRect.bottom,
+  }
+}
+
+const limit = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)))
+
 export default {
   mounted(el, binding) {
     el.style.touchAction = 'none'
@@ -47,11 +66,18 @@ export default {
       glides.get(el)?.()
       glides.delete(el)
       samplerOf(el).reset()
+      const lim = dragLimits(el, el.getBoundingClientRect())
+      const clampAt = (p) =>
+        lim
+          ? {
+            x: limit(p.x, b.x + lim.minX, b.x + lim.maxX),
+            y: limit(p.y, b.y + lim.minY, b.y + lim.maxY),
+          }
+          : p
       let draggingAdded = false
 
       function onMove(ev) {
-        const dx = b.x + (ev.clientX - startX)
-        const dy = b.y + (ev.clientY - startY)
+        const p = clampAt({ x: b.x + (ev.clientX - startX), y: b.y + (ev.clientY - startY) })
         // Only flag "dragging" once the move actually passes the threshold.
         // Adding it on mousedown would clash with consumers' `:active:not(.is-dragging)`
         // press effect (e.g. power-btn sunken border) and break the click feel.
@@ -60,9 +86,9 @@ export default {
           draggingAdded = true
           el.classList.add('is-dragging')
         }
-        el.style.setProperty('--ddx', dx + 'px')
-        el.style.setProperty('--ddy', dy + 'px')
-        samplerOf(el).sample(dx, dy)
+        el.style.setProperty('--ddx', p.x + 'px')
+        el.style.setProperty('--ddy', p.y + 'px')
+        samplerOf(el).sample(p.x, p.y)
       }
 
       function onUp(ev) {
@@ -73,15 +99,16 @@ export default {
           Math.abs(ev.clientX - startX) > THRESHOLD ||
           Math.abs(ev.clientY - startY) > THRESHOLD
         if (moved) {
-          const next = { x: b.x + (ev.clientX - startX), y: b.y + (ev.clientY - startY) }
+          const next = clampAt({ x: b.x + (ev.clientX - startX), y: b.y + (ev.clientY - startY) })
           // 先把松手时的真实位置写上，再量rect
           el.style.setProperty('--ddx', next.x + 'px')
           el.style.setProperty('--ddy', next.y + 'px')
           const { dx, dy } = keepInView(el.getBoundingClientRect())
-          base.set(el, { x: next.x + dx, y: next.y + dy })
-          if (dx || dy) {
-            el.style.setProperty('--ddx', next.x + dx + 'px')
-            el.style.setProperty('--ddy', next.y + dy + 'px')
+          const settled = clampAt({ x: next.x + dx, y: next.y + dy })
+          base.set(el, settled)
+          if (settled.x !== next.x || settled.y !== next.y) {
+            el.style.setProperty('--ddx', settled.x + 'px')
+            el.style.setProperty('--ddy', settled.y + 'px')
           }
           // 溜冰场模式：松手后接着滑，位置一样写回 base + CSS vars
           if (skiMode.value) {
@@ -89,11 +116,10 @@ export default {
             if (Math.hypot(vx, vy) >= SKI_MIN_SPEED) {
               const shift = (sx, sy) => {
                 const cur = base.get(el) || { x: 0, y: 0 }
-                const nx = cur.x + sx
-                const ny = cur.y + sy
-                base.set(el, { x: nx, y: ny })
-                el.style.setProperty('--ddx', nx + 'px')
-                el.style.setProperty('--ddy', ny + 'px')
+                const p = clampAt({ x: cur.x + sx, y: cur.y + sy })
+                base.set(el, p)
+                el.style.setProperty('--ddx', p.x + 'px')
+                el.style.setProperty('--ddy', p.y + 'px')
               }
               glides.get(el)?.()
               glides.set(

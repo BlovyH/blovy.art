@@ -23,6 +23,8 @@ export const Z = {
   SNOW: 10015, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
   CALLBACK_MESBIN: 10016, // mesbin，要低于拎起来的按钮
   CALLBACK_ITEM: 10017, // iy 的 callback 按钮
+  EMOTIONS_MESBIN: 10009, // 后院水滴喂食时的 mesbin：夹在后院全屏层与对话框之间，与 DUEL 同层但互斥出现
+  EMOTIONS_DROP: 10017, // 拎起来的水滴，压在 mesbin 上面
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
   // ⚠️ 后院必须低于 OVERLAY / BANNER：后院里的棋盘要点开对话框，而 DialogBox / OptionBox

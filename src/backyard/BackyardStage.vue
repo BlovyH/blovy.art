@@ -1,6 +1,6 @@
 <template>
   <!-- 后院框 -->
-  <div v-if="backyardEntered" class="backyard-stage" :class="{ 'is-editing': flowerbedEditing || boardHighlight }">
+  <div v-if="backyardEntered" class="backyard-stage" :class="{ 'is-editing': flowerbedEditing || boardHighlight }" data-drag-bounds=".backyard-frame">
     <div class="backyard-frame">
       <span v-if="flowerbedEditing" class="backyard-board-hint">Find a maximum placement</span>
       <BackyardBoard @click="onBoardClick" />
@@ -10,6 +10,8 @@
     <span class="backyard-wall-notch" aria-hidden="true" />
 
     <BackyardDoor variant="exit" @click="leaveBackyard" />
+
+    <BackyardEmotions />
 
     <img
       v-if="draggingFlower"
@@ -31,6 +33,7 @@ import ImpactBurst from '@/fx/ImpactBurst.vue'
 import { BURST_MS, makeImpactParticles } from '@/fx/impactFx.js'
 import BackyardBoard from './BackyardBoard.vue'
 import BackyardDoor from './BackyardDoor.vue'
+import BackyardEmotions from './BackyardEmotions.vue'
 import FlowerTray from './FlowerTray.vue'
 import { backyardEntered, consumeRestoreNotice, leaveBackyard } from './backyard.js'
 import {
