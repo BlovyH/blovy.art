@@ -36,14 +36,12 @@
     :hot="hot"
     :swallowed="swallowed"
     :swallow-ms="SWALLOW_MS"
-    :z="Z.MESBIN"
   />
 </template>
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import MesBin from '@/components/MesBin.vue'
-import { Z } from '@/stores/windowZ.js'
 import { createSpinControl } from '@/spinControl.js'
 
 defineProps({

@@ -73,7 +73,8 @@ defineExpose({ over })
   transition:
     opacity 160ms ease,
     transform 160ms ease,
-    scale 160ms ease;
+    scale 160ms ease,
+    visibility 160ms;
   image-rendering: pixelated;
 }
 

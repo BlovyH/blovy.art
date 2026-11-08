@@ -13,7 +13,7 @@ export const Z = {
   TOP_MOST: 9999, // 桌面图标创建的窗口
   MAXIMIZED: 10000, // 最大化窗口独占一层：高于图标和 top-most 窗，低于全屏效果层
   DETAIL: 10001, // 点开图/项目后的详情面板：必须从最大化出来的父窗口上面浮起来
-  MESBIN: 10002, // 可丢弃目标的垃圾桶，浮在窗口之上，低于对话框
+  MESBIN: 10009, // 可丢弃目标的垃圾桶，高于后院全屏层，低于对话框，与 DUEL 同层但互斥出现
   DUEL: 10009, // iy 转转转动画期间强制置顶不然其他窗口点一下就遮住了，直到结束新窗口也会被遮住（新窗口额外加了手动置 focus 状态逻辑）
   OVERLAY: 10010, // 太阳镜滤镜 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
@@ -21,9 +21,7 @@ export const Z = {
   MENU: 10013, // 跟随点击位置的小浮层菜单
   UPDATE: 10014, // 右上角「有新版本」提示
   SNOW: 10015, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
-  CALLBACK_MESBIN: 10016, // mesbin，要低于拎起来的按钮
   CALLBACK_ITEM: 10017, // iy 的 callback 按钮
-  EMOTIONS_MESBIN: 10009, // 后院水滴喂食时的 mesbin：夹在后院全屏层与对话框之间，与 DUEL 同层但互斥出现
   EMOTIONS_DROP: 10017, // 拎起来的水滴，压在 mesbin 上面
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
