@@ -7,8 +7,9 @@
     @click="visible = true"
   >
     <template #icon>
-      <span class="emotions-icon-stack">
-        <img class="desktop-icon-img" :src="FACE_SRC" alt="" draggable="false" @dragstart.prevent />
+      <span class="emotions-icon-stack" :class="{ 'is-sad': faceSad }">
+        <img class="desktop-icon-img emotions-face" :src="FACE_SRC" alt="" draggable="false" @dragstart.prevent />
+        <img class="desktop-icon-img emotions-face emotions-face--sad" :src="FACE_SAD_SRC" alt="" draggable="false" @dragstart.prevent />
         <img class="desktop-icon-img" :style="{ translate: iconDropTranslate }" :src="DROP_SRC" alt="" draggable="false" @dragstart.prevent />
       </span>
     </template>
@@ -23,11 +24,14 @@
     width="min(360px, 70vw)"
     :disabled-controls="{ minimize: true, maximize: true }"
     @close="visible = false"
+    @dragmove="onEmotionsDragMove"
+    @dragend="onEmotionsDragEnd"
   >
     <div class="emotions-body">
       <span class="emotions-label">{{ emotionLabel }}</span>
-      <div ref="stackEl" class="emotions-stack">
+      <div ref="stackEl" class="emotions-stack" :class="{ 'is-sad': faceSad }">
         <img class="emotions-face" :src="FACE_SRC" alt="emotions" draggable="false" @dragstart.prevent />
+        <img class="emotions-face emotions-face--sad" :src="FACE_SAD_SRC" alt="" draggable="false" @dragstart.prevent />
         <Teleport to="body" :disabled="!carried">
           <img
             ref="dropEl"
@@ -67,11 +71,41 @@ import DesktopIcon from '@/components/DesktopIcon.vue'
 import MesBin from '@/components/MesBin.vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
+import { useShakeDetect } from '@/composables/useShakeDetect.js'
 
 const FACE_SRC = '/assets/emotion_face.png'
+const FACE_SAD_SRC = '/assets/emotion_face_sad.png'
 const DROP_SRC = '/assets/emotion_drop.png'
 const DRAG_THRESHOLD = 4
 const CARRY_RELEASE_MS = 240
+const FACE_RESTORE_MS = 3000
+const EMOTIONS_SHAKE = { minPath: 260, minReversals: 2 }
+
+new Image().src = FACE_SAD_SRC
+
+const faceSad = ref(false)
+let faceTimer = 0
+
+function scheduleFaceRestore() {
+  clearTimeout(faceTimer)
+  faceTimer = setTimeout(() => { faceSad.value = false }, FACE_RESTORE_MS)
+}
+
+function onEmotionsShake() {
+  faceSad.value = true
+  emotion.value = 'default'
+  scheduleFaceRestore()
+}
+
+const emotionsShake = useShakeDetect(onEmotionsShake, EMOTIONS_SHAKE)
+
+function onEmotionsDragMove({ x, y }) {
+  emotionsShake.push(x, y)
+}
+
+function onEmotionsDragEnd() {
+  emotionsShake.reset()
+}
 
 // 判定区间，dev 下可按调试组合键查看可视化（见下）
 const REGIONS = [
@@ -117,6 +151,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEmotionsKeydown)
   removeListeners()
   clearTimeout(carryTimer)
+  clearTimeout(faceTimer)
   document.body.style.cursor = ''
 })
 
@@ -385,6 +420,19 @@ function removeListeners() {
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
+}
+
+/* 两张 face 同时挂载，切换时不用等图片下载 */
+.emotions-face--sad {
+  opacity: 0;
+}
+
+.is-sad .emotions-face:not(.emotions-face--sad) {
+  opacity: 0;
+}
+
+.is-sad .emotions-face--sad {
+  opacity: 1;
 }
 
 .emotions-drop {

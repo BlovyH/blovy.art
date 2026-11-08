@@ -29,7 +29,9 @@ const MIN_STEP = 2
 // 触发后的冷却时间（ms）
 const COOLDOWN_MS = 2000
 
-export function useShakeDetect(onShake) {
+export function useShakeDetect(onShake, opts = {}) {
+  const minPath = opts.minPath ?? MIN_PATH
+  const minReversals = opts.minReversals ?? MIN_REVERSALS
   let points = [] // [{ x, y, t }]，始终按时间裁剪到 WINDOW_MS 内
   let cooldownUntil = 0
 
@@ -78,7 +80,7 @@ export function useShakeDetect(onShake) {
       }
       swing += Math.abs(m)
     }
-    if (path < MIN_PATH || reversals < MIN_REVERSALS) return false
+    if (path < minPath || reversals < minReversals) return false
     const net = Math.hypot(
       points[points.length - 1].x - points[0].x,
       points[points.length - 1].y - points[0].y
