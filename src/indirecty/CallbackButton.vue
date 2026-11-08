@@ -36,7 +36,7 @@
     :hot="hot"
     :swallowed="swallowed"
     :swallow-ms="SWALLOW_MS"
-    :z="Z.CALLBACK_MESBIN"
+    :z="Z.MESBIN"
   />
 </template>
 

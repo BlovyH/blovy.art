@@ -32,7 +32,7 @@ defineProps({
   // 吞掉的动画时长：调用方收尾的计时器跟它是同一个数，所以由调用方传进来
   swallowMs: { type: Number, default: 460 },
   // 各调用方压在不同的层上，层级表在 windowZ.js
-  z: { type: Number, default: Z.UPDATE },
+  z: { type: Number, default: Z.MESBIN },
 })
 
 const binEl = ref(null)
