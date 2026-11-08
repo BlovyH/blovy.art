@@ -5,7 +5,7 @@
     <div
       ref="binEl"
       class="mes-bin"
-      :class="{ 'is-visible': visible, 'is-hot': hot, 'is-swallowed': swallowed, 'is-top': placement === 'top' }"
+      :class="{ 'is-visible': visible, 'is-hot': hot, 'is-swallowed': swallowed, 'is-top': placement === 'top' || backyardEntered }"
       :style="{ '--mb-swallow-ms': swallowMs + 'ms', zIndex: z }"
     >
       <img class="mes-bin__img" :src="MESBIN_ART[0]" alt="" draggable="false" />
@@ -24,6 +24,7 @@ export const MESBIN_ART = ['/assets/mesbin.png', '/assets/mesbin_open.png']
 <script setup>
 import { ref } from 'vue'
 import { Z } from '@/stores/windowZ.js'
+import { backyardEntered } from '@/backyard/backyard.js'
 
 defineProps({
   visible: { type: Boolean, default: false },
