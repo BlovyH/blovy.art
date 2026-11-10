@@ -464,6 +464,11 @@
 
     <TorchLayer :enabled="torchOn" :armed="torchArmed" mode="dark" :radius="220" :stretch-y="torchVariant === 'tallch' ? TALLCH_STRETCH : 1" :intensity="0.9" />
 
+    <TorchRevealLayer>
+      <TorchMark anchor=".nothing-desktop-icon .desktop-icon__label">WIKI</TorchMark>
+      <TorchMark anchor=".welcome-text" :text="tUi('home.welcome.torch')">the ADWEBTURE</TorchMark>
+    </TorchRevealLayer>
+
     <Screensaver />
 
     <SnowLayer
@@ -504,6 +509,9 @@ import DesktopIcon from '@/components/DesktopIcon.vue'
 import CenterToast from '@/components/CenterToast.vue'
 import WinToast from '@/components/WinToast.vue'
 import TorchLayer from '@/components/TorchLayer.vue'
+import TorchRevealLayer from '@/torch/TorchRevealLayer.vue'
+import TorchMark from '@/torch/TorchMark.vue'
+import { torchOn } from '@/torch/torchState.js'
 import Screensaver from '@/components/Screensaver.vue'
 import SnowLayer from '@/components/SnowLayer.vue'
 import SkiSlider from '@/components/SkiSlider.vue'
@@ -825,7 +833,6 @@ function endToggleBanner() {
 // 手电筒开关：默认关，只有 torch 彩蛋对话里选了 YES 才点亮。
 // armed = 选项框停留期间预先记录光标位置，这样选 YES 点亮时光晕已经在鼠标处。
 // torch 与 tallch 都走「Use it? YES/NO」分支，故两者 choice 步都需 armed。
-const torchOn = ref(false)
 // 当前点亮的是 torch 还是 tallch —— 决定熄灭对话里的名词。
 const torchVariant = ref('torch')
 // tallch 点亮时光晕纵向拉长的倍率

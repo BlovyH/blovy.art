@@ -12,6 +12,7 @@
 //  - 用 Teleport 挂到 body，规避祖先元素 transform/filter 导致 fixed 失效的坑。
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
+import { setTorchPointer } from '@/torch/torchState.js'
 
 const props = defineProps({
   enabled:   { type: Boolean, default: true },
@@ -94,6 +95,7 @@ const styleObj = computed(() => {
 
 function paint() {
   raf = 0
+  setTorchPointer(mx, my)
   if (!el.value) return
   el.value.style.setProperty('--mx', mx + 'px')
   el.value.style.setProperty('--my', my + 'px')

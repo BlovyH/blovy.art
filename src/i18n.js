@@ -10,6 +10,8 @@ export const ENABLED_LANGS = ['EN']
 // 非对话 UI 文案的基准文本，按 key 登记
 export const UI_TEXT = {
   'home.welcome': `Hello there, welcome to my workspace! I'm a Chinese illustrator and back-end developer shachiku. It might look a bit new here and it's still under construction, but you can have a look around!`,
+  // 手电筒元素压住的目标片段，译文里要保留为 home.welcome 的子串
+  'home.welcome.torch': 'my workspace',
   'ui.mobile.title': 'Mobile Device Detected',
   'ui.mobile.message': "I noticed you're on a phone. I might add support someday, but it's recommended you check it out on a computer for now.",
   'ui.mobile.confirm': 'Got it',
