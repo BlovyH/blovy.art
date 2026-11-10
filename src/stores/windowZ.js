@@ -17,13 +17,12 @@ export const Z = {
   DUEL: 10009, // iy 转转转动画期间强制置顶不然其他窗口点一下就遮住了，直到结束新窗口也会被遮住（新窗口额外加了手动置 focus 状态逻辑）
   OVERLAY: 10010, // 太阳镜滤镜 / DialogBox
   BANNER: 10011, // 切换横幅 / OptionBox
-  TORCH: 10012,
   MENU: 10013, // 跟随点击位置的小浮层菜单
-  UPDATE: 10014, // 右上角「有新版本」提示
-  SNOW: 10015, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
   FLOWER_SPIT: 10016, // 后院吐出的花朵，压过后院舞台，低于拎起的水滴
   CALLBACK_ITEM: 10017, // iy 的 callback 按钮
   EMOTIONS_DROP: 10017, // 拎起来的水滴，压在 mesbin 上面
+  TORCH: 10018, // 手电筒：压过所有页面内容，上面只留演出层和系统通知
+  SNOW: 10019, // 飘雪层：全屏飘雪 + 底部字幕，满屏，无交互
   STG: 10020, // 贴纸弹幕游戏层：整屏暗幕 + 弹幕，压在所有窗口之上
   STG_TUNER: 10021, // 弹幕调参面板（仅 dev，见 .gitignore）：要浮在游戏层上面
   // ⚠️ 后院必须低于 OVERLAY / BANNER：后院里的棋盘要点开对话框，而 DialogBox / OptionBox
@@ -31,8 +30,9 @@ export const Z = {
   BACKYARD: 10008, // 后院空间
   BACKYARD_FADE: 10031, // 进出后院的黑场过渡层：要连对话框一起盖住，所以远高于后院
   TOAST: 20000,
-  SCREENSAVER: 30000, // 屏保：压过所有东西（含 toast），任何操作立刻退出所以不吃事件
+  SCREENSAVER: 30000, // 屏保：压过所有页面内容（含 toast），任何操作立刻退出所以不吃事件
   BLACKOUT: 40000, // 花朵溢出（演出层最高）
+  UPDATE: 40001, // 右上角「有新版本」提示：系统通知，压过包括演出层在内的所有层
 }
 
 // 把层级表写成 :root 的 CSS 变量，让样式和 JS 用的是同一份数字
