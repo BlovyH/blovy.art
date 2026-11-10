@@ -43,6 +43,7 @@ import BackyardDoor from './BackyardDoor.vue'
 import BackyardEmotions from './BackyardEmotions.vue'
 import FlowerTray from './FlowerTray.vue'
 import { backyardEntered, consumeRestoreNotice, leaveBackyard } from './backyard.js'
+import { suckFlowers } from './flowerSpitBridge.js'
 import {
   FLOWER_SRC,
   beginFlowerEdit,
@@ -63,6 +64,7 @@ const dlg = useDialogFlow()
 const boardHighlight = computed(() => dlg.activeKey.value === 'flowerbedEmpty')
 
 function onBoardClick() {
+  if (!flowerbedEditing.value && suckFlowers()) return
   if (flowerbedLocked.value || cakeTaken.value) {
     dlg.start('flowerbedEmpty', { preempt: true })
     return

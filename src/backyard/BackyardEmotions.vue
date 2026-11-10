@@ -63,6 +63,9 @@
   </PixelWindow>
 
   <MesBin ref="bin" :visible="dragging" placement="top" />
+
+  <FlowerSpit ref="spitRef" />
+  <SorryBlackout v-if="blackout" />
 </template>
 
 <script setup>
@@ -72,6 +75,8 @@ import MesBin from '@/components/MesBin.vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
+import FlowerSpit from './FlowerSpit.vue'
+import SorryBlackout from './SorryBlackout.vue'
 
 const FACE_SRC = '/assets/emotion_face.png'
 const FACE_SAD_SRC = '/assets/emotion_face_sad.png'
@@ -79,11 +84,19 @@ const DROP_SRC = '/assets/emotion_drop.png'
 const DRAG_THRESHOLD = 4
 const CARRY_RELEASE_MS = 240
 const FACE_RESTORE_MS = 3000
-const EMOTIONS_SHAKE = { minPath: 260, minReversals: 2 }
+const EMOTIONS_SHAKE = {
+  minPath: 130,
+  minReversals: 1,
+  minSwing: 28,
+  maxNetRatio: 0.4,
+  cooldownMs: 180,
+}
 
 new Image().src = FACE_SAD_SRC
 
 const faceSad = ref(false)
+const spitRef = ref(null)
+const blackout = ref(false)
 let faceTimer = 0
 
 function scheduleFaceRestore() {
@@ -91,7 +104,11 @@ function scheduleFaceRestore() {
   faceTimer = setTimeout(() => { faceSad.value = false }, FACE_RESTORE_MS)
 }
 
-function onEmotionsShake() {
+function onEmotionsShake(dir) {
+  if (faceSad.value && spitRef.value?.burst(dir)) {
+    blackout.value = true
+    return
+  }
   faceSad.value = true
   emotion.value = 'default'
   scheduleFaceRestore()

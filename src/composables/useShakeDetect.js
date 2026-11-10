@@ -32,6 +32,9 @@ const COOLDOWN_MS = 2000
 export function useShakeDetect(onShake, opts = {}) {
   const minPath = opts.minPath ?? MIN_PATH
   const minReversals = opts.minReversals ?? MIN_REVERSALS
+  const cooldownMs = opts.cooldownMs ?? COOLDOWN_MS
+  const minSwing = opts.minSwing ?? MIN_SWING
+  const maxNetRatio = opts.maxNetRatio ?? MAX_NET_RATIO
   let points = [] // [{ x, y, t }]，始终按时间裁剪到 WINDOW_MS 内
   let cooldownUntil = 0
 
@@ -40,21 +43,23 @@ export function useShakeDetect(onShake, opts = {}) {
     if (now < cooldownUntil) return
     points.push({ x, y, t: now })
     while (points.length > 1 && now - points[0].t > WINDOW_MS) points.shift()
-    if (detect()) {
+    const dir = detect()
+    if (dir) {
       reset()
-      cooldownUntil = now + COOLDOWN_MS
-      onShake()
+      cooldownUntil = now + cooldownMs
+      onShake(dir)
     }
   }
 
-  // 只在当前窗口内的点上计算，裁剪后不会残留旧数据。
+  // 判定成立时返回最后一段甩动的单位方向，交给回调按甩动方向发力
   function detect() {
-    if (points.length < 4) return false
+    if (points.length < 4) return null
     let path = 0
     let reversals = 0
     let axis = '' // 当前主轴：'x' | 'y'
     let dir = 0 // 当前主轴上的方向
     let swing = 0 // 上次转向以来沿主轴累计的位移
+    let turnAt = 0
     for (let i = 1; i < points.length; i++) {
       const dx = points[i].x - points[i - 1].x
       const dy = points[i].y - points[i - 1].y
@@ -69,23 +74,32 @@ export function useShakeDetect(onShake, opts = {}) {
         axis = a
         dir = s
         swing = Math.abs(m)
+        turnAt = i - 1
         continue
       }
       if (s !== 0 && s !== dir) {
-        // 只有刚才那一甩够长（MIN_SWING）才算一次真正的回摆，
+        // 只有刚才那一甩够长（minSwing）才算一次真正的回摆，
         // 否则「快速拖动中抖一下继续走」也会被当成来回，导致过于灵敏。
-        if (swing >= MIN_SWING) reversals++
+        if (swing >= minSwing) reversals++
         dir = s
         swing = 0
+        turnAt = i - 1
       }
       swing += Math.abs(m)
     }
-    if (path < minPath || reversals < minReversals) return false
+    if (path < minPath || reversals < minReversals) return null
     const net = Math.hypot(
       points[points.length - 1].x - points[0].x,
       points[points.length - 1].y - points[0].y
     )
-    return net <= path * MAX_NET_RATIO
+    if (net > path * maxNetRatio) return null
+    const tail = points[turnAt]
+    const head = points[points.length - 1]
+    const dx = head.x - tail.x
+    const dy = head.y - tail.y
+    const len = Math.hypot(dx, dy)
+    if (len > MIN_STEP) return { x: dx / len, y: dy / len }
+    return axis === 'x' ? { x: dir, y: 0 } : { x: 0, y: dir }
   }
 
   function reset() {
