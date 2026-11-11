@@ -48,7 +48,7 @@
 
       <!-- 语言下拉 -->
       <Teleport to="body">
-        <div class="lang-menu" :class="{ 'is-open': langMenuOpen }" :style="langMenuStyle">
+        <div ref="langMenuRef" class="lang-menu" :class="{ 'is-open': langMenuOpen }" :style="langMenuStyle">
           <div class="lang-menu__slide">
             <button
               v-for="code in LANGS"
@@ -58,6 +58,13 @@
               :disabled="!isLangEnabled(code)"
               @click="pickLang(code)"
             >{{ code }}</button>
+          </div>
+        </div>
+        <div class="lang-wip" :class="{ 'is-open': langMenuOpen }" :style="langWipStyle">
+          <div class="lang-wip__slide">
+            <div v-for="code in LANGS" :key="code" class="lang-wip__row">
+              <span v-if="!isLangEnabled(code)" class="lang-wip__text">{{ tUi('lang.wip') }}</span>
+            </div>
           </div>
         </div>
       </Teleport>
@@ -541,8 +548,14 @@ const welcomeText = computed(() => tUi('home.welcome'))
 const langMenuOpen = ref(false)
 const langMenuAt = ref({ x: 0, y: 0, h: 0 })
 const langBtnRef = ref(null)
+const langMenuRef = ref(null)
+const langMenuWidth = ref(0)
+// 下拉与彩带是先后两段，间隔略小于单段时长使末尾轻微重叠
+const LANG_ANIM_MS = 180
+const LANG_SEQ_MS = 150
+const hasLangWip = LANGS.some(code => !isLangEnabled(code))
 // 收起期间按钮被不透明菜单盖住，撑到菜单隐藏后再缩回，宽度恢复才是可见的动画
-const LANG_HOLD_MS = 180
+const LANG_HOLD_MS = LANG_ANIM_MS + (hasLangWip ? LANG_SEQ_MS : 0)
 const langBtnHeld = ref(false)
 let langHoldTimer = 0
 
@@ -564,9 +577,16 @@ const langMenuStyle = computed(() => {
     '--lang-row': langMenuAt.value.h + 'px',
     '--lang-shift': String(shift),
     '--lang-count': String(LANGS.length),
+    '--lang-anim': LANG_ANIM_MS + 'ms',
+    '--lang-seq': (hasLangWip ? LANG_SEQ_MS : 0) + 'ms',
     zIndex: Z.MENU,
   }
 })
+
+const langWipStyle = computed(() => ({
+  ...langMenuStyle.value,
+  left: langMenuAt.value.x + langMenuWidth.value + 'px',
+}))
 
 function toggleLangMenu() {
   if (langMenuOpen.value) {
@@ -576,6 +596,7 @@ function toggleLangMenu() {
   const rect = langBtnRef.value?.getBoundingClientRect()
   if (!rect) return
   langMenuAt.value = { x: rect.left, y: rect.top, h: rect.height }
+  langMenuWidth.value = langMenuRef.value?.getBoundingClientRect().width ?? 0
   langMenuOpen.value = true
 }
 
@@ -1985,15 +2006,15 @@ function onTorchClick(axis) {
   visibility: hidden;
   pointer-events: none;
   /* 收起时等收缩动画播完再隐藏，打开时不等待 */
-  transition: height 0.18s cubic-bezier(0.33, 1, 0.68, 1),
-    visibility 0s linear 0.18s;
+  transition: height var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1) var(--lang-seq),
+    visibility 0s linear calc(var(--lang-anim) + var(--lang-seq));
 }
 
 .lang-menu.is-open {
   height: calc(var(--lang-row, 0px) * var(--lang-count, 3));
   visibility: visible;
   pointer-events: auto;
-  transition: height 0.18s cubic-bezier(0.33, 1, 0.68, 1),
+  transition: height var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1),
     visibility 0s;
 }
 
@@ -2002,11 +2023,68 @@ function onTorchClick(axis) {
   flex-direction: column;
   /* 收起时上移当前语言所在的行数，当前行落到框顶 */
   translate: 0 calc(var(--lang-row, 0px) * var(--lang-shift, 1) * -1);
-  transition: translate 0.18s cubic-bezier(0.33, 1, 0.68, 1);
+  transition: translate var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1) var(--lang-seq);
 }
 
 .lang-menu.is-open .lang-menu__slide {
   translate: 0 0;
+  transition-delay: 0s;
+}
+
+.lang-wip {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  height: var(--lang-row, 0px);
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+  transition: height var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1) var(--lang-seq),
+    visibility 0s linear calc(var(--lang-anim) + var(--lang-seq));
+}
+
+.lang-wip.is-open {
+  height: calc(var(--lang-row, 0px) * var(--lang-count, 3));
+  visibility: visible;
+  transition: height var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1), visibility 0s;
+}
+
+.lang-wip__slide {
+  display: flex;
+  flex-direction: column;
+  translate: 0 calc(var(--lang-row, 0px) * var(--lang-shift, 0) * -1);
+  transition: translate var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1) var(--lang-seq);
+}
+
+.lang-wip.is-open .lang-wip__slide {
+  translate: 0 0;
+  transition-delay: 0s;
+}
+
+.lang-wip__row {
+  display: flex;
+  align-items: center;
+  height: var(--lang-row, 0px);
+}
+
+.lang-wip__text {
+  display: block;
+  box-sizing: border-box;
+  max-width: 0;
+  padding-left: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #ffffff;
+  -webkit-text-stroke: 3px #000;
+  text-shadow: -2px 0 0 #000, 2px 0 0 #000, 0 -2px 0 #000, 0 2px 0 #000; /* 兜底 */
+  paint-order: stroke fill;
+  transition: max-width var(--lang-anim) cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.lang-wip.is-open .lang-wip__text {
+  max-width: 4em;
+  transition-delay: var(--lang-seq);
 }
 
 .lang-menu__item {

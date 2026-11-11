@@ -15,6 +15,7 @@ export const UI_TEXT = {
   'ui.mobile.title': 'Mobile Device Detected',
   'ui.mobile.message': "I noticed you're on a phone. I might add support someday, but it's recommended you check it out on a computer for now.",
   'ui.mobile.confirm': 'Got it',
+  'lang.wip': '制作中',
 }
 
 export const LOCALES = {
