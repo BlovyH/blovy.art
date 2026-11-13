@@ -395,8 +395,31 @@ export const flowerbedCensorFlow = {
   },
 }
 
+// kajiu 招牌
+export const kajiuFlow = {
+  start: {
+    type: 'option',
+    options: [
+      { label: 'Surprised Sub*ay and K*C didn\'t grab this place first', value: 'ask' },
+    ],
+    next: null,
+  },
+}
+
+// 点了 kajiu 台词里星号后的抢占对话
+export const kajiuNoEggFlow = {
+  start: {
+    type: 'dialog',
+    content: 'Surprised? No surprise here!',
+    next: null,
+    typewriter: { typeMs: 20, holdMs: 320, restore: 'kajiu', restoreMs: 140 },
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
+  kajiu: kajiuFlow,
+  kajiuNoEgg: kajiuNoEggFlow,
   noticeSign: noticeSignFlow,
   dropped: droppedFlow,
   torchFound: torchFoundFlow,

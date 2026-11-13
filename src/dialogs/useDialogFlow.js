@@ -59,7 +59,7 @@ function start(key, { preempt = false, step = 'start' } = {}) {
 // 对话步推进：有 next 就跳，next 为 null 则结束（自关）
 // cinematic 流是演出对话，时间线由触发方自己收尾，不响应点击/回车
 function advance() {
-  if (flow.value?.cinematic) return
+  if (flow.value?.cinematic || step.value?.typewriter) return
   const s = step.value
   if (!s) return
   if (s.next == null) {

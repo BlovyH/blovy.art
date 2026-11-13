@@ -16,7 +16,12 @@
           @mouseenter="hover(index)"
         >
           <span class="option-box__prefix">{{ index === selectedIndex ? '#' : ' ' }}</span>
-          <span class="option-box__label">{{ option.label }}</span>
+          <span class="option-box__label"><span
+            v-for="(part, i) in splitLabel(option.label)"
+            :key="i"
+            :class="part.star ? 'option-box__star' : 'option-box__plain'"
+            @click="onPartClick($event, part.star)"
+          >{{ part.text }}</span></span>
         </button>
       </div>
       <div v-if="$slots.aside" class="option-box__aside">
@@ -27,7 +32,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
@@ -53,10 +58,24 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'select'])
+const emit = defineEmits(['update:modelValue', 'select', 'star'])
 
 const zIndex = Z.BANNER
 const selectedIndex = ref(props.modelValue)
+
+// 按 * 拆开选项文本，星号单独成片段；只认字符，与语言无关
+function splitLabel(label) {
+  return String(label ?? '')
+    .split(/(\*)/)
+    .filter(Boolean)
+    .map((text) => ({ text, star: text === '*' }))
+}
+
+function onPartClick(e, star) {
+  if (!star) return
+  e.stopPropagation()
+  emit('star')
+}
 
 watch(() => props.modelValue, (val) => {
   selectedIndex.value = val
@@ -175,6 +194,15 @@ onUnmounted(() => {
 
 .option-box__label {
   letter-spacing: 2px;
+}
+
+.option-box__star {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.option-box__star:hover {
+  color: #00ffff;
 }
 
 .option-box__aside {

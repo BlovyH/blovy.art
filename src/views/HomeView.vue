@@ -298,6 +298,7 @@
         :initial-z-index="Z.COMMENTS"
         :disabled-controls="{ close: true }"
       >
+        <KajiuBadge />
         <div class="comments-body">
           <a
             v-for="note in displayedNotes"
@@ -509,6 +510,7 @@ import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import { lang, ENABLED_LANGS, tUi } from '@/i18n.js'
 import DPDetailWindow from '@/components/DPDetailWindow.vue'
 import DPPreview from '@/components/DPPreview.vue'
+import KajiuBadge from '@/kajiu/KajiuBadge.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import { SKI_MODE_ICON, skiImpostor, skiMode, toggleSkiMode } from '@/skiMode.js'
 import { SKI_BOUNCE, SKI_MIN_SPEED } from '@/skiGlide.js'
@@ -2591,6 +2593,10 @@ function onTorchClick(axis) {
   top: 50%;
   right: 2%;
   height: min(70%, 476px);
+}
+
+.comments-window.pixel-window {
+  overflow: visible;
 }
 
 .comments-body {

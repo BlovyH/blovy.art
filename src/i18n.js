@@ -38,9 +38,15 @@ export const LOCALES = {
     'benchFound.start.content': '你找到了手凳。',
 
     'flowerbedEmpty.start.content': '还有花朵吗？',
+
+    'kajiu.start.options.ask.label': '你这个铺位，选址的时候正*鸡排和蜜*冰城没有和你竞争吗？',
+    'kajiuNoEgg.start.content': '别点了这个没有彩蛋',
   },
   JP: {
-    'flowerbedEmpty.start.content': 'ハナ、まだある？'
+    'flowerbedEmpty.start.content': 'ハナ、まだある？',
+
+    'kajiu.start.options.ask.label': 'この区画さ、決めるときす*家とドン*とぶつからなかったんだ？',
+    'kajiuNoEgg.start.content': 'ここには何も隠してないよ',
   },
 }
 

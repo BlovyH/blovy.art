@@ -6,10 +6,19 @@ import DialogBox from './DialogBox.vue'
 import DialogAside from './DialogAside.vue'
 import DialogPointer from './DialogPointer.vue'
 import OptionBox from './OptionBox.vue'
+import DialogCinematic from './DialogCinematic.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
+import { triggerKajiuGag } from '@/kajiu/kajiuGag.js'
 
-const { isDialog, isOption, content, options, aside, point, visible, advance, select } =
-  useDialogFlow()
+const dlg = useDialogFlow()
+const { isDialog, isOption, content, options, aside, point, visible, advance, select, step, activeKey, currentStep } = dlg
+
+function onCinematicDone() {
+  const cfg = dlg.step.value?.typewriter
+  dlg.reset()
+  if (!cfg?.restore) return
+  setTimeout(() => dlg.start(cfg.restore, { preempt: true }), cfg.restoreMs ?? 140)
+}
 </script>
 
 <template>
@@ -29,9 +38,17 @@ const { isDialog, isOption, content, options, aside, point, visible, advance, se
     :options="options"
     :content="content"
     @select="select"
+    @star="triggerKajiuGag"
   >
     <template #aside>
       <DialogAside v-if="aside" :aside="aside" />
     </template>
   </OptionBox>
+  <DialogCinematic
+    v-if="isDialog && step?.typewriter"
+    :key="`${activeKey}-${currentStep}`"
+    :type-ms="step.typewriter.typeMs"
+    :hold-ms="step.typewriter.holdMs"
+    @done="onCinematicDone"
+  />
 </template>
