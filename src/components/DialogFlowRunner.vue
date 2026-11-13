@@ -8,6 +8,7 @@ import DialogPointer from './DialogPointer.vue'
 import OptionBox from './OptionBox.vue'
 import DialogCinematic from './DialogCinematic.vue'
 import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
+import { shouldRestore } from '@/dialogs/cinematicGuards.js'
 import { triggerKajiuGag } from '@/kajiu/kajiuGag.js'
 
 const dlg = useDialogFlow()
@@ -15,9 +16,13 @@ const { isDialog, isOption, content, options, aside, point, visible, advance, se
 
 function onCinematicDone() {
   const cfg = dlg.step.value?.typewriter
+  const from = dlg.activeKey.value
   dlg.reset()
   if (!cfg?.restore) return
-  setTimeout(() => dlg.start(cfg.restore, { preempt: true }), cfg.restoreMs ?? 140)
+  setTimeout(() => {
+    if (!shouldRestore(from)) return
+    dlg.start(cfg.restore, { preempt: true, step: cfg.restoreStep ?? 'start' })
+  }, cfg.restoreMs ?? 140)
 }
 </script>
 

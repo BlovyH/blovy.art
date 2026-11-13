@@ -386,12 +386,17 @@ export const flowerbedAngelFlow = {
 
 // 点了 panic 句里星号后的抗议台词
 export const flowerbedCensorFlow = {
-  // 演出对话，点击和回车推进被锁，由触发方收尾
-  cinematic: true,
   start: {
     type: 'dialog',
     content: "Ahhh don't change my lines!!!! Fxxk!",
     next: null,
+    typewriter: {
+      typeMs: 20,
+      holdMs: 320,
+      restore: 'flowerbedAngel',
+      restoreStep: 'panic',
+      restoreMs: 140,
+    },
   },
 }
 
