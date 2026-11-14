@@ -328,8 +328,8 @@
       <div
         ref="doujinOuterRef"
         class="doujin-outer"
-        :class="{ 'expand-up': expandUp && isExpanded, expanded: isExpanded }"
-        :style="{ '--dp-height': expandHeight + 'px' }"
+        :class="{ 'expand-up': expandUp && isExpanded, expanded: isExpanded, 'is-charging': isDpCharging }"
+        :style="{ '--dp-height': expandHeight + 'px', '--dp-hover-ms': DOUJIN_HOVER_MS + 'ms', '--dp-easing': chargeEasing }"
       >
         <PixelWindow
           ref="doujinWindowRef"
@@ -339,6 +339,7 @@
   :initial-z-index="Z.DP"
   no-keep-in-view
           @dragend="onDoujinDragEnd"
+          @animationend="onDpChargeEnd"
         >
           <div
             class="doujin-collapsible"
@@ -1016,7 +1017,40 @@ function buildStickers(series, prefix) {
   return list
 }
 const currentYear = new Date().getFullYear()
+const DOUJIN_HOVER_MS = 400
+const DOUJIN_CHARGE_HOLD_MS = 180
+// 蒙版或 @property 不被支持时没有 animationend，多留一帧余量给兜底定时器
+const DOUJIN_CHARGE_FALLBACK_MS = 32
+const isDpCharging = ref(false)
+const chargeEasing = ref('linear')
+
+// 边速度，不要角速度
+function chargeEasingFor(w, h) {
+  if (!w || !h || typeof CSS === 'undefined' ||
+      !CSS.supports('animation-timing-function', 'linear(0, 1)')) return 'linear'
+  const hw = w / 2
+  const hh = h / 2
+  const perimeter = 2 * (w + h)
+  const edgePoint = (s) => {
+    if (s < hw) return [s, -hh]
+    if (s < hw + h) return [hw, -hh + s - hw]
+    if (s < hw + h + w) return [hw - (s - hw - h), hh]
+    if (s < hw + h + w + h) return [-hw, hh - (s - hw - h - w)]
+    return [-hw + (s - hw - h - w - h), -hh]
+  }
+  const steps = 64
+  const stops = []
+  for (let i = 0; i <= steps; i++) {
+    const [x, y] = edgePoint(perimeter * i / steps)
+    const angle = (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360
+    const progress = i === steps ? 1 : angle / 360
+    stops.push(`${progress.toFixed(5)} ${(i / steps * 100).toFixed(2)}%`)
+  }
+  return `linear(${stops.join(', ')})`
+}
 let collapseTimer = null
+let hoverTimer = null
+let chargeHoldTimer = null
 
 const formatTags = (tags) => {
   if (!tags) return ''
@@ -1285,32 +1319,31 @@ function onDoujinEnter() {
   clearTimeout(collapseTimer)
   isDoujinHovered.value = true
   if (isExpanded.value) return
-
-  const content = doujinContentRef.value
-  if (!content) return
-  const header = content.previousElementSibling
-  if (!header) return
-  const headerRect = header.getBoundingClientRect()
-
-  // 临时展开以测量内容高度
-  content.style.transition = 'none'
-  content.style.maxHeight = 'none'
-  content.style.visibility = 'hidden'
-  const height = content.offsetHeight
-  content.style.visibility = ''
-  content.style.maxHeight = ''
-  content.style.transition = ''
-
-  expandHeight.value = height
-  expandUp.value =
-    headerRect.bottom - restingShiftY(doujinOuterRef.value) + height > window.innerHeight
-
-  requestAnimationFrame(() => {
-    isExpanded.value = true
-  })
+  clearTimeout(hoverTimer)
+  clearTimeout(chargeHoldTimer)
+  const win = doujinWindowRef.value?.$el
+  if (win) chargeEasing.value = chargeEasingFor(win.clientWidth, win.clientHeight)
+  isDpCharging.value = true
+  // 充能环走满由 animationend 触发展开，定时器只是无动画时的兜底
+  hoverTimer = setTimeout(() => forceExpandDoujin(true), DOUJIN_HOVER_MS + DOUJIN_CHARGE_FALLBACK_MS)
 }
 
-function forceExpandDoujin() {
+function onDpChargeEnd(e) {
+  if (!isDpCharging.value || !e.animationName?.includes('dp-charge-fill')) return
+  clearTimeout(hoverTimer)
+  forceExpandDoujin(true)
+}
+
+// holdRing 为真时，展开后延时收起充能环
+function forceExpandDoujin(holdRing = false) {
+  clearTimeout(chargeHoldTimer)
+  if (holdRing) {
+    chargeHoldTimer = setTimeout(() => {
+      isDpCharging.value = false
+    }, DOUJIN_CHARGE_HOLD_MS)
+  } else {
+    isDpCharging.value = false
+  }
   clearTimeout(collapseTimer)
   if (isExpanded.value) return
 
@@ -1338,6 +1371,9 @@ function forceExpandDoujin() {
 }
 
 function onDoujinLeave() {
+  clearTimeout(hoverTimer)
+  clearTimeout(chargeHoldTimer)
+  isDpCharging.value = false
   isDoujinHovered.value = false
   if (dpDetailVisible.value) return
 
@@ -2673,6 +2709,9 @@ a.note-item[href]:hover {
   pointer-events: none;
   transform: translateY(0);
   transition: transform 0.18s ease-out;
+  --dp-glow-radius: 16px;
+  --dp-glow-alpha: 0.45;
+  --dp-glow-out-ms: 400ms;
 }
 
 .doujin-outer.expand-up {
@@ -2682,6 +2721,66 @@ a.note-item[href]:hover {
 .doujin-window-inner {
   width: 100%;
   pointer-events: auto;
+}
+
+/* @property 注册后才能被 animation 插值，未注册时角度会瞬跳 */
+@property --dp-progress {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* 只在充能期间放开窗口根裁剪，让描边能落到 border 区；内容区 overflow 不动 */
+.doujin-outer.is-charging .doujin-window-inner {
+  overflow: visible;
+}
+
+/* 用窗口原本的边框贴图当蒙版，青色只填进原框的像素里 */
+@supports (-webkit-mask-box-image: url('/assets/window_frame.png') 6 round) {
+  .doujin-outer.is-charging .doujin-window-inner::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    z-index: 3;
+    border: 6px solid transparent;
+    background-image: conic-gradient(
+      from 0deg,
+      #00ffff 0 var(--dp-progress, 0deg),
+      transparent var(--dp-progress, 0deg) 360deg
+    );
+    background-origin: border-box;
+    -webkit-mask-box-image: url('/assets/window_frame.png') 6 round;
+    mask-border: url('/assets/window_frame.png') 6 round;
+    pointer-events: none;
+    animation: dp-charge-fill var(--dp-hover-ms, 400ms) var(--dp-easing, linear) forwards;
+  }
+
+}
+
+/* 光晕挂在不裁剪的外层，box-shadow 才能向外发散并在收起时渐隐 */
+.doujin-outer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-shadow:
+    0 0 var(--dp-glow-radius) 2px rgba(0, 255, 255, var(--dp-glow-alpha)),
+    0 0 calc(var(--dp-glow-radius) * 2.5) calc(var(--dp-glow-radius) / 2) rgba(0, 255, 255, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dp-glow-out-ms) ease-out;
+}
+
+/* 充能时换成完整充能时长的渐入，收起时回落到渐出时长 */
+.doujin-outer.is-charging::after {
+  opacity: 1;
+  transition-duration: var(--dp-hover-ms, 400ms);
+  transition-timing-function: var(--dp-easing, linear);
+}
+
+@keyframes dp-charge-fill {
+  from { --dp-progress: 0deg; }
+  to { --dp-progress: 360deg; }
 }
 
 .doujin-collapsible {
