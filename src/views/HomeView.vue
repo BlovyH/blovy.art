@@ -1968,6 +1968,7 @@ function onTorchClick(axis) {
   color: var(--lang-breathe, #ffffff);
   vertical-align: baseline;
   cursor: pointer;
+  user-select: none;
   box-shadow: inset 0 0 0 1px transparent;
   animation: lang-btn-breathe 3.2s ease-in-out 5;
   transition: padding 0.18s cubic-bezier(0.33, 1, 0.68, 1),
