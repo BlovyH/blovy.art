@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { createRequire } from 'node:module'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import * as compilerSfc from 'vue/compiler-sfc'
 import { subsetFonts } from './scripts/subset-fonts.js'
 import { i18nCheck } from './scripts/i18n-check.js'
 
@@ -21,7 +22,8 @@ const BUILD_ID = process.env.GITHUB_SHA || new Date().toISOString()
 export default defineConfig({
   base: '/', // blovy.art
   plugins: [
-    vue(),
+    // compiler 默认要等 buildStart 才解析，dev 的 HMR 可能更早到
+    vue({ compiler: compilerSfc }),
     ...(stgTuner ? [stgTuner()] : []),
     {
       name: 'subset-fonts',
