@@ -38,7 +38,6 @@ const dlg = useDialogFlow()
 
 const dragging = ref(false)
 const leaving = ref(false)
-// 扔进垃圾桶 = later = 本次会话不再提示
 const swallowed = ref(false) 
 const hot = ref(false)
 const offset = ref({ x: 0, y: 0 })

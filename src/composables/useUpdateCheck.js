@@ -6,15 +6,10 @@ import { MESBIN_ART } from '@/components/MesBin.vue'
 
 const FIRST_CHECK_MS = 30_000 // 别一进来就发请求，先把首屏让过去
 const INTERVAL_MS = 60_000
-const SILENCED_KEY = 'update.silenced' // 点了 later 之后本次会话不再提示
 
-function silenced() {
-  try {
-    return sessionStorage.getItem(SILENCED_KEY) === '1'
-  } catch {
-    return false // 隐私模式下读不到，就照常检查
-  }
-}
+// 关掉通知只忽略这一个 buildId，线上再换版本就重新弹
+let dismissedBuildId = null
+let currentBuildId = null
 
 // 通知弹出前先预加载 mesbin 贴图
 const ART_TIMEOUT_MS = 1500 // 图拉不下来就算了
@@ -55,11 +50,11 @@ export function useUpdateCheck() {
       })
       if (!res.ok) return
       const { buildId } = await res.json()
-      if (typeof buildId === 'string' && buildId && buildId !== __BUILD_ID__) {
-        await preloadBinArt()
-        available.value = true
-        stop()
-      }
+      if (typeof buildId !== 'string' || !buildId) return
+      if (buildId === __BUILD_ID__ || buildId === dismissedBuildId || buildId === currentBuildId) return
+      currentBuildId = buildId
+      await preloadBinArt()
+      available.value = true
     } catch {
       // 拿不到版本就算了
     }
@@ -81,16 +76,13 @@ export function useUpdateCheck() {
   }
 
   function dismiss() {
-    try {
-      sessionStorage.setItem(SILENCED_KEY, '1')
-    } catch {}
+    dismissedBuildId = currentBuildId
     available.value = false
-    stop()
   }
 
   // 仅 prod 有 version.json，轮询
   // 本地可以用 npm run build && npm run preview 测试
-  if (import.meta.env.PROD && !silenced()) {
+  if (import.meta.env.PROD) {
     firstTimer = setTimeout(() => {
       check()
       start()
