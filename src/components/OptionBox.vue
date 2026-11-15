@@ -3,9 +3,10 @@
     <div
       v-if="visible"
       class="option-box"
+      :class="{ 'is-scrambling': isScrambling }"
       :style="{ zIndex }"
     >
-      <p v-if="content" class="option-box__content" v-html="content"></p>
+      <p v-if="content" class="option-box__content" v-html="displayContent"></p>
       <div class="option-box__row">
         <button
           v-for="(option, index) in options"
@@ -17,7 +18,7 @@
         >
           <span class="option-box__prefix">{{ index === selectedIndex ? '#' : ' ' }}</span>
           <span class="option-box__label"><span
-            v-for="(part, i) in splitLabel(option.label)"
+            v-for="(part, i) in splitLabel(displayLabels[index] ?? option.label)"
             :key="i"
             :class="part.star ? 'option-box__star' : 'option-box__plain'"
             @click="onPartClick($event, part.star)"
@@ -32,8 +33,14 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
+import { lang } from '@/i18n.js'
+import { useScrambleText } from '@/composables/useScrambleText.js'
+
+const OPTION_SCRAMBLE_MS = 300
+const OPTION_SCRAMBLE_TICK_MS = 32
+const PART_SEP = '\u0000'
 
 const props = defineProps({
   visible: {
@@ -59,6 +66,23 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'select', 'star'])
+
+// 提示文案和各选项拼成一个源统一演出，再按分隔符切回各自显示
+const scrambleSource = computed(() =>
+  [props.content ?? '', ...props.options.map((o) => o.label ?? '')].join(PART_SEP)
+)
+const { displayText, isScrambling } = useScrambleText(scrambleSource, {
+  durationMs: OPTION_SCRAMBLE_MS,
+  tickMs: OPTION_SCRAMBLE_TICK_MS,
+  html: true,
+  // 星号与分隔符原样保留，乱码期间选项的星号彩蛋仍可点
+  keep: '*' + PART_SEP,
+  trigger: lang,
+  enabled: () => props.visible,
+})
+const displayParts = computed(() => displayText.value.split(PART_SEP))
+const displayContent = computed(() => displayParts.value[0] ?? '')
+const displayLabels = computed(() => displayParts.value.slice(1))
 
 const zIndex = Z.BANNER
 const selectedIndex = ref(props.modelValue)
@@ -210,6 +234,18 @@ onUnmounted(() => {
   right: 36px;
   bottom: 0px;
 }
+
+.option-box__content,
+.option-box__label {
+  transition: text-shadow 200ms ease-out;
+}
+
+/* 乱码过渡期间跟对话框一样罩红蓝色差 */
+.option-box.is-scrambling .option-box__content,
+.option-box.is-scrambling .option-box__label {
+  text-shadow: -2px 0 rgba(255, 45, 78, 0.9), 2px 0 rgba(45, 120, 255, 0.9);
+}
+
 /* 代码统一注入的高亮片段，样式名由登记表给出 */
 .option-box__content :deep(.dialog-hl--cyan) {
   color: #00ffff;

@@ -548,6 +548,7 @@ import {
 import { Z, nextZ } from '@/stores/windowZ.js'
 import { CONTENT_DATA_URL, CONTENT_POLL_INTERVAL_MS } from '@/config/data.js'
 import { useShakeDetect } from '@/composables/useShakeDetect.js'
+import { useScrambleText } from '@/composables/useScrambleText.js'
 import * as dpActions from '@/dpActions.js'
 
 // 对话流引擎（模块级单例）：任意触发器调 dlg.start(key) 播放 flows.js 里对应的一串对话。
@@ -559,6 +560,12 @@ const LANGS = ['ZH', 'EN', 'JP']
 // dev 全开方便调翻译，缺词条回退 EN；生产只放开 ENABLED_LANGS
 const isLangEnabled = (code) => import.meta.env.DEV || ENABLED_LANGS.includes(code)
 const welcomeText = computed(() => tUi('home.welcome'))
+const WELCOME_SCRAMBLE_MS = 222
+const WELCOME_SCRAMBLE_TICK_MS = 32
+const { displayText: displayWelcome, isScrambling: isWelcomeScrambling } = useScrambleText(welcomeText, {
+  durationMs: WELCOME_SCRAMBLE_MS,
+  tickMs: WELCOME_SCRAMBLE_TICK_MS,
+})
 const langMenuOpen = ref(false)
 const langMenuAt = ref({ x: 0, y: 0, h: 0 })
 const langBtnRef = ref(null)
@@ -2014,6 +2021,16 @@ function onTorchClick(axis) {
   color: #00ffff;
   font-size: clamp(12px, 1.1vw, 17px);
   line-height: 1.6;
+  /* auto-phrase 要元素标 lang="ja"，不支持时用 normal 回退 */
+  word-break: normal;
+  word-break: auto-phrase;
+  transition: color 200ms ease-out, text-shadow 200ms ease-out;
+}
+
+/* 乱码过渡期间用红蓝色差把随机字符和落定的字一起罩住 */
+.welcome-text.is-scrambling {
+  color: #ffffff;
+  text-shadow: -2px 0 rgba(255, 45, 78, 0.9), 2px 0 rgba(45, 120, 255, 0.9);
 }
 
 @property --lang-breathe {

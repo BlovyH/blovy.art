@@ -13,7 +13,11 @@
           @click="onPromptClick"
           >{{ isStar ? '*' : '&gt;&gt;' }}</span
         >
-        <span class="dialog-box__text" v-html="content"></span>
+        <span
+          class="dialog-box__text"
+          :class="{ 'is-scrambling': isScrambling }"
+          v-html="displayContent"
+        ></span>
       </div>
       <div v-if="$slots.aside" class="dialog-box__aside">
         <slot name="aside" />
@@ -23,8 +27,10 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Z } from '@/stores/windowZ.js'
+import { lang } from '@/i18n.js'
+import { useScrambleText } from '@/composables/useScrambleText.js'
 import { playSnow } from '@/snowTrigger.js'
 import { skiImpostor } from '@/skiMode.js'
 import { backyardEntered } from '@/backyard/backyard.js'
@@ -32,6 +38,8 @@ import { triggerCensorGag, censorShaking } from '@/dialogs/censorGag.js'
 
 // 每次出现一个对话框就抽一次：三成概率把提示符换成 *，点它放一次飘雪
 const STAR_CHANCE = 0.3
+const DIALOG_SCRAMBLE_MS = 300
+const DIALOG_SCRAMBLE_TICK_MS = 32
 
 const props = defineProps({
   visible: {
@@ -42,11 +50,27 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  scramble: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(['click'])
 
 const zIndex = Z.OVERLAY
+
+// 切语言时把当前台词逐字落定，打字机步由调用方关掉
+const { displayText: displayContent, isScrambling } = useScrambleText(
+  computed(() => props.content),
+  {
+    durationMs: DIALOG_SCRAMBLE_MS,
+    tickMs: DIALOG_SCRAMBLE_TICK_MS,
+    html: true,
+    trigger: lang,
+    enabled: () => props.visible && props.scramble,
+  },
+)
 
 // 按「对话框」抽而不是按组件实例抽一次：这一层是复用的单例，只在挂载时抽的话整场访问只有一次结果
 const isStar = ref(false)
@@ -181,6 +205,12 @@ onUnmounted(() => {
 .dialog-box__text {
   color: #ffffff;
   overflow-wrap: break-word;
+  transition: color 200ms ease-out, text-shadow 200ms ease-out;
+}
+
+/* 乱码过渡期间用红蓝色差把随机字符和落定的字一起罩住 */
+.dialog-box__text.is-scrambling {
+  text-shadow: -2px 0 rgba(255, 45, 78, 0.9), 2px 0 rgba(45, 120, 255, 0.9);
 }
 
 /* 右下角附加位：浮在主文本之上、不参与排版，主文本因此保持满宽 */

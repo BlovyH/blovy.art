@@ -31,6 +31,7 @@ function onCinematicDone() {
   <DialogBox
     :visible="isDialog"
     :content="content"
+    :scramble="!step?.typewriter"
     @click="advance"
   >
     <template #aside>
