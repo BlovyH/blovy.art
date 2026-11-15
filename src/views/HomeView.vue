@@ -42,7 +42,11 @@
               @click.stop="toggleLangMenu"
             >{{ lang }}</button>"</span>
           </p>
-          <p class="welcome-text">{{ welcomeText }}</p>
+          <p
+            class="welcome-text"
+            :class="{ 'is-scrambling': isWelcomeScrambling }"
+            :lang="lang === 'JP' ? 'ja' : undefined"
+          >{{ displayWelcome }}</p>
         </div>
       </PixelWindow>
 
@@ -66,6 +70,13 @@
               <span v-if="!isLangEnabled(code)" class="lang-wip__text">{{ tUi('lang.wip') }}</span>
             </div>
           </div>
+        </div>
+        <div
+          class="i18n-tips"
+          :class="{ 'is-hidden': !i18nTipsVisible }"
+          :style="i18nTipsStyle"
+        >
+          <img src="/assets/i18n_tips.png" alt="" />
         </div>
       </Teleport>
 
@@ -244,7 +255,7 @@
       <!-- 手电筒熄灭按钮：点亮后原地取代 torch 图标，点一下熄灭、图标回归。
            定位与 torch 图标同锚点（见 .torch-off-btn）。 -->
       <button v-if="torchOn" class="torch-off-btn" @click="onTorchOff">
-        I'M DONE WITH IT
+        {{ tUi('torch.done.label') }}
       </button>
 
       <!-- Social Links Window -->
@@ -475,7 +486,7 @@
 
     <TorchRevealLayer>
       <TorchMark anchor=".nothing-desktop-icon .desktop-icon__label">WIKI</TorchMark>
-      <TorchMark anchor=".welcome-text" :text="tUi('home.welcome.torch')">the ADWEBTURE</TorchMark>
+      <TorchMark anchor=".welcome-text" :text="tUi('home.welcome.torch')">{{ tUi('torch.mark.adwebture') }}</TorchMark>
     </TorchRevealLayer>
 
     <Screensaver />
@@ -502,7 +513,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
+import { onMounted, onBeforeUnmount, nextTick, ref, computed, watch } from 'vue'
 import PixelWindow from '@/components/PixelWindow.vue'
 import ImageDetailWindow from '@/components/ImageDetailWindow.vue'
 import DialogFlowRunner from '@/components/DialogFlowRunner.vue'
@@ -591,6 +602,23 @@ const langWipStyle = computed(() => ({
   left: langMenuAt.value.x + langMenuWidth.value + 'px',
 }))
 
+// 进页面时在语言按钮上方漂浮一会儿，之后渐隐
+const I18N_TIPS_SHOW_MS = 8000
+const i18nTipsVisible = ref(true)
+const i18nTipsAt = ref({ x: 0, y: 0 })
+const i18nTipsStyle = computed(() => ({
+  left: i18nTipsAt.value.x + 'px',
+  top: i18nTipsAt.value.y + 'px',
+  zIndex: Z.MENU,
+}))
+let i18nTipsTimer = 0
+onMounted(async () => {
+  await nextTick()
+  const rect = langBtnRef.value?.getBoundingClientRect()
+  if (rect) i18nTipsAt.value = { x: rect.left, y: rect.top - 12 }
+  i18nTipsTimer = setTimeout(() => { i18nTipsVisible.value = false }, I18N_TIPS_SHOW_MS)
+})
+onBeforeUnmount(() => clearTimeout(i18nTipsTimer))
 function toggleLangMenu() {
   if (langMenuOpen.value) {
     closeLangMenu()
@@ -2031,6 +2059,35 @@ function onTorchClick(axis) {
   animation-play-state: paused;
 }
 
+.i18n-tips {
+  --i18n-tips-float-ms: 3.6s;
+  --i18n-tips-float-y: 10px;
+  --i18n-tips-fade-ms: 800ms;
+  --i18n-tips-align-px: 20px;
+  position: fixed;
+  /* 图片左起第 8 个像素对齐下方语言框左边，整体上移到它上方 */
+  translate: calc(-1 * var(--i18n-tips-align-px)) -100%;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity var(--i18n-tips-fade-ms) ease-out;
+}
+
+.i18n-tips.is-hidden {
+  opacity: 0;
+}
+
+.i18n-tips img {
+  display: block;
+  width: 100px;
+  height: auto;
+  image-rendering: pixelated;
+  animation: i18n-tips-float var(--i18n-tips-float-ms) ease-in-out infinite; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(255, 255, 255, 0.65));
+}
+
+@keyframes i18n-tips-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(-1 * var(--i18n-tips-float-y))); }
+}
 .lang-menu {
   position: fixed;
   display: flex;

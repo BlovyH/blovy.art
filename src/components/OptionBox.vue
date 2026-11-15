@@ -210,4 +210,8 @@ onUnmounted(() => {
   right: 36px;
   bottom: 0px;
 }
+/* 代码统一注入的高亮片段，样式名由登记表给出 */
+.option-box__content :deep(.dialog-hl--cyan) {
+  color: #00ffff;
+}
 </style>

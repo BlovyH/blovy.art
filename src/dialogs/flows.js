@@ -29,7 +29,7 @@ export const noticeSignFlow = {
   },
   yes: {
     type: 'dialog',
-    content: "Well, it reads:<br>.. .-. . .-. . .-.. -.-- / .- / -. --- - .. -.-. . / ... .. --. -. .<br>(I'm merely a notice sign.)",
+    content: "Well, it reads:<br>.. .----. -- / -- . .-. . .-.. -.-- / .- / -. --- - .. -.-. . / ... .. --. -.<br>(I'm merely a notice sign)",
     next: null,
   },
   no: {
@@ -53,7 +53,7 @@ export const droppedFlow = {
 export const torchFoundFlow = {
   start: {
     type: 'dialog',
-    content: 'You found a <span style="color:#00ffff">torch</span>.',
+    content: 'You found a torch.',
     next: 'choice',
   },
   choice: {
@@ -67,7 +67,7 @@ export const torchFoundFlow = {
   },
   yes: {
     type: 'dialog',
-    content: 'You lit the <span style="color:#00ffff">torch</span>.',
+    content: 'You lit the torch.',
     next: null,
   },
 }
@@ -75,7 +75,7 @@ export const torchFoundFlow = {
 export const tallchFoundFlow = {
   start: {
     type: 'dialog',
-    content: 'You found a <span style="color:#00ffff">tallch</span>.',
+    content: 'You found a tallch.',
     next: 'choice',
   },
   choice: {
@@ -89,7 +89,7 @@ export const tallchFoundFlow = {
   },
   yes: {
     type: 'dialog',
-    content: 'You lit the <span style="color:#00ffff">tallch</span>.',
+    content: 'You lit the tallch.',
     next: null,
   },
 }
@@ -97,7 +97,7 @@ export const tallchFoundFlow = {
 export const benchFoundFlow = {
   start: {
     type: 'dialog',
-    content: 'You found a <span style="color:#00ffff">bench</span>.',
+    content: 'You found a bench.',
     next: null,
   },
 }
@@ -108,8 +108,8 @@ const torchDoneFlow = {
   start: {
     type: 'dialog',
     content:
-      'You shouted to the <span style="color:#00ffff">torch</span> that you are done with it.<br>' +
-      'The <span style="color:#00ffff">torch</span> looks very sad.',
+      'You shouted to the torch that you are done with it.<br>' +
+      'The torch looks very sad.',
     next: null,
   },
 }
@@ -118,8 +118,8 @@ const tallchDoneFlow = {
   start: {
     type: 'dialog',
     content:
-      'You shouted to the <span style="color:#00ffff">tallch</span> that you are done with it.<br>' +
-      'The <span style="color:#00ffff">tallch</span> looks very sad.',
+      'You shouted to the tallch that you are done with it.<br>' +
+      'The tallch looks very sad.',
     next: null,
   },
 }
@@ -220,7 +220,7 @@ export const skiImpostorFlow = {
   },
   taunt: {
     type: 'dialog',
-    content: 'UNLESS YOU FIND <span style="color:#00ffff">WIKI</span> AND GO JUDGE ME！!！<br>GO KILL ME！!!！!<br>AHAHAHAHAHAHAHAAHAHA！!!!!!！!!!!!！',
+    content: 'UNLESS YOU FIND WIKI AND GO JUDGE ME！!！<br>GO KILL ME！!!！!<br>AHAHAHAHAHAHAHAAHAHA！!!!!!！!!!!!！',
     next: null,
   },
 }
@@ -315,7 +315,7 @@ export const flowerbedMaxFlow = {
 export const flowerbedCakeFlow = {
   start: {
     type: 'dialog',
-    content: 'You got <span style="color: #00ffff">FLOWER CAKE</span>.',
+    content: 'You got FLOWER CAKE.',
     next: null,
   },
 }
@@ -355,7 +355,7 @@ export const flowerbedPuddingFlow = {
   },
   pudding: {
     type: 'dialog',
-    content: 'You got <span style="color: #00ffff">FLOWER PUDDING</span>.',
+    content: 'You got FLOWER PUDDING.',
     next: null,
   },
 }

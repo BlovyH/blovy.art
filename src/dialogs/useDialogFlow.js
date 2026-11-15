@@ -12,6 +12,7 @@
 import { ref, computed } from 'vue'
 import { dialogFlows } from './flows.js'
 import { t } from '@/i18n.js'
+import { highlightText } from './highlights.js'
 
 // ── 模块级单例 state（关键：全局只有一份）──
 const activeKey = ref(null)        // 当前在跑的流 key（null = 空闲）
@@ -32,7 +33,9 @@ const baseKey = () => (activeKey.value && currentStep.value ? `${activeKey.value
 const content = computed(() => {
   const s = step.value
   if (!s) return ''
-  return t(`${baseKey()}.content`, s.content ?? '')
+  const text = t(`${baseKey()}.content`, s.content ?? '')
+  // 打字机步直接写 textContent，注入的标签会被抹掉
+  return s.typewriter ? text : highlightText(text)
 })
 const options = computed(() =>
   (step.value?.options ?? []).map((o) => ({

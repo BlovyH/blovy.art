@@ -206,4 +206,8 @@ onUnmounted(() => {
 .dialog-box__text :deep(.censor-stars:hover) {
   color: #00ffff;
 }
+/* 代码统一注入的高亮片段，样式名由登记表给出 */
+.dialog-box__text :deep(.dialog-hl--cyan) {
+  color: #00ffff;
+}
 </style>
