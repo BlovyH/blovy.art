@@ -1,8 +1,28 @@
 // i18n 覆盖表 EN 是基准，查不到回退 EN。
 // 语言选择在主页左上角下拉
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
-export const lang = ref('EN')
+const LANG_KEY = 'blovy.lang'
+const LANG_CODES = ['EN', 'ZH', 'JP']
+
+function readLang() {
+  try {
+    const v = localStorage.getItem(LANG_KEY)
+    return LANG_CODES.includes(v) ? v : 'EN'
+  } catch {
+    return 'EN'
+  }
+}
+
+export const lang = ref(readLang())
+
+watch(lang, (v) => {
+  try {
+    localStorage.setItem(LANG_KEY, v)
+  } catch {
+    // 存不下就只在这次会话里生效
+  }
+})
 
 // 生产对访客放开的语言，翻译到位后手动加进来
 export const ENABLED_LANGS = ['EN']
