@@ -52,7 +52,8 @@ export const LOCALES = {
     'tallchDone.start.content': '你冲着手㫣嚷嚷“我真是受够你了”。它看起来很伤心。',
     'benchFound.start.content': '你找到了手凳。',
 
-    'flowerbedEmpty.start.content': '还有花朵吗？',
+    'flowerbedEmpty.start.content': '花儿们在花圃内安详地睡着。',
+    'flowerbedMore.start.content': '还有花朵吗？',
 
     'kajiu.start.options.ask.label': '你这个铺位，选址的时候正*鸡排和蜜*冰城没有和你竞争吗？',
     'kajiuNoEgg.start.content': '别点了这个没有彩蛋',
@@ -81,7 +82,8 @@ export const LOCALES = {
     'tallchDone.start.content': 'トおおおおおチ に「もういい加減にしろ」としゃべった。とても悲しそうに見える…',
     'benchFound.start.content': 'ベンチ が見つかった。',
 
-    'flowerbedEmpty.start.content': 'ハナ、まだある？',
+    'flowerbedEmpty.start.content': '花たちは花壇のナカに静かに眠っている。',
+    'flowerbedMore.start.content': 'ハナ、まだある？',
 
     'kajiu.start.options.ask.label': 'この区画さ、決めるときす*家とドン*とぶつからなかったんだ？',
     'kajiuNoEgg.start.content': 'ここには何も隠してないよ',

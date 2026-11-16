@@ -7,7 +7,10 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { backyardEntered } from '@/backyard/backyard.js'
+import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import { registerFlowerSuck } from './flowerSpitBridge.js'
+
+const dlg = useDialogFlow()
 
 const FLOWER_SRC = '/assets/flower_piece.png'
 const GRAVITY = 1100
@@ -139,6 +142,8 @@ function stepSuck(dt) {
   for (const p of pieces) p.el.remove()
   pieces = []
   suck = null
+  // 吸完立刻说这句
+  dlg.start('flowerbedMore', { preempt: true })
   return false
 }
 

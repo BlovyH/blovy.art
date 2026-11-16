@@ -50,6 +50,7 @@ const BACKYARD_FLOWS = new Set([
   'flowerbedAngel',
   'flowerbedCake',
   'flowerbedEmpty',
+  'flowerbedMore',
   'flowerbedPudding',
   'flowerbedSwallowed',
   'flowerbedCensor',

@@ -324,6 +324,15 @@ export const flowerbedCakeFlow = {
 export const flowerbedEmptyFlow = {
   start: {
     type: 'dialog',
+    content: 'The flowers are sleeping peacefully inside the flowerbed.',
+    next: null,
+  },
+}
+
+// 吸完 emotions 吐出的花之后
+export const flowerbedMoreFlow = {
+  start: {
+    type: 'dialog',
     content: 'Any more flowers?',
     next: null,
   },
@@ -448,6 +457,7 @@ export const dialogFlows = {
   flowerbedAngel: flowerbedAngelFlow,
   flowerbedCake: flowerbedCakeFlow,
   flowerbedEmpty: flowerbedEmptyFlow,
+  flowerbedMore: flowerbedMoreFlow,
   flowerbedPudding: flowerbedPuddingFlow,
   flowerbedSwallowed: flowerbedSwallowedFlow,
   flowerbedCensor: flowerbedCensorFlow,
