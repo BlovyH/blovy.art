@@ -73,7 +73,7 @@
         </div>
         <div
           class="i18n-tips"
-          :class="{ 'is-hidden': !i18nTipsVisible }"
+          :class="{ 'is-hidden': !i18nTipsVisible || backyardEntered }"
           :style="i18nTipsStyle"
           ref="i18nTipsRef"
         >
@@ -624,7 +624,7 @@ let i18nTipsTimer = 0
 // 图片加载完才有高度，挂载时和 load 后各定位一次；矮屏上按钮贴近顶端，图片整体上移会出画，这里留最小顶边距
 function placeI18nTips() {
   const rect = langBtnRef.value?.getBoundingClientRect()
-  if (!rect) return
+  if (!rect || !rect.width) return
   const h = i18nTipsRef.value?.offsetHeight ?? 0
   i18nTipsAt.value = { x: rect.left, y: Math.max(rect.top - 12, h + 20) }
 }
