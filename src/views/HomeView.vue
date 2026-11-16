@@ -75,8 +75,9 @@
           class="i18n-tips"
           :class="{ 'is-hidden': !i18nTipsVisible }"
           :style="i18nTipsStyle"
+          ref="i18nTipsRef"
         >
-          <img src="/assets/i18n_tips.png" alt="" />
+          <img src="/assets/i18n_tips.png" alt="" @load="placeI18nTips" />
         </div>
       </Teleport>
 
@@ -613,16 +614,23 @@ const langWipStyle = computed(() => ({
 const I18N_TIPS_SHOW_MS = 8000
 const i18nTipsVisible = ref(true)
 const i18nTipsAt = ref({ x: 0, y: 0 })
+const i18nTipsRef = ref(null)
 const i18nTipsStyle = computed(() => ({
   left: i18nTipsAt.value.x + 'px',
   top: i18nTipsAt.value.y + 'px',
   zIndex: Z.MENU,
 }))
 let i18nTipsTimer = 0
+// 图片加载完才有高度，挂载时和 load 后各定位一次；矮屏上按钮贴近顶端，图片整体上移会出画，这里留最小顶边距
+function placeI18nTips() {
+  const rect = langBtnRef.value?.getBoundingClientRect()
+  if (!rect) return
+  const h = i18nTipsRef.value?.offsetHeight ?? 0
+  i18nTipsAt.value = { x: rect.left, y: Math.max(rect.top - 12, h + 20) }
+}
 onMounted(async () => {
   await nextTick()
-  const rect = langBtnRef.value?.getBoundingClientRect()
-  if (rect) i18nTipsAt.value = { x: rect.left, y: rect.top - 12 }
+  placeI18nTips()
   i18nTipsTimer = setTimeout(() => { i18nTipsVisible.value = false }, I18N_TIPS_SHOW_MS)
 })
 onBeforeUnmount(() => clearTimeout(i18nTipsTimer))
@@ -2095,7 +2103,7 @@ function onTorchClick(axis) {
 
 .i18n-tips img {
   display: block;
-  width: 100px;
+  width: clamp(56px, 9vw, 100px);
   height: auto;
   image-rendering: pixelated;
   animation: i18n-tips-float var(--i18n-tips-float-ms) ease-in-out infinite; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(255, 255, 255, 0.65));
@@ -2548,6 +2556,10 @@ function onTorchClick(axis) {
   position: absolute;
   top: 10%;
   right: 2%;
+  /* 图标与邮箱框随视口变矮一起缩，图标不换行，窗口就不会撑高去盖下方招牌 */
+  --sl-item-h: clamp(32px, calc(4vw - 12.8px), 56px);
+  --sl-gap: 6px;
+  --sl-icon: calc(var(--sl-item-h) * 0.72);
 }
 
 /* Tighten spacing for SL window only (no global side effects) */
@@ -2570,15 +2582,15 @@ function onTorchClick(axis) {
 .social-icons-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sl-gap);
   flex-wrap: wrap;
 }
 
 /* ── Social icon items: width follows content (icon + expanding label) ── */
 .social-item {
-  height: 56px;
-  min-width: 56px;
-  max-width: 56px;
+  height: var(--sl-item-h);
+  min-width: var(--sl-item-h);
+  max-width: var(--sl-item-h);
   flex-shrink: 0;
   transition: max-width 0.25s ease;
 }
@@ -2607,15 +2619,15 @@ function onTorchClick(axis) {
 }
 
 .social-icon-img {
-  width: 40px;
-  height: 40px;
+  width: var(--sl-icon);
+  height: var(--sl-icon);
   object-fit: contain;
   image-rendering: pixelated;
   flex-shrink: 0;
 }
 
 .social-label {
-  font-size: 14px;
+  font-size: min(14px, calc(var(--sl-item-h) * 0.26));
   white-space: nowrap;
   opacity: 0;
   max-width: 0;
@@ -2639,7 +2651,7 @@ function onTorchClick(axis) {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
+  height: var(--sl-item-h);
   flex: 1 1 120px;
   min-width: 0;
   padding: 8px 12px;
@@ -2656,7 +2668,7 @@ function onTorchClick(axis) {
 }
 
 .email-default-text {
-  font-size: 18px;
+  font-size: min(18px, calc(var(--sl-item-h) * 0.34));
   color: #808080;
   white-space: nowrap;
   transition: opacity 0.15s ease;
@@ -2685,14 +2697,14 @@ function onTorchClick(axis) {
 }
 
 .email-address {
-  font-size: 15px;
+  font-size: min(15px, calc(var(--sl-item-h) * 0.28));
   color: #ffffff;
   word-break: break-all;
   text-align: center;
 }
 
 .email-copy-btn {
-  font-size: 10px;
+  font-size: min(10px, calc(var(--sl-item-h) * 0.19));
   color: #808080;
 }
 
@@ -2704,6 +2716,10 @@ function onTorchClick(axis) {
   top: 50%;
   right: 2%;
   height: min(70%, 476px);
+}
+
+@media (max-height: 820px) {
+  .comments-window { top: 53%; }
 }
 
 .comments-window.pixel-window {

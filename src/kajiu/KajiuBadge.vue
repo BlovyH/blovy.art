@@ -24,7 +24,7 @@ function openOptions() {
 <style scoped>
 .kajiu-badge {
   --kajiu-right: 10%;
-  --kajiu-lift: 8px;
+  --kajiu-lift: clamp(4px, 1vh, 8px);
   position: absolute;
   bottom: 100%;
   right: var(--kajiu-right);
@@ -43,14 +43,14 @@ function openOptions() {
 .kajiu-badge__logo {
   display: block;
   width: auto;
-  height: 64px;
+  height: clamp(40px, 6vh, 64px);
   image-rendering: pixelated;
 }
 
 .kajiu-badge__sign {
   translate: 0 0;
   color: #00ffff;
-  font-size: 30px;
+  font-size: clamp(18px, 2.8vh, 30px);
   letter-spacing: 1px;
   white-space: nowrap;
   text-shadow: 0 0 4px #00ffff, 0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.55);
