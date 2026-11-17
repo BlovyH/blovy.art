@@ -618,7 +618,7 @@ const i18nTipsRef = ref(null)
 const i18nTipsStyle = computed(() => ({
   left: i18nTipsAt.value.x + 'px',
   top: i18nTipsAt.value.y + 'px',
-  zIndex: Z.MENU,
+  zIndex: Z.COMMAND_FRONT,
 }))
 let i18nTipsTimer = 0
 // 图片加载完才有高度，挂载时和 load 后各定位一次；矮屏上按钮贴近顶端，图片整体上移会出画，这里留最小顶边距
@@ -2090,6 +2090,8 @@ function onTorchClick(axis) {
   --i18n-tips-fade-ms: 800ms;
   --i18n-tips-align-px: 20px;
   position: fixed;
+  /* 与欢迎语窗口同层，不当系统通知 */
+  z-index: var(--z-command-front);
   /* 图片左起第 8 个像素对齐下方语言框左边，整体上移到它上方 */
   translate: calc(-1 * var(--i18n-tips-align-px)) -100%;
   opacity: 1;
