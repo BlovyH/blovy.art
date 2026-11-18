@@ -310,7 +310,7 @@
         :initial-z-index="Z.COMMENTS"
         :disabled-controls="{ close: true }"
       >
-        <KajiuBadge />
+        <KajiuBadge @focus="focusKajiuWindow" />
         <div class="comments-body">
           <a
             v-for="note in displayedNotes"
@@ -509,6 +509,8 @@
 
     <BackyardStage />
 
+    <KajiuWindow v-if="kajiuWindowOpen" ref="kajiuWinRef" />
+
     <div class="backyard-fade" :class="{ 'is-on': backyardFading }" aria-hidden="true"></div>
   </main>
 </template>
@@ -523,6 +525,8 @@ import { useDialogFlow } from '@/dialogs/useDialogFlow.js'
 import { lang, ENABLED_LANGS, tUi } from '@/i18n.js'
 import DPDetailWindow from '@/components/DPDetailWindow.vue'
 import DPPreview from '@/components/DPPreview.vue'
+import KajiuWindow from '@/kajiu/KajiuWindow.vue'
+import { kajiuWindowOpen } from '@/kajiu/kajiuHours.js'
 import KajiuBadge from '@/kajiu/KajiuBadge.vue'
 import NothingWindow from '@/components/NothingWindow.vue'
 import { SKI_MODE_ICON, skiImpostor, skiMode, toggleSkiMode } from '@/skiMode.js'
@@ -609,6 +613,11 @@ const langWipStyle = computed(() => ({
   ...langMenuStyle.value,
   left: langMenuAt.value.x + langMenuWidth.value + 'px',
 }))
+
+function focusKajiuWindow() {
+  kajiuWinRef.value?.focus()
+}
+const kajiuWinRef = ref(null)
 
 // 进页面时在语言按钮上方漂浮一会儿，之后渐隐
 const I18N_TIPS_SHOW_MS = 8000
@@ -2090,7 +2099,7 @@ function onTorchClick(axis) {
   --i18n-tips-fade-ms: 800ms;
   --i18n-tips-align-px: 20px;
   position: fixed;
-  /* 与欢迎语窗口同层，不当系统通知 */
+  /* 与欢迎语窗口同层 */
   z-index: var(--z-command-front);
   /* 图片左起第 8 个像素对齐下方语言框左边，整体上移到它上方 */
   translate: calc(-1 * var(--i18n-tips-align-px)) -100%;

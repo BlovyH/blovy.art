@@ -430,10 +430,32 @@ export const kajiuNoEggFlow = {
   },
 }
 
+// 晚场休息
+export const kajiuBreakFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      "We'll be right back.<br>Coffee time: 8:00-18:00<br>Bar time: 18:30-00:30",
+    next: null,
+  },
+}
+
+// 非营业时间
+export const kajiuClosedFlow = {
+  start: {
+    type: 'dialog',
+    content:
+      "Sorry, we're closed right now.<br>Coffee time: 8:00-18:00<br>Bar time: 18:30-00:30",
+    next: null,
+  },
+}
+
 // 注册表：触发处用 key 引用（start('noticeSign') / start('dropped')）
 export const dialogFlows = {
   kajiu: kajiuFlow,
   kajiuNoEgg: kajiuNoEggFlow,
+  kajiuClosed: kajiuClosedFlow,
+  kajiuBreak: kajiuBreakFlow,
   noticeSign: noticeSignFlow,
   dropped: droppedFlow,
   torchFound: torchFoundFlow,

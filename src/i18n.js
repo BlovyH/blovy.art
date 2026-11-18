@@ -77,6 +77,8 @@ export const LOCALES = {
 
     'kajiu.start.options.ask.label': '你这个铺位，选址的时候正*鸡排和蜜*冰城没有和你竞争吗？',
     'kajiuNoEgg.start.content': '别点了这个没有彩蛋',
+    'kajiuClosed.start.content': '抱歉，现在打烊了。<br>咖啡时间：8:00-18:00<br>酒吧时间：18:30-00:30',
+    'kajiuBreak.start.content': '现在是休息时间，马上回来。<br>咖啡时间：8:00-18:00<br>酒吧时间：18:30-00:30',
   },
   JP: {
     'home.welcome': 'あぁ、ようこそ！ここが自分のオンライン作業台です。中国人で、イラストを描きつつ、バックエンド開発もしてるしゃちくです。まだまだ更新中ですが、まあ、気軽に見ていってください。',
@@ -107,6 +109,8 @@ export const LOCALES = {
 
     'kajiu.start.options.ask.label': 'この区画さ、決めるときす*家とドン*とぶつからなかったんだ？',
     'kajiuNoEgg.start.content': 'ここには何も隠してないよ',
+    'kajiuClosed.start.content': 'すみません、ただいま閉店中です。<br>カフェタイム：8:00-18:00<br>バータイム：18:30-00:30',
+    'kajiuBreak.start.content': 'すぐ戻ります。<br>カフェタイム：8:00-18:00<br>バータイム：18:30-00:30',
   },
 }
 

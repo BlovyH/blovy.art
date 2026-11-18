@@ -12,10 +12,17 @@ export const HIGHLIGHTS = [
   { text: 'ベンチ' },
   { text: 'FLOWER PUDDING' },
   { text: 'FLOWER CAKE' },
+  // kajiu 营业时段：颜色跟对应时段的窗口边框一致
+  { text: '8:00-18:00', style: 'gold' },
+  { text: '18:30-00:30', style: 'jade' },
 ]
 
 // 样式名映射到 class，新增样式只需在这里加一行和一条 CSS
-const STYLES = { cyan: 'dialog-hl--cyan' }
+const STYLES = {
+  cyan: 'dialog-hl--cyan',
+  gold: 'dialog-hl--gold',
+  jade: 'dialog-hl--jade',
+}
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const SOURCE = [...HIGHLIGHTS]

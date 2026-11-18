@@ -240,4 +240,12 @@ onUnmounted(() => {
 .dialog-box__text :deep(.dialog-hl--cyan) {
   color: #00ffff;
 }
+
+.dialog-box__text :deep(.dialog-hl--gold) {
+  color: #ffd447;
+}
+
+.dialog-box__text :deep(.dialog-hl--jade) {
+  color: #2fe6c8;
+}
 </style>
