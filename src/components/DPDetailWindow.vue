@@ -6,6 +6,7 @@
     :controls="{ minimize: false, maximize: false, close: false }"
     :bring-to-front-on-click="false"
     :top-most="true"
+    :initial-z-index="Z.DETAIL"
     :click-outside-to-close="true"
     :width="'94%'"
     :height="'68vh'"
@@ -75,6 +76,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import PixelWindow from './PixelWindow.vue'
+import { Z } from '@/stores/windowZ.js'
 
 const props = defineProps({
   item: {
