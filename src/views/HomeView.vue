@@ -310,7 +310,9 @@
         :initial-z-index="Z.COMMENTS"
         :disabled-controls="{ close: true }"
       >
-        <KajiuBadge @focus="focusKajiuWindow" />
+        <template #chrome>
+          <KajiuBadge @focus="focusKajiuWindow" />
+        </template>
         <div class="comments-body">
           <a
             v-for="note in displayedNotes"

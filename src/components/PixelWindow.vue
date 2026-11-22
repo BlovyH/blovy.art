@@ -67,6 +67,9 @@
     <div class="pixel-window__content">
       <slot />
     </div>
+    <div v-if="$slots.chrome" class="pixel-window__chrome">
+      <slot name="chrome" />
+    </div>
   </div>
 </template>
 
@@ -889,6 +892,15 @@ onBeforeUnmount(() => {
 /* 最小化：只留标题栏，内容整块隐藏，高度自动收成标题栏 */
 .pixel-window.is-minimized .pixel-window__content {
   display: none;
+}
+
+.pixel-window__chrome {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pixel-window__chrome > * {
+  pointer-events: auto;
 }
 
 /* ── Edge resize: Windows-style cursor change on hover, no visible handles ── */
