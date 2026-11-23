@@ -315,7 +315,8 @@ defineExpose({
   border-color: transparent;
   /* 染色层要盖到 border 区 */
   overflow: visible;
-  transform-origin: 0 0;
+  /* 缩放围绕窗口自身中心，拖拽后的原点由 PixelWindow 算出 */
+  transform-origin: var(--pw-ox, 50%) var(--pw-oy, 50%);
   scale: 1;
   transition: scale var(--kajiu-enter-ms) var(--kajiu-enter-ease);
 }
