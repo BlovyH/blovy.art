@@ -9,6 +9,9 @@
 //      - 计算内容哈希写入 public/data/content.json 的 _gallery 字段（缓存破穿 ?v=）
 //      - 自动用 wrangler 上传到 R2：thumbs/ + previews/ 两档 WebP、原图(gallery/originals/)、content.json（需先 wrangler login 或设 CLOUDFLARE_API_TOKEN）
 //   3. content.json 的 gallery 条目头插：{ "thumb":"thumbs/<name>_sm", "preview":"previews/<name>_md", "highResSrc":"<原图直链>", ... }
+// 组图：在分类目录下建 _chains/<链名>/，与文件夹同名的图片是链头，其余按文件名升序为链身。
+//   链头按普通图生成两档 webp 并单独建 gallery 条目，条目自动带 group（链身的缩略图 + 原图直链）；
+//   链身只生成资源，不建独立条目，所以洗牌时整条链仍算一张图。
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -54,7 +57,10 @@ async function main() {
   // 本地按子文件夹分类：gallery-originals/original/ → category:"original"，fandom/ → "fandom"
   // 仅用于写 JSON 的 category 字段；远端 R2 按档位分 thumbs/ 与 previews/ 两个目录
   const CATEGORIES = ['original', 'fandom']
+  const CHAIN_DIR = '_chains'
   let files = []
+  // 链头文件名 → 链身文件名数组（按文件名升序）；链头本身已作为普通图进 files
+  const chains = new Map()
   for (const cat of CATEGORIES) {
     const dir = path.join(ORIGINS, cat)
     if (!fs.existsSync(dir)) {
@@ -62,23 +68,47 @@ async function main() {
       continue
     }
     files = files.concat(
-        fs.readdirSync(dir)
-            .filter((f) => EXT.has(path.extname(f).toLowerCase()))
-            .map((f) => ({ file: f, category: cat })),
+        fs.readdirSync(dir, { withFileTypes: true })
+            .filter((e) => e.isFile() && EXT.has(path.extname(e.name).toLowerCase()))
+            .map((e) => ({ file: e.name, category: cat })),
     )
+
+    // 组图：_chains/<链名>/ 下与文件夹同名的图片是链头，其余按文件名升序为链身
+    const chainsRoot = path.join(dir, CHAIN_DIR)
+    if (!fs.existsSync(chainsRoot)) continue
+    for (const entry of fs.readdirSync(chainsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const chainName = entry.name
+      const chainDir = path.join(chainsRoot, chainName)
+      const imgs = fs.readdirSync(chainDir, { withFileTypes: true })
+          .filter((e) => e.isFile() && EXT.has(path.extname(e.name).toLowerCase()))
+          .map((e) => e.name)
+          .sort((a, b) => a.localeCompare(b))
+      const head = imgs.find((f) => path.basename(f, path.extname(f)) === chainName)
+      if (!head) {
+        console.warn(`[跳过] 组图 ${CHAIN_DIR}/${chainName}/ 里没有与文件夹同名的链头图（${chainName}.*）`)
+        continue
+      }
+      const members = imgs.filter((f) => f !== head)
+      chains.set(path.basename(head, path.extname(head)), members)
+      const sub = path.join(CHAIN_DIR, chainName)
+      files.push({ file: head, category: cat, sub })
+      for (const m of members) files.push({ file: m, category: cat, sub })
+      console.log(`  组图 ${chainName}: 链头 ${head}，链身 ${members.length} 张`)
+    }
   }
   if (files.length === 0) {
     console.warn('gallery-originals/ 下 original/ 与 fandom/ 子文件夹里都没有图片，跳过。')
     return
   }
-  // 同名跨分类冲突检测：R2 key 以纯文件名为准，会互相覆盖
-  const _seen = new Map()
-  for (const { file, category } of files) {
+  // 同名冲突检测：R2 key 以纯文件名为准，全局唯一，普通图与链内图都不能重名
+  const _seen = new Set()
+  for (const { file } of files) {
     const n = path.basename(file, path.extname(file))
-    if (_seen.has(n) && _seen.get(n) !== category) {
-      throw new Error(`图片名冲突：「${n}」同时出现在 ${_seen.get(n)}/ 与 ${category}/，R2 key 会互相覆盖，请改名`)
+    if (_seen.has(n)) {
+      throw new Error(`图片名冲突：「${n}」出现多次，R2 key 以纯文件名为准会互相覆盖，请改名`)
     }
-    _seen.set(n, category)
+    _seen.add(n)
   }
 
   // 生成阶段前先读 content.json：拿 highResPrefix、旧哈希快照（判跳过用），并推导原图 R2 目录
@@ -97,9 +127,9 @@ async function main() {
   // 生成两档 WebP：原图未变且 webp 已在盘 → 跳过 sharp（继承上次 manifest 哈希，保留 webp 增量基线）；
   // 否则重新生成，并记录 ar（宽高比）用于前端 aspect-ratio 预留宽度、消除首屏 CLS
   const arMap = {}
-  for (const { file: f, category } of files) {
+  for (const { file: f, category, sub } of files) {
     const name = path.basename(f, path.extname(f))
-    const srcPath = path.join(ORIGINS, category, f)
+    const srcPath = path.join(ORIGINS, category, sub || '', f)
     const smPath = path.join(DIST, 'thumbs', `${name}_sm.webp`)
     const mdPath = path.join(DIST, 'previews', `${name}_md.webp`)
 
@@ -157,16 +187,26 @@ async function main() {
   }
   const existing = [...byName.values()].map((x) => x.it)
   const existingNames = new Set(byName.keys())
+  // 链身只出资源、不建独立条目；链头照常建条目并自动带 group
+  const memberNames = new Set()
+  for (const members of chains.values()) {
+    for (const m of members) memberNames.add(path.basename(m, path.extname(m)))
+  }
+  const highResOf = (f) => `${HIGHRES_PREFIX.replace(/\/$/, '')}/${f}`
+  const groupOf = (headName) => (chains.get(headName) || []).map((m) => ({
+    thumb: `thumbs/${path.basename(m, path.extname(m))}_sm`,
+    highResSrc: highResOf(m),
+  }))
   const newFiles = files
+      .filter(({ file: f }) => !memberNames.has(path.basename(f, path.extname(f))))
       .filter(({ file: f }) => !existingNames.has(path.basename(f, path.extname(f))))
       .sort((a, b) => a.file.localeCompare(b.file))
   const newEntries = newFiles.map(({ file: f, category }) => {
     const name = path.basename(f, path.extname(f))
-    const highResSrc = `${HIGHRES_PREFIX.replace(/\/$/, '')}/${f}`
     return {
       thumb: `thumbs/${name}_sm`,
       preview: `previews/${name}_md`,
-      highResSrc,
+      highResSrc: highResOf(f),
       category,
       ar: arMap[name], // 新图生成时算的宽高比；前端用 aspect-ratio 预留宽度，消除首屏 CLS
       tags: [],
@@ -174,6 +214,7 @@ async function main() {
       title: name,
       date: '',
       detail: '',
+      ...(chains.has(name) ? { group: groupOf(name) } : {}),
     }
   })
   // 旧条目格式迁移：src 纯名（旧格式）→ thumbs/<name>_sm，并补 preview 字段；手填 title/desc/tags 保留
@@ -186,7 +227,13 @@ async function main() {
     }
     return it
   }
-  content.gallery = [...newEntries, ...existing.map(migrateItem)]
+  // 已存在的链头也同步 group（链身增删后重跑脚本即可刷新），手填展示字段不动
+  const migratedExisting = existing.map(migrateItem).map((it) => {
+    const t = (it && (it.thumb || it.src)) || ''
+    const n = path.basename(t).replace(/_(sm|md)$/, '')
+    return chains.has(n) ? { ...it, group: groupOf(n) } : it
+  })
+  content.gallery = [...newEntries, ...migratedExisting]
   content._gallery = manifest
   // 注：content.json 的写盘 + 上传移到 tryUpload 末尾（全部上传成功后才落盘，避免上传失败却留下「已上传」的错误哈希记录）
 
@@ -272,8 +319,8 @@ async function tryUpload(galleryFiles, originalsR2Dir, prevGalleryHashes, prevOr
       kind: 'webp',
     })
   }
-  for (const { file, category } of galleryFiles) {
-    const srcPath = path.join(ORIGINS, category, file)
+  for (const { file, category, sub } of galleryFiles) {
+    const srcPath = path.join(ORIGINS, category, sub || '', file)
     const r2Key = `${BUCKET}/${originalsR2Dir}/${file}`
     plan.push({
       r2Key,

@@ -23,16 +23,26 @@
       <div class="detail-columns">
         <div
           class="detail-image-wrap"
+          :class="{ 'is-chain': hasChain }"
           @mouseenter="overlayHovering = true"
           @mouseleave="overlayHovering = false"
         >
-          <img
-            class="detail-image"
-            draggable="false"
-            :src="item.preview || item.highResSrc || item.thumb"
-            :alt="item.alt || item.title"
-            @click="onImageClick"
-          />
+          <div class="detail-image-stack">
+            <img
+              class="detail-image"
+              draggable="false"
+              :src="item.preview || item.highResSrc || item.thumb"
+              :alt="item.alt || item.title"
+              @click="onImageClick"
+            />
+            <img
+              v-for="(g, i) in chainImages"
+              :key="'c' + i"
+              class="detail-image detail-image--chain"
+              draggable="false"
+              :src="g.thumb || g"
+            />
+          </div>
           <img
             v-for="(o, i) in (item.overlays || [])"
             :key="i"
@@ -58,18 +68,32 @@
           </div>
 
           <div class="detail-actions">
-            <button
-              class="detail-btn"
-              @click="$emit('download')"
+            <div
+              class="detail-highres"
+              @mouseenter="onHighresEnter"
+              @mouseleave="highresTipVisible = false"
             >
-              HIGH-RES
-            </button>
+              <button
+                class="detail-btn"
+                @click="$emit('download')"
+              >
+                HIGH-RES
+              </button>
+            </div>
             <button
               class="detail-btn"
               @click="$emit('random')"
             >
               TO RANDOM
             </button>
+            <div
+              v-if="hasChain"
+              class="detail-highres-tip"
+              :class="{ 'is-visible': highresTipVisible }"
+              :style="{ '--arrow-x': `${highresArrowX}px` }"
+            >
+              You may have to allow pop-ups in your browser.
+            </div>
           </div>
 
           <div class="detail-pagination">
@@ -122,6 +146,14 @@ const props = defineProps({
 const emit = defineEmits(['close', 'prev', 'next', 'random', 'download'])
 
 const detailRef = ref(null)
+const highresTipVisible = ref(false)
+const highresArrowX = ref(0)
+
+function onHighresEnter(e) {
+  const box = e.currentTarget
+  highresArrowX.value = box.offsetLeft + box.offsetWidth / 2
+  highresTipVisible.value = true
+}
 
 // 标题栏仅用于拖动窗口（关闭统一由 PixelWindow 的 click-outside-to-close 处理，不在此处关）
 function onHeaderDown(e) {
@@ -135,6 +167,10 @@ const parsedTags = computed(() => {
   const arr = Array.isArray(t) ? t : String(t).split(/\s+/).filter(Boolean)
   return arr.map((x) => `#${String(x).replace(/^#/, '')}`)
 })
+
+// 组图详情：左边画框竖排链头 + 链身所有图，链身只取图地址，展示属性全跟链头
+const chainImages = computed(() => props.item?.group || [])
+const hasChain = computed(() => chainImages.value.length > 0)
 
 // 详情图遮罩（数据驱动，content.json 的 item.overlays 决定）：
 // - trigger: 'hover'(默认, 悬浮显示) | 'always'(常显) | 'click'(点图切换)
@@ -245,6 +281,30 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
+/* 组图：画框内竖排全部图并滚动，不动详情窗口本身 */
+.detail-image-wrap.is-chain {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 普通图铺满画框；组图交给上下 auto margin 居中，内容超出时 auto 归零不裁顶部 */
+.detail-image-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.detail-image-wrap.is-chain .detail-image-stack {
+  height: auto;
+  flex: none;
+  margin-block: auto;
+  gap: 10px;
+}
+
 .detail-image {
   width: 100%;
   height: 100%;
@@ -254,6 +314,12 @@ onBeforeUnmount(() => {
   -webkit-user-drag: none;
   user-drag: none;
   user-select: none;
+}
+
+.detail-image-wrap.is-chain .detail-image {
+  flex: none;
+  height: auto;
+  max-height: none;
 }
 
 /* 详情图遮罩：定位由 content.json 的 overlay.style 裸 CSS 决定，
@@ -314,9 +380,62 @@ onBeforeUnmount(() => {
 }
 
 .detail-actions {
+  position: relative;
   display: flex;
   gap: 12px;
   flex-shrink: 0;
+}
+
+.detail-highres {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+}
+
+/* 组图 HIGH-RES 的弹窗拦截提示，hover 按钮时浮在上方；不吃指针免得打断 hover */
+.detail-highres-tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 6px;
+  font-family: var(--font-pixel);
+  font-size: clamp(12px, 1.1vw, 16px);
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+  text-transform: none;
+  white-space: normal;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+}
+
+.detail-highres-tip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: clamp(12px, var(--arrow-x, 24px), calc(100% - 12px));
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 8px 6px 0 6px;
+  border-color: #ffffff transparent transparent transparent;
+}
+
+.detail-highres-tip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
 }
 
 .detail-btn {

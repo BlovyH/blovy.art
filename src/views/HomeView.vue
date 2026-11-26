@@ -115,23 +115,40 @@
               class="gallery-grid"
               :class="{ 'no-anim': !shuffleWithAnim }"
             >
-              <img
+              <div
                 v-for="(item, index) in filteredGalleryItems"
                 :key="item.thumb"
-                class="gallery-thumb"
-                :class="{
-                  'is-loaded': loadedThumbs.has(item.thumb),
-                  'is-tilted': isTilted(item),
-                  'is-straightening': tilted[item.thumb]?.straightening,
-                }"
-                :style="thumbStyle(item)"
-                :src="item.thumb"
-                :alt="item.alt"
-                loading="lazy"
-                draggable="false"
-                @load="onThumbLoad(item)"
-                @click="onThumbClick(index, $event)"
-              />
+                class="gallery-cell"
+                :class="{ 'has-chain': item.group.length }"
+              >
+                <img
+                  class="gallery-thumb"
+                  :class="{
+                    'is-loaded': loadedThumbs.has(item.thumb),
+                    'is-tilted': isTilted(item),
+                    'is-straightening': tilted[item.thumb]?.straightening,
+                  }"
+                  :style="thumbStyle(item)"
+                  :src="item.thumb"
+                  :alt="item.alt"
+                  loading="lazy"
+                  draggable="false"
+                  @load="onThumbLoad(item)"
+                  @click="onThumbClick(index, $event)"
+                />
+                <div v-if="item.group.length" class="gallery-chain">
+                  <img
+                    v-for="(src, ci) in item.group"
+                    :key="ci"
+                    class="gallery-chain__item"
+                    :src="src.thumb"
+                    :style="{ transitionDelay: ci * 40 + 'ms' }"
+                    draggable="false"
+                    @click="openDetail(index)"
+                  />
+                </div>
+                <span v-if="item.group.length" class="gallery-chain__stack" aria-hidden="true"></span>
+              </div>
             </TransitionGroup>
           </div>
         </div>
@@ -1257,6 +1274,14 @@ async function loadContent() {
       thumb: resolveGallery(it.thumb),
       preview: resolveGallery(it.preview),
       highResSrc: resolveGallery(it.highResSrc),
+      // 链身只取缩略图和原图地址，其余展示属性一律不用，全跟链头走
+      group: (it.group || []).map((g) => {
+        const key = typeof g === 'string' ? g : g.thumb
+        return {
+          thumb: resolveGallery(key),
+          highResSrc: resolveGallery(typeof g === 'string' ? key : g.highResSrc || key),
+        }
+      }),
     }))
     notes.value = data.notes || []
     doujinProjects.value = (data.doujinProjects || []).map((p) => ({
@@ -1715,14 +1740,12 @@ function detailRandom() {
 
 function detailDownload() {
   const item = filteredGalleryItems.value[detailIndex.value]
-  if (!item || !item.highResSrc) return
-  const a = document.createElement('a')
-  a.href = item.highResSrc
-  a.target = '_blank'
-  a.download = item.title || 'image'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  if (!item) return
+  // 组图把链头和链身的原图直链一起打开，普通图只开自己
+  const srcs = [item.highResSrc, ...(item.group || []).map((g) => g.highResSrc)].filter(Boolean)
+  for (const href of srcs) {
+    window.open(href, '_blank', 'noopener')
+  }
 }
 
 function updateDpDetailVertical() {
@@ -2315,6 +2338,67 @@ function onTorchClick(axis) {
   -webkit-user-drag: none;
   user-drag: none;
   transition: border-color 0.15s ease;
+}
+
+/* 组图链：链头下方露两条错位边提示底下还有图，hover 时链身向下拉出，宽度锁链头宽 */
+.gallery-cell {
+  position: relative;
+  display: inline-flex;
+}
+
+.gallery-chain__stack {
+  position: absolute;
+  top: 100%;
+  left: 4px;
+  right: 4px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  background: #1a1a1a;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.gallery-cell:hover .gallery-chain__stack {
+  opacity: 0;
+}
+
+.gallery-chain {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  translate: 0 -10px;
+  pointer-events: none;
+  transition: opacity 0.25s ease, translate 0.25s ease;
+}
+
+.gallery-cell:hover .gallery-chain {
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
+}
+
+.gallery-chain__item {
+  display: block;
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+/* 链头被 hover 时整条链身恒定单线蓝框，链头自己是双线 */
+.gallery-cell:hover .gallery-chain__item {
+  border-color: var(--color-text-cyan);
 }
 
 /* 缩略图分档：只在大视口之外生效，档位从小到大覆盖（同特异性，后写的赢）。
