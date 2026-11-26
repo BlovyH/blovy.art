@@ -369,13 +369,13 @@
   width="100%"
   :initial-z-index="Z.DP"
   no-keep-in-view
+          @mouseenter="onDoujinEnter"
+          @mouseleave="onDoujinLeave"
           @dragend="onDoujinDragEnd"
           @animationend="onDpChargeEnd"
         >
           <div
             class="doujin-collapsible"
-            @mouseenter="onDoujinEnter"
-            @mouseleave="onDoujinLeave"
           >
             <div class="doujin-header" @mousedown.stop="handleDoujinDrag">
               <span class="doujin-title-text">DOUJIN PROJECTS</span>
