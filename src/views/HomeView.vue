@@ -2337,7 +2337,12 @@ function onTorchClick(axis) {
   user-select: none;
   -webkit-user-drag: none;
   user-drag: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, translate 0.25s ease;
+}
+
+/* hover 链头时链身展开，链头同步轻微下沉 */
+.gallery-cell.has-chain:hover .gallery-thumb {
+  translate: 0 4px;
 }
 
 /* 组图链：链头下方露两条错位边提示底下还有图，hover 时链身向下拉出，宽度锁链头宽 */
@@ -2366,13 +2371,13 @@ function onTorchClick(axis) {
 
 .gallery-chain {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   left: 0;
   width: 100%;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   opacity: 0;
   translate: 0 -10px;
   pointer-events: none;
